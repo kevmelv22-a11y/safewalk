@@ -8,6 +8,15 @@ import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { convex, tokenStorage } from '../src/lib/convex';
 import { startSosRetry } from '../src/lib/sos';
 import { useTheme } from '../src/lib/theme';
+import { useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import { configurePurchases } from '../src/lib/purchases';
+
+function PurchasesBootstrap() {
+  const status = useQuery(api.billing.status);
+  useEffect(() => { if (status?.userId) configurePurchases(status.userId).catch(() => {}); }, [status?.userId]);
+  return null;
+}
 
 export default function RootLayout() {
   const t = useTheme();
@@ -23,6 +32,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ConvexAuthProvider client={convex} storage={tokenStorage}>
+        <PurchasesBootstrap />
         <StatusBar style="auto" />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />

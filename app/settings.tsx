@@ -8,6 +8,7 @@ import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
 import { SafetySettingsForm } from '../src/components/SafetySettingsForm';
 import { errorNl } from '../src/lib/convex';
 import { stopSharing } from '../src/lib/location';
+import { resetPurchases } from '../src/lib/purchases';
 
 export default function Settings() {
   const { signOut } = useAuthActions();
@@ -29,7 +30,7 @@ export default function Settings() {
         <P>Privacy</P>
         <P muted>Locaties worden uiterlijk 24 uur na het einde van een reis automatisch verwijderd (en nooit langer dan 3 dagen bewaard). Beheerders kunnen je locatie niet inzien.</P>
         <Button title="Mijn locatiegeschiedenis nu verwijderen" variant="secondary" onPress={() => deleteHistory().then((n) => setMsg(`${n} locatiepunten verwijderd.`)).catch((e) => setMsg(errorNl(e)))} />
-        <Button title="Uitloggen" variant="secondary" onPress={async () => { await stopSharing(); await signOut(); router.replace('/welcome'); }} />
+        <Button title="Uitloggen" variant="secondary" onPress={async () => { await stopSharing(); await resetPurchases(); await signOut(); router.replace('/welcome'); }} />
         <Button title="Account verwijderen" variant="danger" onPress={confirmDelete} />
       </Card>
       <Card><P>Premium (binnenkort)</P><P muted>SOS, 2 contacten, tijdelijk delen en basis-check-ins blijven altijd gratis.</P></Card>

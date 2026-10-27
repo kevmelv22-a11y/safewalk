@@ -34,6 +34,8 @@ export default function Dashboard() {
         </Card>
       ))}
       <Button title="Vertrouwde contacten" variant="secondary" onPress={() => router.push('/contacts')} />
+      <Button title="Geschiedenis" variant="secondary" onPress={() => router.push('/history')} />
+      <Button title="⭐ Premium" variant="secondary" onPress={() => router.push('/premium')} />
       <Button title="Instellingen & privacy" variant="secondary" onPress={() => router.push('/settings')} />
       <Disclaimer />
     </Screen>

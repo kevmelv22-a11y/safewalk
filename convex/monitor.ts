@@ -66,6 +66,14 @@ export const purge = internalMutation({ args: {}, handler: async (ctx) => {
   }
   for (const a of await ctx.db.query('alerts').collect())
     if (a._creationTime < now - 30 * 24 * 3600_000 && a.lat !== undefined) await ctx.db.patch(a._id, { lat: undefined, lng: undefined, accuracyM: undefined });
+  // sessie-metadata maximaal 90 dagen bewaren
+  for (const s of await ctx.db.query('sessions').collect()) {
+    if (s.endedAt === undefined || s.endedAt > now - 90 * 24 * 3600_000) continue;
+    for (const x of await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()) await ctx.db.delete(x._id);
+    for (const x of await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()) await ctx.db.delete(x._id);
+    for (const x of await ctx.db.query('motionSignals').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()) await ctx.db.delete(x._id);
+    await ctx.db.delete(s._id);
+  }
   for (const r of await ctx.db.query('rateLimits').collect()) if (r.windowStart < now - 24 * 3600_000) await ctx.db.delete(r._id);
   return n;
 } });

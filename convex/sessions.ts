@@ -4,7 +4,7 @@ import { getAuthUserId } from '@convex-dev/auth/server';
 import type { Id } from './_generated/dataModel';
 import { queuePush } from './notify';
 import { haversineMeters, ALMOST_ARRIVED_M } from './geo';
-import { acceptedContact, audit, canViewSession, displayName, fail, rateLimit, requireUser, sessionOpen } from './lib';
+import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireUser, sessionOpen } from './lib';
 
 const H = 3600_000;
 
@@ -40,7 +40,10 @@ export const start = mutation({
     for (const s of await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).collect())
       if (s.endedAt === undefined) await closeSession(ctx, s._id, 'ended', 'replaced');
     const profile = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
-    const grace = Math.min(30, Math.max(1, a.graceMinutes ?? profile?.defaultGraceMinutes ?? 5));
+    if (profile?.restricted) fail('RESTRICTED');
+    const premium = await isPremium(ctx, uid);
+    if (a.graceMinutes !== undefined && a.graceMinutes !== 5 && !premium) fail('PREMIUM_REQUIRED');
+    const grace = Math.min(30, Math.max(1, a.graceMinutes ?? (premium ? profile?.defaultGraceMinutes : 5) ?? 5));
     const id = await ctx.db.insert('sessions', { userId: uid, destinationLabel: dest, destinationLat: a.destLat, destinationLng: a.destLng,
       expectedArrival: a.expectedArrival, status: 'active', expiresAt: a.expectedArrival + 2 * H });
     for (const vid of new Set(a.viewerIds)) await ctx.db.insert('sessionViewers', { sessionId: id, viewerId: vid });
@@ -80,6 +83,7 @@ export const respondCheckIn = mutation({ args: { sessionId: v.id('sessions'), ex
   if (!c) fail('CHECK_IN_NOT_FOUND');
   if (a.extendMinutes > 0) {
     if (a.extendMinutes > 60 || c!.extensions >= 3) fail('EXTENSION_NOT_ALLOWED');
+    if (![10, 20].includes(a.extendMinutes) && !(await isPremium(ctx, uid))) fail('PREMIUM_REQUIRED'); // aanpasbare check-ins = premium
     const due = Math.max(c!.dueAt, Date.now()) + a.extendMinutes * 60_000;
     await ctx.db.patch(c!._id, { dueAt: due, extensions: c!.extensions + 1, status: 'pending', reminderSentAt: undefined });
     await ctx.db.patch(s!._id, { expectedArrival: due, expiresAt: Math.max(s!.expiresAt, due + 2 * H), status: 'active' });
@@ -155,4 +159,14 @@ export const locations = query({ args: { sessionId: v.id('sessions') }, handler:
   if (!(await canViewSession(ctx, sessionId, uid))) return [];
   const rows = await ctx.db.query('locations').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).order('desc').take(500);
   return rows.reverse().map((r) => ({ lat: r.lat, lng: r.lng, accuracyM: r.accuracyM ?? null, recordedAt: r.recordedAt }));
+} });
+
+/** Sessiegeschiedenis (alleen metadata, geen locaties). Gratis: 7 dagen; Premium: 90 dagen. */
+export const history = query({ args: {}, handler: async (ctx) => {
+  const uid = await getAuthUserId(ctx); if (!uid) return null;
+  const premium = await isPremium(ctx, uid);
+  const since = Date.now() - (premium ? 90 : 7) * 24 * H;
+  const rows = await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(premium ? 200 : 20);
+  return { premium, days: premium ? 90 : 7, sessions: rows.filter((r) => r._creationTime >= since).map((r) => ({
+    id: r._id, destination: r.destinationLabel, startedAt: r._creationTime, endedAt: r.endedAt ?? null, status: r.status })) };
 } });

@@ -18,6 +18,7 @@ export const list = query({ args: {}, handler: async (ctx) => {
 export const createInvitation = mutation({ args: {}, handler: async (ctx) => {
   const uid = await requireUser(ctx);
   await rateLimit(ctx, `invite:${uid}`, 20, 24 * 3600_000);
+  if ((await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first())?.restricted) fail('RESTRICTED');
   const token = randomToken();
   await ctx.db.insert('invitations', { inviterId: uid, tokenHash: await sha256Hex(token), status: 'pending', expiresAt: Date.now() + 7 * 24 * 3600_000 });
   await audit(ctx, uid, 'invitation.created');

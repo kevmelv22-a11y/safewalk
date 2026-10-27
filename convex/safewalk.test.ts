@@ -336,3 +336,48 @@ describe('bewegingsdetectie', () => {
     await expect(friend.as.mutation(api.motion.acknowledge, { signalId: sigs[0]._id })).rejects.toThrow(/NOT_FOUND/);
   });
 });
+
+describe('premium / RevenueCat', () => {
+  const ev = (userId: string, type: string, id: string, extra = {}) => ({ event: { id, type, app_user_id: userId, entitlement_ids: ['premium'], expiration_at_ms: Date.now() + 30 * 24 * 3600_000, ...extra } });
+  const post = (t: ReturnType<typeof convexTest>, body: unknown, auth?: string) =>
+    t.fetch('/revenuecat/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: auth } : {}) }, body: JSON.stringify(body) });
+  beforeEach(() => { process.env.REVENUECAT_WEBHOOK_SECRET = 'test-secret'; });
+  afterEach(() => { delete process.env.REVENUECAT_WEBHOOK_SECRET; });
+  test('webhook weigert zonder/onjuist geheim', async () => {
+    const { t, owner } = await setup();
+    expect((await post(t, ev(owner.id, 'INITIAL_PURCHASE', 'e1'))).status).toBe(401);
+    expect((await post(t, ev(owner.id, 'INITIAL_PURCHASE', 'e1'), 'Bearer fout')).status).toBe(401);
+    expect((await owner.as.query(api.billing.status, {}))!.premium).toBe(false);
+  });
+  test('aankoop → premium, idempotent, verlopen → gratis; onbekende gebruiker genegeerd', async () => {
+    const { t, owner } = await setup();
+    expect((await post(t, ev(owner.id, 'INITIAL_PURCHASE', 'e1'), 'Bearer test-secret')).status).toBe(200);
+    expect((await owner.as.query(api.billing.status, {}))!.premium).toBe(true);
+    expect(await (await post(t, ev(owner.id, 'INITIAL_PURCHASE', 'e1'), 'test-secret')).json()).toEqual({ result: 'duplicate' });
+    await post(t, ev(owner.id, 'CANCELLATION', 'e2'), 'Bearer test-secret');
+    expect((await owner.as.query(api.billing.status, {}))!.premium).toBe(true); // tot einde periode
+    await post(t, ev(owner.id, 'EXPIRATION', 'e3'), 'Bearer test-secret');
+    expect((await owner.as.query(api.billing.status, {}))!.premium).toBe(false);
+    expect(await (await post(t, ev('geen-user', 'INITIAL_PURCHASE', 'e4'), 'Bearer test-secret')).json()).toEqual({ result: 'unknown_user' });
+  });
+  test('feature gating: aanpasbare check-ins en respijt alleen premium; geschiedenis 7 vs 90 dagen', async () => {
+    const { t, owner, friend, connect, startTrip } = await setup();
+    await connect(owner, friend); const sid = await startTrip([friend.id]);
+    await expect(owner.as.mutation(api.sessions.respondCheckIn, { sessionId: sid, extendMinutes: 15 })).rejects.toThrow(/PREMIUM_REQUIRED/);
+    await expect(owner.as.mutation(api.profiles.update, { defaultGraceMinutes: 10 })).rejects.toThrow(/PREMIUM_REQUIRED/);
+    await owner.as.mutation(api.sessions.respondCheckIn, { sessionId: sid, extendMinutes: 10 }); // basis blijft gratis
+    expect((await owner.as.query(api.sessions.history, {}))!.days).toBe(7);
+    await post(t, ev(owner.id, 'INITIAL_PURCHASE', 'p1'), 'Bearer test-secret');
+    await owner.as.mutation(api.sessions.respondCheckIn, { sessionId: sid, extendMinutes: 15 });
+    await owner.as.mutation(api.profiles.update, { defaultGraceMinutes: 10 });
+    expect((await owner.as.query(api.sessions.history, {}))!.days).toBe(90);
+  });
+  test('SOS blijft gratis en werkt ook voor beperkte accounts', async () => {
+    const { t, owner, friend, connect } = await setup();
+    await connect(owner, friend);
+    await t.run(async (ctx) => { const p = (await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', owner.id)).first())!; await ctx.db.patch(p._id, { restricted: true }); });
+    await expect(owner.as.mutation(api.sessions.start, { destination: 'X', expectedArrival: Date.now() + 30 * MIN, viewerIds: [friend.id] })).rejects.toThrow(/RESTRICTED/);
+    await expect(owner.as.mutation(api.contacts.createInvitation, {})).rejects.toThrow(/RESTRICTED/);
+    expect(await owner.as.mutation(api.sos.trigger, { clientRef: 'restricted-sos' })).toBeTruthy();
+  });
+});

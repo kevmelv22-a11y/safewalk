@@ -68,6 +68,7 @@ export default defineSchema({
     kind: v.union(v.literal('stationary'), v.literal('deviation'), v.literal('no_data')),
     status: v.union(v.literal('open'), v.literal('acknowledged')),
   }).index('by_session', ['sessionId']),
+  billingEvents: defineTable({ eventId: v.string(), type: v.string(), userId: v.optional(v.id('users')) }).index('by_event', ['eventId']),
   errorLogs: defineTable({ source: v.string(), message: v.string(), userId: v.optional(v.id('users')) }),
   pushTokens: defineTable({ userId: v.id('users'), token: v.string(), platform: v.optional(v.string()) })
     .index('by_user', ['userId']).index('by_token', ['token']),

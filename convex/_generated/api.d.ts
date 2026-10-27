@@ -10,6 +10,7 @@
 
 import type * as account from "../account.js";
 import type * as auth from "../auth.js";
+import type * as billing from "../billing.js";
 import type * as contacts from "../contacts.js";
 import type * as crons from "../crons.js";
 import type * as geo from "../geo.js";
@@ -32,6 +33,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   account: typeof account;
   auth: typeof auth;
+  billing: typeof billing;
   contacts: typeof contacts;
   crons: typeof crons;
   geo: typeof geo;
