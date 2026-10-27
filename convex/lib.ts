@@ -48,6 +48,8 @@ export async function canViewSession(ctx: QueryCtx, sessionId: Id<'sessions'>, u
   if (!v || v.revokedAt !== undefined) return null;
   if (!(await acceptedContact(ctx, s.userId, uid))) return null;
   if (await isBlockedBetween(ctx, s.userId, uid)) return null;
+  const vp = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+  if (vp?.restricted) return null; // beperkt account (bijv. na misbruikmelding) kijkt nergens mee
   return s;
 }
 

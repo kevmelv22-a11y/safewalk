@@ -413,3 +413,34 @@ describe('AI-assistent', () => {
     expect((await owner.as.action(api.assistant.ask, msg('hoi'))).reply).toMatch(/niet bereikbaar/);
   });
 });
+
+describe('adminpaneel', () => {
+  test('alleen admins; geen locatiegegevens in admin-output', async () => {
+    const { t, owner, friend, admin, connect, startTrip, ping } = await setup();
+    await connect(owner, friend); const sid = await startTrip([friend.id]); await ping(sid, 52.123456);
+    for (const fn of [api.admin.users, api.admin.reports, api.admin.stats, api.admin.errors, api.admin.subscriptions, api.admin.auditLog])
+      await expect(owner.as.query(fn, {})).rejects.toThrow(/FORBIDDEN/);
+    const dump = JSON.stringify(await Promise.all([api.admin.users, api.admin.reports, api.admin.stats, api.admin.errors, api.admin.subscriptions, api.admin.auditLog].map((fn) => admin.as.query(fn, {}))));
+    expect(dump).not.toMatch(/52\.123456|Thuis|lat|lng/);
+    expect((await admin.as.query(api.admin.stats, {})).users).toBe(6);
+    expect(await admin.as.query(api.sessions.locations, { sessionId: sid })).toHaveLength(0);
+  });
+  test('account beperken trekt meekijktoegang direct in; SOS blijft', async () => {
+    const { owner, friend, admin, connect, startTrip, ping } = await setup();
+    await connect(owner, friend); const sid = await startTrip([friend.id]); await ping(sid);
+    await expect(owner.as.mutation(api.admin.setRestricted, { userId: friend.id, restricted: true })).rejects.toThrow(/FORBIDDEN/);
+    await admin.as.mutation(api.admin.setRestricted, { userId: friend.id, restricted: true, reason: 'melding' });
+    expect(await friend.as.query(api.sessions.locations, { sessionId: sid })).toHaveLength(0);
+    expect(await friend.as.mutation(api.sos.trigger, { clientRef: 'f-sos' })).toBeTruthy();
+  });
+  test('meldingstatus aanpassen en grantAdmin via CLI', async () => {
+    const { t, owner, friend, admin } = await setup();
+    await owner.as.mutation(api.contacts.report, { userId: friend.id, reason: 'harassment' });
+    const [r] = await admin.as.query(api.admin.reports, {});
+    expect(r.reportedName).toBe('friend');
+    await admin.as.mutation(api.admin.setReportStatus, { reportId: r._id, status: 'closed' });
+    expect((await admin.as.query(api.admin.stats, {})).openReports).toBe(0);
+    await t.mutation(internal.admin.grantAdmin, { email: 'owner@test.nl' });
+    expect(await owner.as.query(api.admin.amIAdmin, {})).toBe(true);
+  });
+});

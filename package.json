@@ -46,10 +46,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "convex:dev": "convex dev",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p convex && tsc --noEmit -p admin",
     "test": "jest",
     "test:convex": "vitest run",
-    "test:all": "npm run typecheck && jest && vitest run"
+    "test:all": "npm run typecheck && jest && vitest run",
+    "admin:dev": "npm --prefix admin run dev",
+    "admin:build": "npm --prefix admin run build"
   },
   "private": true,
   "jest": {
@@ -58,6 +60,7 @@
       "**/__tests__/**/*.test.ts?(x)"
     ],
     "testPathIgnorePatterns": [
+      "/admin/",
       "/node_modules/",
       "/convex/"
     ]
