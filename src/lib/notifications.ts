@@ -35,3 +35,7 @@ export async function scheduleCheckInReminder(dueAt: Date) {
   });
 }
 export const cancelReminders = () => Notifications.cancelAllScheduledNotificationsAsync();
+
+/** Directe lokale melding op dit toestel (bijv. "Reis gestart"). */
+export const localNotify = (title: string, body: string) =>
+  Notifications.scheduleNotificationAsync({ content: { title, body }, trigger: null }).catch(() => undefined);

@@ -32,7 +32,7 @@ export default defineSchema({
     destinationLat: v.optional(v.number()), destinationLng: v.optional(v.number()),
     expectedArrival: v.number(),
     status: v.union(v.literal('active'), v.literal('ended'), v.literal('expired'), v.literal('alert')),
-    endedAt: v.optional(v.number()), expiresAt: v.number(),
+    endedAt: v.optional(v.number()), expiresAt: v.number(), almostNotifiedAt: v.optional(v.number()),
   }).index('by_user', ['userId']).index('by_open', ['endedAt']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
@@ -43,7 +43,7 @@ export default defineSchema({
   checkIns: defineTable({
     sessionId: v.id('sessions'), userId: v.id('users'), dueAt: v.number(), graceMinutes: v.number(), extensions: v.number(),
     status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('missed'), v.literal('cancelled')),
-    respondedAt: v.optional(v.number()), escalatedAt: v.optional(v.number()),
+    respondedAt: v.optional(v.number()), escalatedAt: v.optional(v.number()), reminderSentAt: v.optional(v.number()),
   }).index('by_session', ['sessionId']).index('by_status_due', ['status', 'dueAt']),
   alerts: defineTable({
     userId: v.id('users'), sessionId: v.optional(v.id('sessions')),
@@ -51,10 +51,17 @@ export default defineSchema({
     lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()),
     status: v.union(v.literal('open'), v.literal('cancelled'), v.literal('resolved')),
   }).index('by_client_ref', ['clientRef']).index('by_user', ['userId']),
-  deliveries: defineTable({
-    alertId: v.id('alerts'), recipientId: v.id('users'),
-    status: v.union(v.literal('queued'), v.literal('sent'), v.literal('failed'), v.literal('no_token')), detail: v.optional(v.string()),
-  }).index('by_alert', ['alertId']).index('by_recipient', ['recipientId']),
+  pushMessages: defineTable({
+    recipientId: v.id('users'),
+    kind: v.union(v.literal('sos'), v.literal('missed_check_in'), v.literal('trip_started'), v.literal('almost_arrived'),
+      v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check')),
+    alertId: v.optional(v.id('alerts')), sessionId: v.optional(v.id('sessions')),
+    title: v.string(), body: v.string(), data: v.optional(v.any()),
+    // queued → sent (ticket ok) → delivered (receipt ok: overgedragen aan Apple/Google) | failed | no_token | unknown
+    status: v.union(v.literal('queued'), v.literal('sent'), v.literal('delivered'), v.literal('failed'), v.literal('no_token'), v.literal('unknown')),
+    ticketIds: v.array(v.string()), detail: v.optional(v.string()), attempts: v.number(),
+  }).index('by_alert', ['alertId']).index('by_recipient', ['recipientId']).index('by_session', ['sessionId']),
+  errorLogs: defineTable({ source: v.string(), message: v.string(), userId: v.optional(v.id('users')) }),
   pushTokens: defineTable({ userId: v.id('users'), token: v.string(), platform: v.optional(v.string()) })
     .index('by_user', ['userId']).index('by_token', ['token']),
   auditLogs: defineTable({ actorId: v.optional(v.id('users')), action: v.string(), targetId: v.optional(v.string()), meta: v.optional(v.any()) }),

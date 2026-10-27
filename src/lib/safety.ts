@@ -77,11 +77,19 @@ export function haversineMeters(a: { lat: number; lng: number }, b: { lat: numbe
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/** Eerlijke statuslabels: alleen 'verstuurd', 'mislukt' of 'onbekend' – nooit 'gelezen' of 'gegarandeerd'. */
 export const deliveryLabel: Record<string, string> = {
-  queued: 'In wachtrij',
-  sent: 'Verstuurd naar pushdienst (aflevering niet gegarandeerd)',
-  failed: 'Versturen mislukt',
-  no_token: 'Contact heeft geen meldingen ingeschakeld',
+  queued: 'Wordt verstuurd…',
+  sent: 'Verstuurd (wacht op bevestiging pushdienst)',
+  delivered: 'Verstuurd – bevestigd door pushdienst (niet per se gelezen)',
+  failed: 'Mislukt',
+  no_token: 'Mislukt – contact heeft geen meldingen ingeschakeld',
+  unknown: 'Onbekend – geen bevestiging ontvangen',
+};
+export const deliveryIcon = (s: string) => (s === 'delivered' || s === 'sent' ? '✅' : s === 'queued' ? '⏳' : s === 'unknown' ? '❔' : '❌');
+export const notificationKindLabel: Record<string, string> = {
+  sos: 'SOS', missed_check_in: 'Check-in gemist', trip_started: 'Reis gestart', almost_arrived: 'Bijna aangekomen',
+  check_in_required: 'Check-in vereist', trip_ended: 'Reis beëindigd', motion_check: 'Extra check-in',
 };
 
 export function mapErrorNl(msg: string | undefined): string {

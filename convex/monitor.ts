@@ -1,13 +1,21 @@
 import { internalMutation } from './_generated/server';
-import { internal } from './_generated/api';
+import { queuePush, mapsLink } from './notify';
 import { closeSession } from './sessions';
-import { audit, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
+import { audit, displayName, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
 
 /** Elke minuut (cron): verlopen sessies sluiten en gemiste check-ins escaleren — onafhankelijk van de app. */
 export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) => {
   const now = Date.now();
   for (const s of await ctx.db.query('sessions').withIndex('by_open', (q) => q.eq('endedAt', undefined)).collect())
     if (s.expiresAt <= now) await closeSession(ctx, s._id, 'expired');
+
+  // Check-in vereist: herinnering aan de gebruiker zelf zodra de verwachte aankomst verstreken is
+  for (const c of await ctx.db.query('checkIns').withIndex('by_status_due', (q) => q.eq('status', 'pending').lt('dueAt', now)).collect()) {
+    if (c.reminderSentAt !== undefined) continue;
+    await ctx.db.patch(c._id, { reminderSentAt: now });
+    await queuePush(ctx, { kind: 'check_in_required', sessionId: c.sessionId, recipients: [c.userId], title: 'Alles goed?',
+      body: `Je verwachte aankomsttijd is verstreken. Bevestig binnen ${c.graceMinutes} min dat je veilig bent, of verleng.` });
+  }
 
   const due = await ctx.db.query('checkIns').withIndex('by_status_due', (q) => q.eq('status', 'pending').lt('dueAt', now)).collect();
   let escalated = 0;
@@ -20,10 +28,13 @@ export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) 
     const last = await ctx.db.query('locations').withIndex('by_session', (q) => q.eq('sessionId', s._id)).order('desc').first();
     const alertId = await ctx.db.insert('alerts', { userId: s.userId, sessionId: s._id, kind: 'missed_check_in', status: 'open',
       lat: last?.lat, lng: last?.lng, accuracyM: last?.accuracyM, locationAt: last?.recordedAt });
-    for (const vw of await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect())
-      if (vw.revokedAt === undefined) await ctx.db.insert('deliveries', { alertId, recipientId: vw.viewerId, status: 'queued' });
+    const viewers = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
+    const name = await displayName(ctx, s.userId); const link = mapsLink(last?.lat, last?.lng);
+    await queuePush(ctx, { kind: 'missed_check_in', alertId, sessionId: s._id, recipients: viewers, title: `⚠️ ${name} heeft niet ingecheckt`,
+      body: `${name} heeft niet op tijd bevestigd veilig te zijn. ${link ? `Laatst bekende locatie: ${link}` : 'Geen recente locatie.'} Probeer contact op te nemen.` });
+    await queuePush(ctx, { kind: 'check_in_required', sessionId: s._id, recipients: [s.userId], title: 'Check-in gemist',
+      body: 'Je contacten zijn gewaarschuwd. Open SafeWalk om te bevestigen dat alles goed is.' });
     await audit(ctx, undefined, 'check_in.escalated', s._id);
-    await ctx.scheduler.runAfter(0, internal.push.sendAlert, { alertId });
     escalated++;
   }
   return escalated;

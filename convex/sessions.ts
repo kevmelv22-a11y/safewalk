@@ -2,12 +2,21 @@ import { mutation, query, MutationCtx } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import type { Id } from './_generated/dataModel';
+import { queuePush } from './notify';
+import { haversineMeters, ALMOST_ARRIVED_M } from './geo';
 import { acceptedContact, audit, canViewSession, displayName, fail, rateLimit, requireUser, sessionOpen } from './lib';
 
 const H = 3600_000;
 
-async function closeSession(ctx: MutationCtx, id: Id<'sessions'>, status: 'ended' | 'expired') {
+async function closeSession(ctx: MutationCtx, id: Id<'sessions'>, status: 'ended' | 'expired', reason: 'stopped' | 'arrived' | 'expired' | 'replaced' = status === 'expired' ? 'expired' : 'stopped') {
   const now = Date.now();
+  const s = await ctx.db.get(id);
+  const active = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
+  if (s && active.length && reason !== 'replaced') {
+    const name = await displayName(ctx, s.userId);
+    const body = { arrived: `${name} heeft bevestigd veilig te zijn aangekomen.`, stopped: `${name} heeft het delen van de reis gestopt.`, expired: `De reis van ${name} is verlopen; locatie wordt niet meer gedeeld.` }[reason];
+    await queuePush(ctx, { kind: 'trip_ended', sessionId: id, recipients: active, title: 'Reis beëindigd', body });
+  }
   await ctx.db.patch(id, { status, endedAt: now });
   for (const c of await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
     if (c.status === 'pending') await ctx.db.patch(c._id, { status: 'cancelled' });
@@ -29,13 +38,16 @@ export const start = mutation({
     for (const vid of a.viewerIds) if (!(await acceptedContact(ctx, uid, vid))) fail('VIEWER_NOT_TRUSTED');
     // maximaal één open sessie
     for (const s of await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).collect())
-      if (s.endedAt === undefined) await closeSession(ctx, s._id, 'ended');
+      if (s.endedAt === undefined) await closeSession(ctx, s._id, 'ended', 'replaced');
     const profile = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
     const grace = Math.min(30, Math.max(1, a.graceMinutes ?? profile?.defaultGraceMinutes ?? 5));
     const id = await ctx.db.insert('sessions', { userId: uid, destinationLabel: dest, destinationLat: a.destLat, destinationLng: a.destLng,
       expectedArrival: a.expectedArrival, status: 'active', expiresAt: a.expectedArrival + 2 * H });
     for (const vid of new Set(a.viewerIds)) await ctx.db.insert('sessionViewers', { sessionId: id, viewerId: vid });
     await ctx.db.insert('checkIns', { sessionId: id, userId: uid, dueAt: a.expectedArrival, graceMinutes: grace, extensions: 0, status: 'pending' });
+    const name = await displayName(ctx, uid);
+    await queuePush(ctx, { kind: 'trip_started', sessionId: id, recipients: a.viewerIds, title: `${name} deelt een reis met je`,
+      body: `${name} is onderweg naar ${dest} (verwacht ${new Date(a.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' })}). Je kunt de locatie volgen tot de reis eindigt.` });
     await audit(ctx, uid, 'session.started', id, { viewers: a.viewerIds.length });
     return id;
   },
@@ -69,13 +81,13 @@ export const respondCheckIn = mutation({ args: { sessionId: v.id('sessions'), ex
   if (a.extendMinutes > 0) {
     if (a.extendMinutes > 60 || c!.extensions >= 3) fail('EXTENSION_NOT_ALLOWED');
     const due = Math.max(c!.dueAt, Date.now()) + a.extendMinutes * 60_000;
-    await ctx.db.patch(c!._id, { dueAt: due, extensions: c!.extensions + 1, status: 'pending' });
+    await ctx.db.patch(c!._id, { dueAt: due, extensions: c!.extensions + 1, status: 'pending', reminderSentAt: undefined });
     await ctx.db.patch(s!._id, { expectedArrival: due, expiresAt: Math.max(s!.expiresAt, due + 2 * H), status: 'active' });
     await audit(ctx, uid, 'check_in.extended', a.sessionId, { minutes: a.extendMinutes });
     return due;
   }
   await ctx.db.patch(c!._id, { status: 'confirmed', respondedAt: Date.now() });
-  await closeSession(ctx, s!._id, 'ended');
+  await closeSession(ctx, s!._id, 'ended', 'arrived');
   await audit(ctx, uid, 'check_in.confirmed', a.sessionId);
   return null;
 } });
@@ -89,6 +101,14 @@ export const addLocation = mutation({
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180 || (a.accuracyM ?? 0) < 0) fail('BAD_REQUEST');
     await rateLimit(ctx, `loc:${uid}`, 240, H);
     await ctx.db.insert('locations', { ...a, userId: uid, recordedAt: Math.min(a.recordedAt, Date.now()) });
+    // Bijna aangekomen (eenmalig per sessie)
+    if (s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.almostNotifiedAt === undefined &&
+        haversineMeters(a, { lat: s!.destinationLat, lng: s!.destinationLng }) <= ALMOST_ARRIVED_M) {
+      await ctx.db.patch(s!._id, { almostNotifiedAt: Date.now() });
+      const viewers = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s!._id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
+      const name = await displayName(ctx, uid);
+      await queuePush(ctx, { kind: 'almost_arrived', sessionId: s!._id, recipients: viewers, title: `${name} is bijna aangekomen`, body: `${name} is minder dan ${ALMOST_ARRIVED_M} m van ${s!.destinationLabel}.` });
+    }
   },
 });
 
@@ -121,7 +141,9 @@ export const get = query({ args: { sessionId: v.id('sessions') }, handler: async
   const checkIn = (await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).pop() ?? null;
   const viewers = isOwner ? await Promise.all((await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect())
     .map(async (x) => ({ viewerId: x.viewerId, revoked: x.revokedAt !== undefined, name: await displayName(ctx, x.viewerId) }))) : [];
-  return { session: s, isOwner, ownerName: await displayName(ctx, s.userId), checkIn, viewers };
+  const notifications = isOwner ? await Promise.all((await ctx.db.query('pushMessages').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect())
+    .filter((m) => m.recipientId !== uid).map(async (m) => ({ id: m._id, kind: m.kind, status: m.status, name: await displayName(ctx, m.recipientId) }))) : [];
+  return { session: s, isOwner, ownerName: await displayName(ctx, s.userId), checkIn, viewers, notifications };
 } });
 
 /** Live locaties; lege lijst als geen toegang. Admins krijgen GEEN uitzondering. */

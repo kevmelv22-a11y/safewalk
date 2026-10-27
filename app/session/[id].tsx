@@ -8,7 +8,7 @@ import { LiveMap } from '../../src/components/LiveMap';
 import { SosButton } from '../../src/components/SosButton';
 import { errorNl } from '../../src/lib/convex';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
-import { checkInPhase, formatCountdown } from '../../src/lib/safety';
+import { checkInPhase, deliveryIcon, deliveryLabel, formatCountdown, notificationKindLabel } from '../../src/lib/safety';
 import { stopSharing } from '../../src/lib/location';
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 
@@ -59,6 +59,12 @@ export default function MySession() {
           <Button key={'r' + v.viewerId} title={`Toegang intrekken: ${v.name}`} variant="secondary" onPress={() => revokeViewer({ sessionId: id, viewerId: v.viewerId }).catch((e) => setErr(errorNl(e)))} />
         ))}
       </Card>
+      {data.notifications.length > 0 && (
+        <Card>
+          <P>Meldingen aan je contacten</P>
+          {data.notifications.map((n) => <P key={n.id} muted>{deliveryIcon(n.status)} {notificationKindLabel[n.kind]} → {n.name}: {deliveryLabel[n.status]}</P>)}
+        </Card>
+      )}
       {err && <Notice kind="danger">{err}</Notice>}
       {!ended && <SosButton sessionId={id} />}
       {!ended && <Button title="Stop delen en beëindig reis" variant="danger" onPress={stop} />}

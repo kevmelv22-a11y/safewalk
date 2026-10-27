@@ -33,8 +33,21 @@ async function setup() {
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
+let receiptStatus: 'ok' | 'error' | 'missing' = 'ok';
+let n = 0;
+const okFetch = async (url: string, init: { body: string }) => {
+  const body = JSON.parse(init.body);
+  if (url.endsWith('/getReceipts')) {
+    const data = receiptStatus === 'missing' ? {} : Object.fromEntries(body.ids.map((id: string) => [id, receiptStatus === 'ok' ? { status: 'ok' } : { status: 'error', message: 'MessageRateExceeded', details: { error: 'MessageRateExceeded' } }]));
+    return new Response(JSON.stringify({ data }), { status: 200 });
+  }
+  return new Response(JSON.stringify({ data: body.map(() => ({ status: 'ok', id: `ticket-${++n}` })) }), { status: 200 });
+};
+const sends = () => fetchMock.mock.calls.filter((c) => String(c[0]).endsWith('/send'));
+const sentBodies = () => sends().map((c) => String(c[1].body)).join('\n');
 beforeEach(() => {
-  fetchMock = vi.fn(async (_url: string, init: { body: string }) => new Response(JSON.stringify({ data: JSON.parse(init.body).map(() => ({ status: 'ok' })) }), { status: 200 }));
+  receiptStatus = 'ok';
+  fetchMock = vi.fn(okFetch);
   vi.stubGlobal('fetch', fetchMock);
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -149,11 +162,11 @@ describe('SOS', () => {
     // idempotent: offline-wachtrij kan opnieuw proberen
     expect(await owner.as.mutation(api.sos.trigger, { clientRef: 'ref-1' })).toBe(alertId);
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][1].body).toContain('52.3,4.9');
+    expect(sends()).toHaveLength(1);
+    expect(sentBodies()).toContain('52.3,4.9');
     const res = (await owner.as.query(api.sos.get, { alertId }))!;
     const byName = Object.fromEntries(res.deliveries.map((d) => [d.name, d.status]));
-    expect(byName).toEqual({ friend: 'sent', c3: 'no_token' });
+    expect(byName).toEqual({ friend: 'delivered', c3: 'no_token' }); // receipt opgehaald
     expect(await friend.as.query(api.sos.get, { alertId })).not.toBeNull();
     const { stranger } = await setup();
     expect(await stranger.as.query(api.sos.get, { alertId })).toBeNull();
@@ -166,7 +179,7 @@ describe('SOS', () => {
     await friend.as.mutation(api.profiles.registerPushToken, { token: 'ExponentPushToken[f]' });
     const alertId = await owner.as.mutation(api.sos.trigger, { clientRef: 'ref-2' });
     await t.finishAllScheduledFunctions(vi.runAllTimers);
-    expect(fetchMock).toHaveBeenCalledTimes(4); // 1 + 3 retries
+    expect(sends()).toHaveLength(4); // 1 + 3 retries
     expect((await owner.as.query(api.sos.get, { alertId }))!.deliveries[0].status).toBe('failed');
   });
   test('annuleren (vals alarm) en rate limit', async () => {
@@ -195,7 +208,10 @@ describe('check-in', () => {
     await t.finishAllScheduledFunctions(vi.runAllTimers);
     const alert = (await t.run((ctx) => ctx.db.query('alerts').collect()))[0];
     expect(alert.kind).toBe('missed_check_in'); expect(alert.lat).toBe(52.37);
-    expect(fetchMock.mock.calls[0][1].body).toContain('niet op tijd');
+    expect(sentBodies()).toContain('niet op tijd');
+    const own = (await t.run((ctx) => ctx.db.query('pushMessages').collect())).filter((m) => m.recipientId === owner.id);
+    expect(own.map((m) => m.kind)).toContain('check_in_required'); // gebruiker zelf (hier zonder token → no_token)
+    expect(own.every((m) => m.status === 'no_token')).toBe(true);
     expect((await friend.as.query(api.sessions.get, { sessionId: sid }))!.session.status).toBe('alert');
   });
   test('binnen respijt geen escalatie; verlengen max 3×; bevestigen beëindigt sessie', async () => {
@@ -240,4 +256,47 @@ test('account verwijderen wist alle gegevens incl. locaties', async () => {
   }));
   expect(left).toEqual({ user: null, locs: 0, sessions: 0, contacts: 0 });
   expect((await friend.as.query(api.contacts.list, {})).theirs).toHaveLength(0);
+});
+
+describe('meldingen en receipts', () => {
+  test('reis gestart → kijkers; bijna aangekomen eenmalig; reis beëindigd na bevestiging', async () => {
+    vi.useFakeTimers();
+    const { t, owner, friend, connect } = await setup();
+    await connect(owner, friend);
+    await friend.as.mutation(api.profiles.registerPushToken, { token: 'ExponentPushToken[friend]' });
+    const sid = await owner.as.mutation(api.sessions.start, { destination: 'Thuis', destLat: 52.37, destLng: 4.9, expectedArrival: Date.now() + 30 * MIN, viewerIds: [friend.id] });
+    await owner.as.mutation(api.sessions.addLocation, { sessionId: sid, lat: 52.30, lng: 4.9, recordedAt: Date.now() }); // ver weg
+    await owner.as.mutation(api.sessions.addLocation, { sessionId: sid, lat: 52.3690, lng: 4.9, recordedAt: Date.now() }); // ~110 m
+    await owner.as.mutation(api.sessions.addLocation, { sessionId: sid, lat: 52.3695, lng: 4.9, recordedAt: Date.now() });
+    await owner.as.mutation(api.sessions.respondCheckIn, { sessionId: sid, extendMinutes: 0 });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const kinds = (await t.run((ctx) => ctx.db.query('pushMessages').collect())).map((m) => m.kind);
+    expect(kinds).toEqual(['trip_started', 'almost_arrived', 'trip_ended']);
+    expect(sentBodies()).toContain('veilig te zijn aangekomen');
+    const own = await owner.as.query(api.sessions.get, { sessionId: sid });
+    expect(own!.notifications.every((x) => x.status === 'delivered')).toBe(true);
+  });
+  test('receipt met fout → mislukt; geen receipt → onbekend', async () => {
+    vi.useFakeTimers();
+    for (const [mode, expected] of [['error', 'failed'], ['missing', 'unknown']] as const) {
+      receiptStatus = mode;
+      const { t, owner, friend, connect } = await setup();
+      await connect(owner, friend);
+      await friend.as.mutation(api.profiles.registerPushToken, { token: 'ExponentPushToken[f]' });
+      const alertId = await owner.as.mutation(api.sos.trigger, { clientRef: `r-${mode}` });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect((await owner.as.query(api.sos.get, { alertId }))!.deliveries[0].status).toBe(expected);
+    }
+  });
+  test('check-in-herinnering wordt één keer verstuurd en na verlengen opnieuw', async () => {
+    const { t, owner, friend, connect, startTrip } = await setup();
+    await connect(owner, friend); const sid = await startTrip([friend.id], 10);
+    const due = async () => t.run(async (ctx) => { const c = (await ctx.db.query('checkIns').first())!; await ctx.db.patch(c._id, { dueAt: Date.now() - MIN }); });
+    const reminders = () => t.run(async (ctx) => (await ctx.db.query('pushMessages').collect()).filter((m) => m.kind === 'check_in_required').length);
+    await due(); await t.mutation(internal.monitor.checkDeadlines, {}); await t.mutation(internal.monitor.checkDeadlines, {});
+    expect(await reminders()).toBe(1);
+    await owner.as.mutation(api.sessions.respondCheckIn, { sessionId: sid, extendMinutes: 10 });
+    await due(); await t.mutation(internal.monitor.checkDeadlines, {});
+    expect(await reminders()).toBe(2);
+  });
 });

@@ -18,10 +18,10 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   }
   await del(await q('sessionViewers').withIndex('by_viewer', (x) => x.eq('viewerId', uid)).collect());
   for (const a of await q('alerts').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
-    await del(await q('deliveries').withIndex('by_alert', (x) => x.eq('alertId', a._id)).collect());
+    await del(await q('pushMessages').withIndex('by_alert', (x) => x.eq('alertId', a._id)).collect());
     await ctx.db.delete(a._id);
   }
-  await del(await q('deliveries').withIndex('by_recipient', (x) => x.eq('recipientId', uid)).collect());
+  await del(await q('pushMessages').withIndex('by_recipient', (x) => x.eq('recipientId', uid)).collect());
   await del(await q('trustedContacts').withIndex('by_owner', (x) => x.eq('ownerId', uid)).collect());
   await del(await q('trustedContacts').withIndex('by_contact', (x) => x.eq('contactId', uid)).collect());
   await del(await q('invitations').withIndex('by_inviter', (x) => x.eq('inviterId', uid)).collect());

@@ -9,7 +9,7 @@ import { useContacts } from '../../src/lib/queries';
 import { errorNl } from '../../src/lib/convex';
 import { validateSessionInput } from '../../src/lib/safety';
 import { startSharing } from '../../src/lib/location';
-import { scheduleCheckInReminder } from '../../src/lib/notifications';
+import { localNotify, scheduleCheckInReminder } from '../../src/lib/notifications';
 
 export default function NewSession() {
   const startSession = useMutation(api.sessions.start);
@@ -29,6 +29,7 @@ export default function NewSession() {
       if (!background) setErr('Let op: zonder “Altijd”-toestemming stopt het delen mogelijk als de app op de achtergrond staat.');
     } catch (e) { setErr(String((e as Error).message)); }
     await scheduleCheckInReminder(arrival).catch(() => {});
+    await localNotify('Reis gestart', `Je locatie wordt gedeeld tot je aankomst bevestigt of stopt.`);
     setBusy(false);
     router.replace(`/session/${id}`);
   };
