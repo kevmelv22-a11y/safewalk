@@ -70,11 +70,20 @@ export function parseInviteToken(input: string): string | null {
   return m ? m[1].toLowerCase() : null;
 }
 
-export function haversineMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371e3, toR = (d: number) => (d * Math.PI) / 180;
-  const dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
+export { haversineMeters, roughEtaMs } from '../../convex/geo';
+
+export function formatDistance(m: number): string {
+  return m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1).replace('.', ',')} km`;
+}
+/** ETA-label; bewust geen uitspraak over veiligheid van de route. */
+export function etaLabel(etaMs: number): string {
+  const min = Math.max(1, Math.round(etaMs / 60_000));
+  return min < 60 ? `± ${min} min lopen (hemelsbreed geschat)` : `± ${Math.floor(min / 60)} u ${min % 60} min lopen (hemelsbreed geschat)`;
+}
+/** Kies een passende verwachte reistijd (min) uit de presets o.b.v. ruwe ETA + marge. */
+export function suggestMinutes(etaMs: number, presets = [10, 20, 30, 45, 60, 90]): number {
+  const need = etaMs / 60_000 * 1.2 + 3;
+  return presets.find((p) => p >= need) ?? presets[presets.length - 1];
 }
 
 /** Eerlijke statuslabels: alleen 'verstuurd', 'mislukt' of 'onbekend' – nooit 'gelezen' of 'gegarandeerd'. */
