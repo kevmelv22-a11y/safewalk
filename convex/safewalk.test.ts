@@ -300,3 +300,39 @@ describe('meldingen en receipts', () => {
     expect(await reminders()).toBe(2);
   });
 });
+
+import { detectSignals } from './motion';
+describe('bewegingsdetectie', () => {
+  const now = 10_000_000; const p = (lat: number, ago: number) => ({ lat, lng: 5, recordedAt: now - ago * MIN });
+  test('pure detectie', () => {
+    expect(detectSignals({ locations: [p(52, 12)], now, sessionStart: now - 30 * MIN })).toEqual(['no_data']);
+    expect(detectSignals({ locations: [], now, sessionStart: now - 5 * MIN })).toEqual([]);
+    expect(detectSignals({ locations: [p(52, 20), p(52, 10), p(52.0001, 1)], now, sessionStart: now - 30 * MIN })).toEqual(['stationary']);
+    expect(detectSignals({ locations: [p(52, 20), p(52.01, 10), p(52.02, 1)], now, sessionStart: now - 30 * MIN })).toEqual([]);
+    // dichtbij bestemming stilstaan is geen signaal
+    expect(detectSignals({ locations: [p(52, 20), p(52, 1)], now, sessionStart: 0, dest: { lat: 52.001, lng: 5 } })).toEqual([]);
+    expect(detectSignals({ locations: [p(52.05, 2), p(52.0, 1)], now, sessionStart: 0, dest: { lat: 52.1, lng: 5 }, startDistanceM: 5_500 })).toEqual(['deviation']);
+  });
+  test('alleen premium + opt-in; alleen gebruiker krijgt extra check-in, contacten NIET', async () => {
+    const { t, owner, friend, connect, startTrip, ping } = await setup();
+    await connect(owner, friend); const sid = await startTrip([friend.id]); await ping(sid);
+    const age = () => t.run(async (ctx) => { for (const l of await ctx.db.query('locations').collect()) await ctx.db.patch(l._id, { recordedAt: Date.now() - 11 * MIN }); });
+    await age();
+    await expect(owner.as.mutation(api.profiles.update, { motionDetection: true })).rejects.toThrow(/PREMIUM_REQUIRED/);
+    await t.mutation(internal.monitor.checkDeadlines, {});
+    expect(await t.run((ctx) => ctx.db.query('motionSignals').collect())).toHaveLength(0);
+    await t.run(async (ctx) => { const s = (await ctx.db.query('subscriptions').withIndex('by_user', (q) => q.eq('userId', owner.id)).first())!; await ctx.db.patch(s._id, { tier: 'premium' }); });
+    await owner.as.mutation(api.profiles.update, { motionDetection: true });
+    await t.mutation(internal.monitor.checkDeadlines, {});
+    await t.mutation(internal.monitor.checkDeadlines, {}); // cooldown: niet dubbel
+    const sigs = await t.run((ctx) => ctx.db.query('motionSignals').collect());
+    expect(sigs.map((x) => x.kind)).toEqual(['no_data']);
+    const msgs = (await t.run((ctx) => ctx.db.query('pushMessages').collect())).filter((m) => m.kind === 'motion_check');
+    expect(msgs.map((m) => m.recipientId)).toEqual([owner.id]);
+    expect((await t.run((ctx) => ctx.db.query('alerts').collect()))).toHaveLength(0); // nooit automatisch noodgeval
+    expect((await owner.as.query(api.sessions.get, { sessionId: sid }))!.signals).toHaveLength(1);
+    await owner.as.mutation(api.motion.acknowledge, { signalId: sigs[0]._id });
+    expect((await owner.as.query(api.sessions.get, { sessionId: sid }))!.signals).toHaveLength(0);
+    await expect(friend.as.mutation(api.motion.acknowledge, { signalId: sigs[0]._id })).rejects.toThrow(/NOT_FOUND/);
+  });
+});

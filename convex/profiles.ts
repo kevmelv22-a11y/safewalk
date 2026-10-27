@@ -10,7 +10,7 @@ export const me = query({ args: {}, handler: async (ctx) => {
 } });
 
 export const update = mutation({
-  args: { displayName: v.optional(v.string()), defaultGraceMinutes: v.optional(v.number()), sosCountdownSeconds: v.optional(v.number()), onboardingDone: v.optional(v.boolean()) },
+  args: { displayName: v.optional(v.string()), defaultGraceMinutes: v.optional(v.number()), sosCountdownSeconds: v.optional(v.number()), onboardingDone: v.optional(v.boolean()), motionDetection: v.optional(v.boolean()), themePreference: v.optional(v.union(v.literal('system'), v.literal('dark'), v.literal('light'))) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
@@ -18,6 +18,8 @@ export const update = mutation({
     if (a.displayName !== undefined && a.displayName.length > 80) fail('BAD_REQUEST');
     if (a.defaultGraceMinutes !== undefined && !(a.defaultGraceMinutes >= 1 && a.defaultGraceMinutes <= 30)) fail('BAD_REQUEST');
     if (a.sosCountdownSeconds !== undefined && !(a.sosCountdownSeconds >= 3 && a.sosCountdownSeconds <= 15)) fail('BAD_REQUEST');
+    if (a.motionDetection && !(await isPremium(ctx, uid))) fail('PREMIUM_REQUIRED');
+    if (a.defaultGraceMinutes !== undefined && a.defaultGraceMinutes !== 5 && !(await isPremium(ctx, uid))) fail('PREMIUM_REQUIRED');
     await ctx.db.patch(p!._id, a);
   },
 });

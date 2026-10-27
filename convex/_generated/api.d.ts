@@ -16,6 +16,7 @@ import type * as geo from "../geo.js";
 import type * as http from "../http.js";
 import type * as lib from "../lib.js";
 import type * as monitor from "../monitor.js";
+import type * as motion from "../motion.js";
 import type * as notify from "../notify.js";
 import type * as profiles from "../profiles.js";
 import type * as push from "../push.js";
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   lib: typeof lib;
   monitor: typeof monitor;
+  motion: typeof motion;
   notify: typeof notify;
   profiles: typeof profiles;
   push: typeof push;

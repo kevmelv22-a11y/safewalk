@@ -107,6 +107,8 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('INVITATION_INVALID')) return 'Deze uitnodiging is ongeldig of verlopen.';
   if (msg.includes('INVITATION_SELF')) return 'Je kunt je eigen uitnodiging niet accepteren.';
   if (msg.includes('VIEWER_NOT_TRUSTED')) return 'Alleen geaccepteerde vertrouwde contacten kunnen meekijken.';
+  if (msg.includes('PREMIUM_REQUIRED')) return 'Deze functie is onderdeel van Premium.';
+  if (msg.includes('RESTRICTED')) return 'Je account is beperkt. Neem contact op met support. SOS blijft werken.';
   if (msg.includes('RATE_LIMITED')) return 'Te veel verzoeken. Probeer het later opnieuw.';
   if (msg.includes('INVALID_ARRIVAL')) return 'Ongeldige aankomsttijd.';
   if (msg.includes('EXTENSION_NOT_ALLOWED')) return 'Verlengen is niet meer mogelijk.';

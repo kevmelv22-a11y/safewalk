@@ -9,6 +9,7 @@ import { SosButton } from '../../src/components/SosButton';
 import { errorNl } from '../../src/lib/convex';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
 import { checkInPhase, deliveryIcon, deliveryLabel, formatCountdown, notificationKindLabel } from '../../src/lib/safety';
+import { signalText } from '../../convex/motion';
 import { stopSharing } from '../../src/lib/location';
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 
@@ -19,6 +20,7 @@ export default function MySession() {
   const respondCheckIn = useMutation(api.sessions.respondCheckIn);
   const endSession = useMutation(api.sessions.end);
   const revokeViewer = useMutation(api.sessions.revokeViewer);
+  const acknowledge = useMutation(api.motion.acknowledge);
   const [err, setErr] = useState<string | null>(null);
   const s = data?.session; const ci = data?.checkIn;
   const ended = !!s && s.endedAt !== undefined;
@@ -42,6 +44,13 @@ export default function MySession() {
       <H1>{s.destinationLabel}</H1>
       {ended && <Notice kind="info">Deze reis is beëindigd. Locatie wordt niet meer gedeeld.</Notice>}
       {s.status === 'alert' && !ended && <Notice kind="danger">Je check-in is gemist. Je contacten zijn gewaarschuwd. Bevestig hieronder als alles goed is.</Notice>}
+      {!ended && data.signals.map((sg) => (
+        <Card key={sg._id} style={{ borderColor: '#F59E0B', borderWidth: 2 }}>
+          <P>{signalText[sg.kind]}</P>
+          <P muted>Dit is alleen een extra vraag; je contacten worden hierdoor niet gewaarschuwd.</P>
+          <Button title="✓ Alles goed" variant="success" onPress={() => acknowledge({ signalId: sg._id })} />
+        </Card>
+      ))}
       {!ended && ci && phase && (
         <Card style={phase !== 'running' ? { borderColor: '#EF4444', borderWidth: 2 } : undefined}>
           {phase === 'running' ? <P>Check-in over {formatCountdown(ci.dueAt - now)}</P> : <P style={{ fontSize: 22, fontWeight: '800' }}>Alles goed?</P>}

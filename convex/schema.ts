@@ -11,6 +11,8 @@ export default defineSchema({
     sosCountdownSeconds: v.number(),
     onboardingDone: v.boolean(),
     restricted: v.boolean(),
+    motionDetection: v.optional(v.boolean()),
+    themePreference: v.optional(v.union(v.literal('system'), v.literal('dark'), v.literal('light'))),
   }).index('by_user', ['userId']),
   admins: defineTable({ userId: v.id('users') }).index('by_user', ['userId']),
   subscriptions: defineTable({
@@ -32,7 +34,7 @@ export default defineSchema({
     destinationLat: v.optional(v.number()), destinationLng: v.optional(v.number()),
     expectedArrival: v.number(),
     status: v.union(v.literal('active'), v.literal('ended'), v.literal('expired'), v.literal('alert')),
-    endedAt: v.optional(v.number()), expiresAt: v.number(), almostNotifiedAt: v.optional(v.number()),
+    endedAt: v.optional(v.number()), expiresAt: v.number(), almostNotifiedAt: v.optional(v.number()), startDistanceM: v.optional(v.number()),
   }).index('by_user', ['userId']).index('by_open', ['endedAt']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
@@ -61,6 +63,11 @@ export default defineSchema({
     status: v.union(v.literal('queued'), v.literal('sent'), v.literal('delivered'), v.literal('failed'), v.literal('no_token'), v.literal('unknown')),
     ticketIds: v.array(v.string()), detail: v.optional(v.string()), attempts: v.number(),
   }).index('by_alert', ['alertId']).index('by_recipient', ['recipientId']).index('by_session', ['sessionId']),
+  motionSignals: defineTable({
+    sessionId: v.id('sessions'), userId: v.id('users'),
+    kind: v.union(v.literal('stationary'), v.literal('deviation'), v.literal('no_data')),
+    status: v.union(v.literal('open'), v.literal('acknowledged')),
+  }).index('by_session', ['sessionId']),
   errorLogs: defineTable({ source: v.string(), message: v.string(), userId: v.optional(v.id('users')) }),
   pushTokens: defineTable({ userId: v.id('users'), token: v.string(), platform: v.optional(v.string()) })
     .index('by_user', ['userId']).index('by_token', ['token']),

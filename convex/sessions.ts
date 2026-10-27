@@ -101,6 +101,8 @@ export const addLocation = mutation({
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180 || (a.accuracyM ?? 0) < 0) fail('BAD_REQUEST');
     await rateLimit(ctx, `loc:${uid}`, 240, H);
     await ctx.db.insert('locations', { ...a, userId: uid, recordedAt: Math.min(a.recordedAt, Date.now()) });
+    if (s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.startDistanceM === undefined)
+      await ctx.db.patch(s!._id, { startDistanceM: haversineMeters(a, { lat: s!.destinationLat, lng: s!.destinationLng }) });
     // Bijna aangekomen (eenmalig per sessie)
     if (s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.almostNotifiedAt === undefined &&
         haversineMeters(a, { lat: s!.destinationLat, lng: s!.destinationLng }) <= ALMOST_ARRIVED_M) {
@@ -143,7 +145,8 @@ export const get = query({ args: { sessionId: v.id('sessions') }, handler: async
     .map(async (x) => ({ viewerId: x.viewerId, revoked: x.revokedAt !== undefined, name: await displayName(ctx, x.viewerId) }))) : [];
   const notifications = isOwner ? await Promise.all((await ctx.db.query('pushMessages').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect())
     .filter((m) => m.recipientId !== uid).map(async (m) => ({ id: m._id, kind: m.kind, status: m.status, name: await displayName(ctx, m.recipientId) }))) : [];
-  return { session: s, isOwner, ownerName: await displayName(ctx, s.userId), checkIn, viewers, notifications };
+  const signals = isOwner ? (await ctx.db.query('motionSignals').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).filter((x) => x.status === 'open') : [];
+  return { session: s, isOwner, signals, ownerName: await displayName(ctx, s.userId), checkIn, viewers, notifications };
 } });
 
 /** Live locaties; lege lijst als geen toegang. Admins krijgen GEEN uitzondering. */

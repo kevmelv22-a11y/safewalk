@@ -1,7 +1,8 @@
 import { internalMutation } from './_generated/server';
 import { queuePush, mapsLink } from './notify';
 import { closeSession } from './sessions';
-import { audit, displayName, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
+import { detectSignals, signalText, COOLDOWN_MS } from './motion';
+import { audit, displayName, isPremium, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
 
 /** Elke minuut (cron): verlopen sessies sluiten en gemiste check-ins escaleren — onafhankelijk van de app. */
 export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) => {
@@ -15,6 +16,21 @@ export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) 
     await ctx.db.patch(c._id, { reminderSentAt: now });
     await queuePush(ctx, { kind: 'check_in_required', sessionId: c.sessionId, recipients: [c.userId], title: 'Alles goed?',
       body: `Je verwachte aankomsttijd is verstreken. Bevestig binnen ${c.graceMinutes} min dat je veilig bent, of verleng.` });
+  }
+
+  // Optionele bewegingsdetectie (premium, opt-in): alleen een extra check-in aan de gebruiker zelf
+  for (const s of await ctx.db.query('sessions').withIndex('by_open', (q) => q.eq('endedAt', undefined)).collect()) {
+    const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', s.userId)).first();
+    if (!p?.motionDetection || !(await isPremium(ctx, s.userId))) continue;
+    const locations = (await ctx.db.query('locations').withIndex('by_session', (q) => q.eq('sessionId', s._id)).order('desc').take(120)).reverse();
+    const kinds = detectSignals({ locations, now, sessionStart: s._creationTime, startDistanceM: s.startDistanceM,
+      dest: s.destinationLat !== undefined && s.destinationLng !== undefined ? { lat: s.destinationLat, lng: s.destinationLng } : undefined });
+    const recent = (await ctx.db.query('motionSignals').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()).filter((x) => x._creationTime > now - COOLDOWN_MS);
+    for (const kind of kinds) {
+      if (recent.some((r) => r.kind === kind)) continue;
+      await ctx.db.insert('motionSignals', { sessionId: s._id, userId: s.userId, kind, status: 'open' });
+      await queuePush(ctx, { kind: 'motion_check', sessionId: s._id, recipients: [s.userId], title: 'Extra check-in', body: signalText[kind] + ' Open SafeWalk om te bevestigen.' });
+    }
   }
 
   const due = await ctx.db.query('checkIns').withIndex('by_status_due', (q) => q.eq('status', 'pending').lt('dueAt', now)).collect();
