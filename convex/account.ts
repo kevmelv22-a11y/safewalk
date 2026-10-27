@@ -14,6 +14,8 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   for (const s of await q('sessions').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
     await del(await q('sessionViewers').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
     await del(await q('checkIns').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
+    await del(await q('motionSignals').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
+    await del(await q('pushMessages').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
     await ctx.db.delete(s._id);
   }
   await del(await q('sessionViewers').withIndex('by_viewer', (x) => x.eq('viewerId', uid)).collect());

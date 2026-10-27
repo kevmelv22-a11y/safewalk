@@ -1,70 +1,102 @@
-# SafeWalk – Samen veilig thuis (MVP)
+# SafeWalk – Samen veilig thuis
 
 Persoonlijke veiligheidsapp: deel je reis tijdelijk met vertrouwde contacten. Bevestig je niet op tijd dat je veilig bent aangekomen, dan waarschuwt de **server** je contacten.
 
 > ⚠️ **SafeWalk is geen officiële hulpdienst.** De app belt 112 nooit automatisch en kan niet garanderen dat pushmeldingen aankomen. De 112-knop opent alleen de telefoon-app.
 
 ## Stack
-Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve queries, mutations, actions, crons/scheduler) · **Convex Auth** (wachtwoord) · expo-location + expo-task-manager · expo-notifications · react-native-maps · Zustand.
+Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve queries, mutations, actions, crons, HTTP-actions) · **Convex Auth** (wachtwoord) · expo-location + expo-task-manager · expo-notifications · react-native-maps · Zustand · RevenueCat (`react-native-purchases`) · optioneel OpenAI · Admin: Vite + React.
 
-## Wat zit erin (MVP)
+## Functies
 | Onderdeel | Waar |
 |---|---|
-| Onboarding: welkom, account, inloggen, locatie-, meldingentoestemming, contacten, veiligheidsinstellingen, dashboard | `app/` |
-| Schema + indexen | `convex/schema.ts` |
+| Onboarding: welkom, account, inloggen, locatie-/meldingentoestemming (met uitleg), contacten, veiligheidsinstellingen, dashboard | `app/` |
 | Toegangscontrole (vervangt RLS) | `convex/lib.ts` → `canViewSession` |
-| Uitnodigen via link (token alleen als SHA-256-hash opgeslagen, 7 dagen geldig), accepteren/weigeren, verwijderen, blokkeren, misbruik melden | `convex/contacts.ts`, `app/contacts.tsx`, `app/invite/[token].tsx` |
-| Veiligheidssessie met sessiespecifieke kijkers, voor- en achtergrondlocatie met offline-buffer, stoppen, kijker intrekken | `convex/sessions.ts`, `app/session/*`, `src/lib/location.ts` |
-| Live kaart via reactieve Convex-query met nauwkeurigheid, tijd laatste update, waarschuwing bij verouderde data | `app/watch/[id].tsx`, `src/components/LiveMap.tsx` |
-| SOS: aftelling + annuleren, incident, Expo push (action) met laatste locatie, status per ontvanger, retries (3×), offline-wachtrij (idempotent via `clientRef`), "vals alarm", tel:112-knop | `convex/sos.ts`, `convex/push.ts`, `app/sos.tsx`, `src/lib/sos.ts` |
-| Check-in: deadline + respijt op de server; cron elke minuut escaleert gemiste check-ins en sluit verlopen sessies; app vraagt "Alles goed?" met verlengen (max 3×) | `convex/monitor.ts`, `convex/crons.ts` |
-| Rate limiting, audit logs, account verwijderen, eigen locatiegeschiedenis verwijderen | `convex/lib.ts`, `convex/account.ts`, `convex/sessions.ts` |
-| Bewaarbeleid: locaties 24 u na einde reis verwijderd (vangnet 3 dagen), alert-coördinaten na 30 dagen gewist | `monitor.purge` (cron, elk kwartier) |
+| Uitnodigen via link (alleen SHA-256-hash opgeslagen, 7 dagen), accepteren/weigeren, verwijderen, blokkeren/deblokkeren, misbruik melden | `convex/contacts.ts`, `app/contacts.tsx`, `app/report.tsx` |
+| Reis: bestemming kiezen op kaart (zoeken via geocoding, tikken/slepen), sessiespecifieke kijkers, voor-/achtergrondlocatie met offline-buffer, stoppen, kijker intrekken | `app/session/*`, `src/lib/location.ts` |
+| Live kaart (donkere stijl): afgelegde route, hemelsbrede richting + ruwe ETA (bewust geen routeadvies), nauwkeurigheid, laatste update, waarschuwing verouderde data | `src/components/LiveMap.tsx`, `app/watch/[id].tsx` |
+| Meldingen: reis gestart, contact deelt locatie, bijna aangekomen (< 300 m), check-in vereist, check-in gemist, SOS (+ vals alarm), reis beëindigd | `convex/notify.ts`, `convex/push.ts` |
+| Afleverstatus per ontvanger met **Expo push receipts**: *verstuurd* / *mislukt* / *onbekend* | `push.deliver` → `push.checkReceipts` (na 15 min, retries) |
+| SOS: aftelling + annuleren, incident, push met laatste locatie, retries, offline-wachtrij (idempotent), tel:112-knop | `convex/sos.ts`, `app/sos.tsx` |
+| Check-in: deadline + respijt server-side, cron elke minuut, "Alles goed?" met verlengen | `convex/monitor.ts`, `convex/crons.ts` |
+| Bewegingsdetectie (opt-in, Premium): lang stilstaan, afwijking van bestemming, geen nieuwe locatie → **alleen** extra check-in voor de gebruiker zelf, nooit automatisch alarm | `convex/motion.ts` |
+| Premium €2,99/maand via RevenueCat (entitlement `premium`), paywall, webhook | `app/premium.tsx`, `convex/billing.ts`, `src/lib/purchases.ts` |
+| AI-veiligheidsassistent (optioneel, Premium) | `convex/assistant.ts`, `app/assistant.tsx` |
+| Adminpaneel: gebruikers, misbruikmeldingen, beperkingen, geanonimiseerde statistieken, foutlogs, abonnementen, auditlog – **geen locaties** | `admin/`, `convex/admin.ts` |
+| Instellingen: donker/licht/systeem, respijt, SOS-aftelling, bewegingsdetectie, geblokkeerde personen, geschiedenis, locatiegeschiedenis/account verwijderen | `app/settings.tsx` |
+| Rate limiting, auditlog, bewaarbeleid (locaties 24 u na einde, max 3 dagen; reismetadata 90 dagen; alert-coördinaten 30 dagen) | `convex/lib.ts`, `monitor.purge` |
 
-### Privacymodel (server-side afgedwongen in Convex-functies)
-Convex heeft geen RLS; **alle** data loopt via functies in `convex/` en elke functie controleert zelf de ingelogde gebruiker. Er zijn geen publieke functies die ruwe tabellen teruggeven.
-- Een kijker krijgt locaties alleen als: geaccepteerd vertrouwd contact **én** expliciet toegevoegd aan **deze** sessie **én** sessie actief en niet verlopen (`expiresAt` wordt bij elke query gecontroleerd) **én** toegang niet ingetrokken **én** geen blokkade.
-- Contact verwijderen, blokkeren, sessie beëindigen of verlopen trekt toegang direct in; reactieve queries geven dan meteen een lege lijst/`null`. (Puur tijd-gebaseerd verlopen wordt binnen ±1 minuut door de cron naar de client gepusht.)
-- Gratis: max. 2 contacten, gecontroleerd in de accept-mutation (transactioneel); premium: 20.
-- Beheerders (`admins`) kunnen misbruikmeldingen lezen; er bestaat **geen** admin-route naar locaties.
+### Gratis vs Premium (server-side afgedwongen)
+| Gratis (altijd) | Premium |
+|---|---|
+| SOS, 2 contacten, tijdelijk delen, basis-check-ins (+10/+20 min, 5 min respijt), 7 dagen geschiedenis | 20 contacten, 90 dagen geschiedenis, aanpasbare check-ins/respijt, bewegingsdetectie, AI-assistent |
 
-## Installatie (lokaal, zonder account)
+SOS werkt ook voor beperkte accounts.
+
+### Privacymodel
+Alle data loopt via functies in `convex/`; elke functie controleert de ingelogde gebruiker. Een kijker krijgt locaties alleen als: geaccepteerd vertrouwd contact **én** gekozen voor **deze** reis **én** reis actief en niet verlopen **én** toegang niet ingetrokken **én** geen blokkade **én** kijker niet beperkt. Intrekken/verwijderen/blokkeren/beëindigen werkt direct (reactieve queries). Er is geen admin-functie die locaties of bestemmingen teruggeeft; statistieken zijn tellingen (1–4 als "<5").
+
+## Lokaal ontwikkelen (zonder account)
 ```bash
-npm install
-CONVEX_AGENT_MODE=anonymous npx convex dev --local   # start lokale Convex-backend en schrijft .env.local
-npx @convex-dev/auth                                  # eenmalig: auth-sleutels in de deployment
-npm run typecheck && npm test && npm run test:convex
+npm install && npm --prefix admin install
+./scripts/codegen.sh                     # lokale anonieme Convex-backend, genereert convex/_generated
+npm run typecheck                        # app + convex + admin
+npm test                                 # Jest (clientlogica)
+npm run test:convex                      # convex-test + Vitest (serverlogica)
 ```
 
-## Deployen naar Convex Cloud (gratis tier)
-1. `npx convex login` (maakt/gebruikt een Convex-account – vereist jouw actie).
-2. `npx convex dev` → kies "create a new project" (dev-deployment), of `npx convex deploy` voor productie.
-3. `npx @convex-dev/auth` → zet `JWT_PRIVATE_KEY`, `JWKS` en `SITE_URL` op de deployment.
-4. Optioneel: `npx convex env set EXPO_ACCESS_TOKEN <token>`.
-5. Zet `EXPO_PUBLIC_CONVEX_URL` (https://<naam>.convex.cloud) in `.env` / EAS-secrets. Crons starten automatisch na deploy.
+## Convex Cloud
+Project `safewalk`: dev- en prod-deployment. Auth-sleutels (`JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`) staan al op beide.
+```bash
+npx convex deploy -y                     # prod (vereist CONVEX_DEPLOY_KEY of login)
+```
+Extra omgevingsvariabelen (per deployment, `npx convex env set NAAM waarde`):
+| Variabele | Nodig voor |
+|---|---|
+| `EXPO_ACCESS_TOKEN` | optioneel: Expo push security |
+| `REVENUECAT_WEBHOOK_SECRET` | Premium-webhook (zelfde waarde als "Authorization header" in RevenueCat) |
+| `OPENAI_API_KEY`, optioneel `OPENAI_MODEL` | AI-assistent (zonder sleutel netjes uitgeschakeld) |
 
-### App draaien (development build vereist)
-Achtergrondlocatie, TaskManager en push werken **niet** in Expo Go.
+Beheerder aanwijzen: `npx convex run admin:grantAdmin '{"email":"jij@…"}'` (met `--prod` voor productie).
+
+## App (development build vereist)
+Achtergrondlocatie, TaskManager, push en aankopen werken **niet** in Expo Go.
 ```bash
 npx eas build --profile development --platform android   # of ios
 npx expo start --dev-client
 ```
-Vul `extra.eas.projectId` in `app.json` (nodig voor Expo push tokens) en `GOOGLE_MAPS_ANDROID_API_KEY`.
+App-omgeving (`.env` / EAS-secrets): `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `GOOGLE_MAPS_ANDROID_API_KEY`. Vul `extra.eas.projectId` in `app.json`.
+
+### RevenueCat instellen
+1. Producten in App Store Connect / Play Console: maandabonnement €2,99.
+2. RevenueCat: entitlement **`premium`**, offering *current* met *monthly*-package.
+3. Webhook: URL `https://<deployment>.convex.site/revenuecat/webhook`, Authorization header = `REVENUECAT_WEBHOOK_SECRET`.
+4. De app logt bij RevenueCat in met de Convex user-id, zodat de webhook de juiste gebruiker bijwerkt.
+
+### Adminpaneel
+```bash
+cd admin && cp .env.example .env   # VITE_CONVEX_URL
+npm run dev                        # of npm run build → dist/ (statisch hosten, bv. achter toegangsbeveiliging)
+```
+
+## Store-voorbereiding
+- `app.json`: Nederlandstalige permissieteksten (`NSLocationWhenInUse…`, `NSLocationAlwaysAndWhenInUse…`, `UIBackgroundModes: location, remote-notification`), Android foreground-service-permissies, iconen/splash (placeholders in merkkleuren in `assets/`).
+- `eas.json`: `development`, `preview`, `production` (+ submit-placeholders).
+- `docs/privacybeleid.md`, `docs/gebruiksvoorwaarden.md` (concepten, juridisch laten toetsen), `docs/store-listing.md` (NL/EN), `docs/data-safety.md` (Play Data safety + Apple App Privacy).
 
 ## Tests
-- `npm test` – Jest-unittests voor clientlogica (versheid locatie, check-in-fases, validatie, uitnodigingslinks, offline-wachtrij met backoff).
-- `npm run test:convex` – 21 server-side tests met `convex-test` + Vitest: ongeautoriseerde/anonieme/admin-toegang, niet-gekozen contact, schrijven in andermans sessie, intrekken, verwijderen, beëindigde en verlopen sessies, blokkeren, contactlimiet, SOS (push, status per ontvanger, retry, idempotentie, annuleren, rate limit), gemiste check-in + respijt + verlengen, retentie, admin, account verwijderen. Expo push wordt gemockt.
+- `npm test` – Jest: versheid locatie, check-in-fases, validatie, uitnodigingslinks, afstand/ETA, offline-wachtrij.
+- `npm run test:convex` – convex-test + Vitest: ongeautoriseerde/anonieme/admin-toegang, niet-gekozen contact, intrekken, verwijderen, beëindigde/verlopen sessies, blokkeren/deblokkeren, beperkte accounts, contactlimiet, SOS (push, receipts verstuurd/mislukt/onbekend, retry, idempotentie, vals alarm, rate limit), alle reis-meldingen, check-in (herinnering, escalatie, respijt, verlengen), bewegingsdetectie, RevenueCat-webhook en feature gating, AI-assistent (uitgeschakeld/premium/112-tekst), adminpaneel zonder locatiedata, retentie, accountverwijdering. Externe diensten (Expo, OpenAI) worden gemockt.
 
 ## Beperkingen iOS/Android (belangrijk)
-- **Achtergrondlocatie is niet gegarandeerd.** iOS kan updates vertragen/pauzeren; de gebruiker kan "Altijd" weigeren of later intrekken. Android-fabrikanten (Samsung, Xiaomi, Huawei…) beëindigen achtergrondprocessen agressief bij batterijbesparing. Android toont een permanente melding (foreground service).
-- GPS kan binnen, in tunnels of tussen hoge gebouwen onnauwkeurig zijn; de app toont de nauwkeurigheid en waarschuwt bij verouderde data (>2 min) of geen data (>10 min).
-- **Push is niet gegarandeerd.** "Verstuurd" betekent: geaccepteerd door de Expo-pushdienst, niet afgeleverd. Niet storen, stille modus, geen internet of uitgeschakelde meldingen kunnen aflevering verhinderen. Push-receipts worden nog niet opgehaald.
-- Als de telefoon uit/offline is, blijft de server (Convex-cron) de check-in-deadline bewaken en waarschuwt contacten – maar zonder recente locatie.
-- Test op echte iOS- en Android-toestellen; simulators geven geen realistisch beeld.
+- **Achtergrondlocatie is niet gegarandeerd.** iOS kan updates vertragen/pauzeren; gebruikers kunnen "Altijd" weigeren. Android-fabrikanten beëindigen achtergrondprocessen bij batterijbesparing. Android toont een permanente melding.
+- GPS kan onnauwkeurig zijn; de app toont nauwkeurigheid en waarschuwt bij verouderde (>2 min) of ontbrekende (>10 min) data.
+- **Push is niet gegarandeerd.** "Verstuurd – bevestigd door pushdienst" betekent overgedragen aan Apple/Google, niet gelezen. Niet storen, geen internet of uitgeschakelde meldingen kunnen aflevering verhinderen.
+- Puur tijdgebaseerd verlopen wordt binnen ±1 min door de cron gepusht; nieuwe verzoeken worden direct geweigerd.
+- ETA is een ruwe schatting (hemelsbreed × 1,3, loopsnelheid); er is geen routeplanner en geen uitspraak over veilige routes.
+- Test op echte toestellen.
 
 ## Nog te doen
-- **Premium / RevenueCat** (`react-native-purchases` is geïnstalleerd, nog niet geconfigureerd) + Convex HTTP-webhook die `subscriptions` bijwerkt.
-- **AI-veiligheidsassistent** (OpenAI, optioneel, los van SOS/check-in).
-- **Bewegingsdetectie** (langdurig stilstaan, routeafwijking, geen data → alleen extra check-in aanbieden).
-- **Adminpaneel** (gebruikers, misbruikmeldingen, beperkingen, geanonimiseerde statistieken) – tabellen/RLS bestaan al.
-- Bestemming kiezen op kaart/geocoding, ETA-berekening, notificaties "sessie gestart/bijna aangekomen/beëindigd", push-receipts, e2e-tests (Maestro/Detox), App Store-assets & privacylabels, e-mailverificatie/wachtwoordreset in Convex Auth.
+- Echte iconen/screenshots, juridische toetsing van docs, App Store/Play-accounts en producten.
+- E-mailverificatie/wachtwoordreset (Convex Auth + e-mailprovider).
+- E2E-tests op toestellen (Maestro/Detox), lokalisatie EN in de app.

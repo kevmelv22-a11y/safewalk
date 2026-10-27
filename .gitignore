@@ -20,3 +20,4 @@ supabase/.branches/
 npm-debug.*
 expo-env.d.ts
 .convex/
+google-play-service-account.json
