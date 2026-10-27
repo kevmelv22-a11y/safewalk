@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "SafeWalk",
+    "slug": "safewalk",
+    "scheme": "safewalk",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#080F23",
+    "ios": {
+      "bundleIdentifier": "nl.safewalk.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "SafeWalk gebruikt je locatie om je reis te delen met contacten die jij kiest, en om je laatst bekende locatie mee te sturen bij SOS.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Tijdens een reis die jij start, deelt SafeWalk je locatie ook als de app op de achtergrond staat. Delen stopt zodra je de reis beëindigt.",
+        "UIBackgroundModes": ["location", "remote-notification"]
+      }
+    },
+    "android": {
+      "package": "nl.safewalk.app",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION", "ACCESS_BACKGROUND_LOCATION", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_LOCATION", "POST_NOTIFICATIONS", "VIBRATE"],
+      "config": { "googleMaps": { "apiKey": "${GOOGLE_MAPS_ANDROID_API_KEY}" } }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-location", {
+        "locationAlwaysAndWhenInUsePermission": "Tijdens een reis die jij start, deelt SafeWalk je locatie ook als de app op de achtergrond staat.",
+        "isAndroidBackgroundLocationEnabled": true,
+        "isAndroidForegroundServiceEnabled": true
+      }],
+      ["expo-notifications", { "color": "#7856FF" }]
+    ],
+    "experiments": { "typedRoutes": false },
+    "extra": { "eas": { "projectId": "" } }
+  }
+}

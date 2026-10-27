@@ -1,0 +1,77 @@
+import { useEffect, useRef, useState } from 'react';
+import { Linking, Text, View, Vibration } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
+import { DeliveryList } from '../src/components/DeliveryList';
+import { triggerSos, sosQueue } from '../src/lib/sos';
+import { supabase } from '../src/lib/supabase';
+import { useProfile } from '../src/lib/queries';
+import { palette } from '../src/lib/theme';
+
+type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error';
+
+export default function Sos() {
+  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
+  const profile = useProfile();
+  const [left, setLeft] = useState<number | null>(null);
+  const [phase, setPhase] = useState<Phase>('countdown');
+  const [alertId, setAlertId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const fired = useRef(false); const clientRef = useRef<string | null>(null);
+
+  useEffect(() => { if (left === null && profile.data) setLeft(profile.data.sos_countdown_seconds); }, [profile.data, left]);
+  useEffect(() => { if (left === null && profile.isError) setLeft(5); }, [profile.isError, left]);
+  useEffect(() => {
+    if (phase !== 'countdown' || left === null) return;
+    if (left <= 0) { fire(); return; }
+    Vibration.vibrate(150);
+    const tm = setTimeout(() => setLeft((l) => (l ?? 1) - 1), 1000);
+    return () => clearTimeout(tm);
+  }, [left, phase]);
+
+  const fire = async () => {
+    if (fired.current) return; fired.current = true; setPhase('sending');
+    try {
+      const r = await triggerSos(sessionId ?? null);
+      clientRef.current = r.clientRef;
+      if (r.result) { setAlertId(r.result.alert_id); setPhase('sent'); } else setPhase('queued');
+    } catch (e) { setErr(String((e as Error).message)); setPhase('error'); }
+  };
+  const cancelAfter = async () => {
+    if (alertId) await supabase.from('safety_alerts').update({ status: 'cancelled' }).eq('id', alertId);
+    if (clientRef.current) await sosQueue.remove(clientRef.current);
+    setPhase('cancelled');
+  };
+  const call112 = () => Linking.openURL('tel:112');
+
+  return (
+    <Screen>
+      {phase === 'countdown' && (
+        <View style={{ alignItems: 'center', gap: 16, paddingTop: 30 }}>
+          <H1>SOS wordt verstuurd over</H1>
+          <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: palette.red }}>{left ?? '…'}</Text>
+          <P muted>Je vertrouwde contacten krijgen een pushmelding met je laatst bekende locatie.</P>
+          <View style={{ alignSelf: 'stretch', gap: 12 }}>
+            <Button title="ANNULEREN" variant="secondary" onPress={() => { setPhase('cancelled'); router.back(); }} />
+            <Button title="Nu versturen" variant="danger" onPress={() => setLeft(0)} />
+          </View>
+        </View>
+      )}
+      {phase === 'sending' && <H1>Versturen…</H1>}
+      {phase === 'sent' && alertId && (<>
+        <H1>SOS geregistreerd</H1>
+        <Notice kind="info">Hieronder zie je per contact of het bericht aan de pushdienst is overgedragen. Aflevering op hun telefoon is niet gegarandeerd. Bel ze eventueel ook zelf.</Notice>
+        <DeliveryList alertId={alertId} />
+      </>)}
+      {phase === 'queued' && <Notice kind="danger">Geen verbinding: je SOS is opgeslagen en wordt automatisch opnieuw verstuurd zodra er internet is. Er is nog NIEMAND gewaarschuwd. Bel bij direct gevaar zelf 112.</Notice>}
+      {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err}. Bel bij direct gevaar zelf 112.</Notice>}
+      {phase === 'cancelled' && <Notice kind="ok">SOS geannuleerd.</Notice>}
+      {phase !== 'countdown' && (<>
+        <Button title="📞 Bel zelf 112" variant="danger" hint="Opent de telefoon-app met 112" onPress={call112} />
+        <P muted>SafeWalk belt 112 niet automatisch. Deze knop opent alleen je telefoon-app.</P>
+        {(phase === 'sent' || phase === 'queued') && <Button title="Vals alarm – ik ben veilig" variant="secondary" onPress={cancelAfter} />}
+        <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />
+      </>)}
+    </Screen>
+  );
+}
