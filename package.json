@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@convex-dev/auth": "^0.0.96",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
-    "@supabase/supabase-js": "^2.109.0",
-    "@tanstack/react-query": "^5.105.0",
+    "convex": "^1.48.0",
     "expo": "~58.0.20",
     "expo-constants": "~58.0.13",
     "expo-crypto": "~58.0.7",
@@ -25,27 +26,30 @@
     "react-native-purchases": "^10.16.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",
-    "react-native-url-polyfill": "^4.0.0",
     "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.12",
+    "@edge-runtime/vm": "^5.0.0",
     "@react-native/jest-preset": "^0.88.1",
     "@types/jest": "^30.0.0",
+    "@types/node": "^26.6.5",
     "@types/react": "~19.3.0",
+    "convex-test": "^0.0.66",
     "jest": "^30.5.2",
     "jest-expo": "^58.0.12",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.12"
   },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit",
+    "convex:dev": "convex dev",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p convex",
     "test": "jest",
-    "test:sql": "node supabase/tests/rls.test.mjs",
-    "test:all": "npm run typecheck && jest && npm run test:sql"
+    "test:convex": "vitest run",
+    "test:all": "npm run typecheck && jest && vitest run"
   },
   "private": true,
   "jest": {
@@ -55,7 +59,7 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/supabase/"
+      "/convex/"
     ]
   }
 }

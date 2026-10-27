@@ -1,15 +1,15 @@
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { useApp } from '../src/store/app';
+import { useConvexAuth } from 'convex/react';
 import { useProfile } from '../src/lib/queries';
-import { isConfigured } from '../src/lib/supabase';
+import { isConfigured } from '../src/lib/convex';
 import { Screen, H1, P } from '../src/components/ui';
 
 export default function Index() {
-  const { ready, session } = useApp();
+  const { isLoading, isAuthenticated } = useConvexAuth();
   const profile = useProfile();
-  if (!isConfigured) return <Screen><H1>Configuratie ontbreekt</H1><P>Zet EXPO_PUBLIC_SUPABASE_URL en EXPO_PUBLIC_SUPABASE_ANON_KEY in .env (zie README).</P></Screen>;
-  if (!ready || (session && profile.isLoading)) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>;
-  if (!session) return <Redirect href="/welcome" />;
-  return <Redirect href={profile.data?.onboarding_done ? '/dashboard' : '/onboarding/location'} />;
+  if (!isConfigured) return <Screen><H1>Configuratie ontbreekt</H1><P>Zet EXPO_PUBLIC_CONVEX_URL in .env (zie README).</P></Screen>;
+  if (isLoading || (isAuthenticated && profile === undefined)) return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>;
+  if (!isAuthenticated) return <Redirect href="/welcome" />;
+  return <Redirect href={profile?.onboardingDone ? '/dashboard' : '/onboarding/location'} />;
 }

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Text, View, Vibration } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
+import type { Id } from '../convex/_generated/dataModel';
 import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
 import { DeliveryList } from '../src/components/DeliveryList';
 import { triggerSos, sosQueue } from '../src/lib/sos';
-import { supabase } from '../src/lib/supabase';
 import { useProfile } from '../src/lib/queries';
 import { palette } from '../src/lib/theme';
 
@@ -13,14 +15,17 @@ type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error'
 export default function Sos() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const profile = useProfile();
+  const cancelAlert = useMutation(api.sos.cancel);
   const [left, setLeft] = useState<number | null>(null);
   const [phase, setPhase] = useState<Phase>('countdown');
-  const [alertId, setAlertId] = useState<string | null>(null);
+  const [alertId, setAlertId] = useState<Id<'alerts'> | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const fired = useRef(false); const clientRef = useRef<string | null>(null);
+  const alert = useQuery(api.sos.get, alertId ? { alertId } : 'skip');
 
-  useEffect(() => { if (left === null && profile.data) setLeft(profile.data.sos_countdown_seconds); }, [profile.data, left]);
-  useEffect(() => { if (left === null && profile.isError) setLeft(5); }, [profile.isError, left]);
+  // Aftelling start ook als het profiel (offline) niet laadt: standaard 5 s
+  useEffect(() => { if (left === null) { const t = setTimeout(() => setLeft((l) => l ?? 5), 1500); return () => clearTimeout(t); } }, [left]);
+  useEffect(() => { if (left === null && profile) setLeft(profile.sosCountdownSeconds); }, [profile, left]);
   useEffect(() => {
     if (phase !== 'countdown' || left === null) return;
     if (left <= 0) { fire(); return; }
@@ -32,17 +37,16 @@ export default function Sos() {
   const fire = async () => {
     if (fired.current) return; fired.current = true; setPhase('sending');
     try {
-      const r = await triggerSos(sessionId ?? null);
+      const r = await triggerSos((sessionId as Id<'sessions'>) ?? null);
       clientRef.current = r.clientRef;
-      if (r.result) { setAlertId(r.result.alert_id); setPhase('sent'); } else setPhase('queued');
+      if (r.alertId) { setAlertId(r.alertId); setPhase('sent'); } else setPhase('queued');
     } catch (e) { setErr(String((e as Error).message)); setPhase('error'); }
   };
   const cancelAfter = async () => {
-    if (alertId) await supabase.from('safety_alerts').update({ status: 'cancelled' }).eq('id', alertId);
+    if (alertId) await cancelAlert({ alertId }).catch(() => {});
     if (clientRef.current) await sosQueue.remove(clientRef.current);
     setPhase('cancelled');
   };
-  const call112 = () => Linking.openURL('tel:112');
 
   return (
     <Screen>
@@ -58,16 +62,16 @@ export default function Sos() {
         </View>
       )}
       {phase === 'sending' && <H1>Versturen…</H1>}
-      {phase === 'sent' && alertId && (<>
+      {phase === 'sent' && (<>
         <H1>SOS geregistreerd</H1>
         <Notice kind="info">Hieronder zie je per contact of het bericht aan de pushdienst is overgedragen. Aflevering op hun telefoon is niet gegarandeerd. Bel ze eventueel ook zelf.</Notice>
-        <DeliveryList alertId={alertId} />
+        <DeliveryList deliveries={alert?.deliveries ?? []} />
       </>)}
       {phase === 'queued' && <Notice kind="danger">Geen verbinding: je SOS is opgeslagen en wordt automatisch opnieuw verstuurd zodra er internet is. Er is nog NIEMAND gewaarschuwd. Bel bij direct gevaar zelf 112.</Notice>}
       {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err}. Bel bij direct gevaar zelf 112.</Notice>}
       {phase === 'cancelled' && <Notice kind="ok">SOS geannuleerd.</Notice>}
       {phase !== 'countdown' && (<>
-        <Button title="📞 Bel zelf 112" variant="danger" hint="Opent de telefoon-app met 112" onPress={call112} />
+        <Button title="📞 Bel zelf 112" variant="danger" hint="Opent de telefoon-app met 112" onPress={() => Linking.openURL('tel:112')} />
         <P muted>SafeWalk belt 112 niet automatisch. Deze knop opent alleen je telefoon-app.</P>
         {(phase === 'sent' || phase === 'queued') && <Button title="Vals alarm – ik ben veilig" variant="secondary" onPress={cancelAfter} />}
         <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />

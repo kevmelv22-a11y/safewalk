@@ -4,7 +4,7 @@ export const STALE_AFTER_MS = 2 * 60_000;   // > 2 min geen update: waarschuwing
 export const LOST_AFTER_MS = 10 * 60_000;   // > 10 min: "geen actuele locatie"
 
 export type Freshness = 'fresh' | 'stale' | 'lost' | 'none';
-export function locationFreshness(lastAt: string | Date | null | undefined, now = Date.now()): Freshness {
+export function locationFreshness(lastAt: string | number | Date | null | undefined, now = Date.now()): Freshness {
   if (!lastAt) return 'none';
   const age = now - new Date(lastAt).getTime();
   if (age > LOST_AFTER_MS) return 'lost';
@@ -28,7 +28,7 @@ export function accuracyLabel(m: number | null | undefined): string {
   return `±${Math.round(m)} m (onnauwkeurig)`;
 }
 
-export function timeAgo(at: string | Date | null | undefined, now = Date.now()): string {
+export function timeAgo(at: string | number | Date | null | undefined, now = Date.now()): string {
   if (!at) return 'nooit';
   const s = Math.max(0, Math.round((now - new Date(at).getTime()) / 1000));
   if (s < 60) return `${s} s geleden`;
@@ -39,7 +39,7 @@ export function timeAgo(at: string | Date | null | undefined, now = Date.now()):
 
 export type CheckInPhase = 'running' | 'due' | 'grace' | 'overdue';
 /** Fase van de check-in o.b.v. door de SERVER opgeslagen due_at en grace_minutes. */
-export function checkInPhase(dueAt: string | Date, graceMinutes: number, now = Date.now()): CheckInPhase {
+export function checkInPhase(dueAt: string | number | Date, graceMinutes: number, now = Date.now()): CheckInPhase {
   const due = new Date(dueAt).getTime();
   if (now < due - 60_000) return 'running';
   if (now < due) return 'due';

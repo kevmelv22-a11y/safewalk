@@ -19,3 +19,4 @@ supabase/.branches/
 .DS_Store
 npm-debug.*
 expo-env.d.ts
+.convex/

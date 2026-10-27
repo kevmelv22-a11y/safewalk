@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { useAuthActions } from '@convex-dev/auth/react';
 import { Screen, H1, Button, Field, Notice } from '../src/components/ui';
-import { supabase } from '../src/lib/supabase';
 
 export default function Login() {
+  const { signIn } = useAuthActions();
   const [email, setEmail] = useState(''); const [pw, setPw] = useState('');
   const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const submit = async () => {
     setBusy(true); setErr(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
-    setBusy(false);
-    if (error) setErr('Inloggen mislukt. Controleer je gegevens.'); else router.replace('/');
+    try { await signIn('password', { flow: 'signIn', email: email.trim(), password: pw }); router.replace('/'); }
+    catch { setErr('Inloggen mislukt. Controleer je gegevens.'); }
+    finally { setBusy(false); }
   };
   return (
     <Screen>

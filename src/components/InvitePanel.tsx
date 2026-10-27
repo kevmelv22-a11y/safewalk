@@ -2,19 +2,21 @@ import { useState } from 'react';
 import { Share } from 'react-native';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { Button, Card, Field, Notice, P } from './ui';
-import { supabase } from '../lib/supabase';
-import { mapErrorNl, parseInviteToken } from '../lib/safety';
+import { errorNl } from '../lib/convex';
+import { parseInviteToken } from '../lib/safety';
 
 export function InvitePanel() {
+  const createInvitation = useMutation(api.contacts.createInvitation);
   const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false); const [code, setCode] = useState('');
   const create = async () => {
     setBusy(true); setErr(null);
-    const { data, error } = await supabase.rpc('create_invitation');
-    setBusy(false);
-    if (error) return setErr(mapErrorNl(error.message));
-    const link = Linking.createURL(`/invite/${data}`);
-    await Share.share({ message: `Wil je mijn vertrouwde contact zijn in SafeWalk? Open deze link (7 dagen geldig): ${link}` });
+    try {
+      const token = await createInvitation();
+      await Share.share({ message: `Wil je mijn vertrouwde contact zijn in SafeWalk? Open deze link (7 dagen geldig): ${Linking.createURL(`/invite/${token}`)}` });
+    } catch (e) { setErr(errorNl(e)); } finally { setBusy(false); }
   };
   return (
     <Card>

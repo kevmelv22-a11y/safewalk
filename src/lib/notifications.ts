@@ -2,13 +2,14 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { supabase } from './supabase';
+import { convex } from './convex';
+import { api } from '../../convex/_generated/api';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
 });
 
-export async function registerPush(userId: string): Promise<string | null> {
+export async function registerPush(): Promise<string | null> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('safety-alerts', {
       name: 'Veiligheidsmeldingen', importance: Notifications.AndroidImportance.MAX, vibrationPattern: [0, 400, 200, 400], lightColor: '#EF4444',
@@ -19,7 +20,7 @@ export async function registerPush(userId: string): Promise<string | null> {
   if (status !== 'granted') return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   const token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
-  await supabase.from('push_tokens').upsert({ token, user_id: userId, platform: Platform.OS, updated_at: new Date().toISOString() });
+  await convex.mutation(api.profiles.registerPushToken, { token, platform: Platform.OS });
   return token;
 }
 

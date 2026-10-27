@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { Button, Card, Notice, P } from './ui';
-import { supabase } from '../lib/supabase';
+import { errorNl } from '../lib/convex';
 import { useProfile } from '../lib/queries';
 
 const Choice = ({ options, value, onChange, unit }: { options: number[]; value: number; onChange: (n: number) => void; unit: string }) => (
@@ -12,12 +13,11 @@ const Choice = ({ options, value, onChange, unit }: { options: number[]; value: 
 );
 
 export function SafetySettingsForm() {
-  const { data } = useProfile(); const qc = useQueryClient();
+  const data = useProfile(); const update = useMutation(api.profiles.update);
   const [grace, setGrace] = useState(5); const [countdown, setCountdown] = useState(5); const [saved, setSaved] = useState<string | null>(null);
-  useEffect(() => { if (data) { setGrace(data.default_grace_minutes); setCountdown(data.sos_countdown_seconds); } }, [data]);
+  useEffect(() => { if (data) { setGrace(data.defaultGraceMinutes); setCountdown(data.sosCountdownSeconds); } }, [data]);
   const save = async () => {
-    const { error } = await supabase.from('profiles').update({ default_grace_minutes: grace, sos_countdown_seconds: countdown }).eq('id', data!.id);
-    setSaved(error ? error.message : 'Opgeslagen'); qc.invalidateQueries({ queryKey: ['profile'] });
+    try { await update({ defaultGraceMinutes: grace, sosCountdownSeconds: countdown }); setSaved('Opgeslagen'); } catch (e) { setSaved(errorNl(e)); }
   };
   return (
     <Card>
