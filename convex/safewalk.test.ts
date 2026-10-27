@@ -339,7 +339,7 @@ describe('bewegingsdetectie', () => {
 
 describe('premium / RevenueCat', () => {
   const ev = (userId: string, type: string, id: string, extra = {}) => ({ event: { id, type, app_user_id: userId, entitlement_ids: ['premium'], expiration_at_ms: Date.now() + 30 * 24 * 3600_000, ...extra } });
-  const post = (t: ReturnType<typeof convexTest>, body: unknown, auth?: string) =>
+  const post = (t: Awaited<ReturnType<typeof setup>>['t'], body: unknown, auth?: string) =>
     t.fetch('/revenuecat/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: auth } : {}) }, body: JSON.stringify(body) });
   beforeEach(() => { process.env.REVENUECAT_WEBHOOK_SECRET = 'test-secret'; });
   afterEach(() => { delete process.env.REVENUECAT_WEBHOOK_SECRET; });
@@ -379,5 +379,37 @@ describe('premium / RevenueCat', () => {
     await expect(owner.as.mutation(api.sessions.start, { destination: 'X', expectedArrival: Date.now() + 30 * MIN, viewerIds: [friend.id] })).rejects.toThrow(/RESTRICTED/);
     await expect(owner.as.mutation(api.contacts.createInvitation, {})).rejects.toThrow(/RESTRICTED/);
     expect(await owner.as.mutation(api.sos.trigger, { clientRef: 'restricted-sos' })).toBeTruthy();
+  });
+});
+
+describe('AI-assistent', () => {
+  beforeEach(() => { delete process.env.OPENAI_API_KEY; });
+  afterEach(() => { delete process.env.OPENAI_API_KEY; });
+  const msg = (content: string) => ({ messages: [{ role: 'user' as const, content }] });
+  const makePremium = (t: Awaited<ReturnType<typeof setup>>['t'], id: Id<'users'>) => t.run(async (ctx) => { const s = (await ctx.db.query('subscriptions').withIndex('by_user', (q) => q.eq('userId', id)).first())!; await ctx.db.patch(s._id, { tier: 'premium' }); });
+  test('zonder OPENAI_API_KEY netjes uitgeschakeld', async () => {
+    const { owner } = await setup();
+    expect(await owner.as.action(api.assistant.ask, msg('tips?'))).toEqual({ disabled: true });
+    expect((await owner.as.query(api.assistant.availability, {})).enabled).toBe(false);
+  });
+  test('alleen premium; systeemprompt verbiedt noodvaststelling; gevaar → vaste 112-tekst', async () => {
+    process.env.OPENAI_API_KEY = 'test';
+    const { t, owner } = await setup();
+    await expect(owner.as.action(api.assistant.ask, msg('tips?'))).rejects.toThrow(/PREMIUM_REQUIRED/);
+    await makePremium(t, owner.id);
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ choices: [{ message: { content: 'Deel je reis met een vertrouwd contact.' } }] }), { status: 200 }));
+    const r = await owner.as.action(api.assistant.ask, msg('Ik word gevolgd, wat moet ik doen?'));
+    expect(r.reply).toMatch(/vertrouwd contact/);
+    expect(r.notice).toMatch(/112/);
+    const sent = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+    expect(sent.messages[0].role).toBe('system');
+    expect(sent.messages[0].content).toMatch(/nooit vast of er een noodsituatie is/);
+    expect((await t.run((ctx) => ctx.db.query('alerts').collect()))).toHaveLength(0); // AI alarmeert niemand
+  });
+  test('OpenAI-fout → nette melding', async () => {
+    process.env.OPENAI_API_KEY = 'test';
+    const { t, owner } = await setup(); await makePremium(t, owner.id);
+    fetchMock.mockImplementation(async () => new Response('x', { status: 500 }));
+    expect((await owner.as.action(api.assistant.ask, msg('hoi'))).reply).toMatch(/niet bereikbaar/);
   });
 });
