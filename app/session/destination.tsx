@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useColorScheme, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Screen, Button, Field, Notice, P, Card } from '../../src/components/ui';
+import { useIsDark } from '../../src/lib/theme';
 import { darkMapStyle } from '../../src/lib/mapStyle';
 import { etaLabel, formatDistance, haversineMeters, roughEtaMs } from '../../src/lib/safety';
 import { useTripDraft, Destination } from '../../src/store/trip';
@@ -18,7 +19,7 @@ async function labelFor(lat: number, lng: number): Promise<string> {
 }
 
 export default function DestinationPicker() {
-  const scheme = useColorScheme();
+  const isDark = useIsDark();
   const setDestination = useTripDraft((s) => s.setDestination);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const [pin, setPin] = useState<Destination | null>(useTripDraft.getState().destination);
@@ -47,7 +48,7 @@ export default function DestinationPicker() {
       <Button title="Zoeken" variant="secondary" onPress={search} loading={busy} disabled={!query.trim()} />
       {err && <Notice kind="warn">{err}</Notice>}
       <View style={{ height: 360, borderRadius: 16, overflow: 'hidden' }}>
-        <MapView style={{ flex: 1 }} provider={PROVIDER_DEFAULT} customMapStyle={scheme === 'light' ? [] : darkMapStyle} showsUserLocation
+        <MapView style={{ flex: 1 }} provider={PROVIDER_DEFAULT} customMapStyle={isDark ? darkMapStyle : []} userInterfaceStyle={isDark ? 'dark' : 'light'} showsUserLocation
           region={{ latitude: center.lat, longitude: center.lng, latitudeDelta: 0.03, longitudeDelta: 0.03 }}
           onPress={(e) => choose(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)} accessibilityLabel="Kaart: tik om bestemming te kiezen">
           {pin && <Marker coordinate={{ latitude: pin.lat, longitude: pin.lng }} title={pin.label} pinColor={palette.purple} draggable

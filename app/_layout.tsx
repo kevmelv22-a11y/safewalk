@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { convex, tokenStorage } from '../src/lib/convex';
 import { startSosRetry } from '../src/lib/sos';
-import { useTheme } from '../src/lib/theme';
+import { useIsDark, useTheme } from '../src/lib/theme';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { configurePurchases } from '../src/lib/purchases';
@@ -19,7 +19,7 @@ function PurchasesBootstrap() {
 }
 
 export default function RootLayout() {
-  const t = useTheme();
+  const t = useTheme(); const isDark = useIsDark();
   useEffect(() => {
     const stopRetry = startSosRetry();
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
@@ -33,7 +33,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ConvexAuthProvider client={convex} storage={tokenStorage}>
         <PurchasesBootstrap />
-        <StatusBar style="auto" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />

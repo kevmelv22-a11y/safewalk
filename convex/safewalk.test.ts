@@ -444,3 +444,13 @@ describe('adminpaneel', () => {
     expect(await owner.as.query(api.admin.amIAdmin, {})).toBe(true);
   });
 });
+
+test('geblokkeerde personen tonen en deblokkeren herstelt geen relatie', async () => {
+  const { owner, friend, connect } = await setup();
+  await connect(owner, friend);
+  await friend.as.mutation(api.contacts.block, { userId: owner.id });
+  expect((await friend.as.query(api.contacts.blocked, {})).map((b) => b.name)).toEqual(['owner']);
+  await friend.as.mutation(api.contacts.unblock, { userId: owner.id });
+  expect(await friend.as.query(api.contacts.blocked, {})).toHaveLength(0);
+  expect((await owner.as.query(api.contacts.list, {})).mine).toHaveLength(0);
+});

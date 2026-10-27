@@ -89,3 +89,9 @@ export const report = mutation({
     await audit(ctx, uid, 'abuse.reported');
   },
 });
+
+export const blocked = query({ args: {}, handler: async (ctx) => {
+  const uid = await getAuthUserId(ctx); if (!uid) return [];
+  const rows = await ctx.db.query('blocks').withIndex('by_pair', (q) => q.eq('blockerId', uid)).collect();
+  return Promise.all(rows.map(async (b) => ({ userId: b.blockedId, name: await displayName(ctx, b.blockedId), since: b._creationTime })));
+} });
