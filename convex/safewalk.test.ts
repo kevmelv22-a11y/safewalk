@@ -454,3 +454,32 @@ test('geblokkeerde personen tonen en deblokkeren herstelt geen relatie', async (
   expect(await friend.as.query(api.contacts.blocked, {})).toHaveLength(0);
   expect((await owner.as.query(api.contacts.list, {})).mine).toHaveLength(0);
 });
+
+import { ensureProfile, isAllowedRedirect } from './auth';
+describe('Google OAuth', () => {
+  afterEach(() => { delete process.env.AUTH_GOOGLE_ID; delete process.env.AUTH_GOOGLE_SECRET; });
+  test('redirect alleen naar app-scheme, Expo-dev of SITE_URL', () => {
+    expect(isAllowedRedirect('safewalk://', 'https://x.app')).toBe(true);
+    expect(isAllowedRedirect('safewalk://auth?x=1', '')).toBe(true);
+    expect(isAllowedRedirect('exp://192.168.1.5:8081/--/', '')).toBe(true);
+    expect(isAllowedRedirect('https://x.app/login', 'https://x.app')).toBe(true);
+    expect(isAllowedRedirect('https://evil.example', 'https://x.app')).toBe(false);
+    expect(isAllowedRedirect('https://x.app.evil.example', 'https://x.app')).toBe(false);
+  });
+  test('providers-query meldt of Google is geconfigureerd', async () => {
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.auth.providers, {})).toEqual({ google: false });
+    process.env.AUTH_GOOGLE_ID = 'id'; process.env.AUTH_GOOGLE_SECRET = 'secret';
+    expect(await t.query(api.auth.providers, {})).toEqual({ google: true });
+  });
+  test('OAuth-gebruiker krijgt profiel + gratis abonnement (idempotent)', async () => {
+    const t = convexTest(schema, modules);
+    const counts = await t.run(async (ctx) => {
+      const userId = await ctx.db.insert('users', { name: 'Google Gebruiker', email: 'g@gmail.com' });
+      await ensureProfile(ctx, userId, 'Google Gebruiker'); await ensureProfile(ctx, userId, 'Google Gebruiker');
+      return { p: (await ctx.db.query('profiles').collect()), s: (await ctx.db.query('subscriptions').collect()) };
+    });
+    expect(counts.p).toHaveLength(1); expect(counts.p[0].displayName).toBe('Google Gebruiker');
+    expect(counts.s.map((x) => x.tier)).toEqual(['free']);
+  });
+});

@@ -47,7 +47,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#080F23"
+        "backgroundColor": "#040B1A"
       },
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
@@ -79,14 +79,16 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
-          "backgroundColor": "#080F23",
+          "imageWidth": 220,
+          "backgroundColor": "#040B1A",
           "dark": {
-            "backgroundColor": "#080F23"
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#040B1A"
           },
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": false

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useAuthActions } from '@convex-dev/auth/react';
+import { Logo } from '../src/components/Logo';
+import { GoogleButton } from '../src/components/GoogleButton';
 import { Screen, H1, P, Button, Field, Notice } from '../src/components/ui';
 import { errorCode } from '../src/lib/convex';
 
@@ -18,7 +20,10 @@ export default function SignUp() {
   };
   return (
     <Screen>
+      <Logo size="small" />
       <H1>Account aanmaken</H1>
+      <GoogleButton />
+      <P muted style={{ textAlign: 'center' }}>of met e-mail</P>
       <P muted>Je naam is alleen zichtbaar voor je vertrouwde contacten.</P>
       <Field label="Naam" value={name} onChangeText={setName} autoComplete="name" />
       <Field label="E-mailadres" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
