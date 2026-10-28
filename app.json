@@ -95,13 +95,19 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "5732aaf2-dc13-4931-a862-520ff6c147d7"
+      },
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
       }
     },
     "description": "SafeWalk – Samen veilig thuis. Deel je reis tijdelijk met vertrouwde contacten.",
     "icon": "./assets/icon.png",
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "owner": "kevke-026s-team"
   }
 }

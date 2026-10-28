@@ -36,6 +36,19 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "adhoc": {
+      "distribution": "internal",
+      "credentialsSource": "local",
+      "ios": {
+        "buildConfiguration": "Release",
+        "image": "latest"
+      },
+      "env": {
+        "SAFEWALK_IOS_ADHOC": "1",
+        "APP_VARIANT": "adhoc",
+        "EXPO_PUBLIC_CONVEX_URL": "https://agile-capybara-401.convex.cloud"
+      }
     }
   },
   "submit": {
