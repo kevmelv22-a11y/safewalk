@@ -53,7 +53,8 @@ export default function Settings() {
         <Button title="Uitloggen" variant="secondary" onPress={async () => { await stopSharing(); await resetPurchases(); await signOut(); router.replace('/welcome'); }} />
         <Button title="Account verwijderen" variant="danger" onPress={confirmDelete} />
       </Card>
-      <Card><P>Premium (binnenkort)</P><P muted>SOS, 2 contacten, tijdelijk delen en basis-check-ins blijven altijd gratis.</P></Card>
+      <Card><P>Premium</P><P muted>SOS, 2 contacten, tijdelijk delen en basis-check-ins blijven altijd gratis.</P>
+        <Button title="Bekijk Premium" variant="secondary" onPress={() => router.push('/premium')} /></Card>
       {msg && <Notice kind="info">{msg}</Notice>}
     </Screen>
   );

@@ -23,6 +23,14 @@ export default function Sos() {
   const fired = useRef(false); const clientRef = useRef<string | null>(null);
   const alert = useQuery(api.sos.get, alertId ? { alertId } : 'skip');
 
+  const fire = async () => {
+    if (fired.current) return; fired.current = true; setPhase('sending');
+    try {
+      const r = await triggerSos((sessionId as Id<'sessions'>) ?? null);
+      clientRef.current = r.clientRef;
+      if (r.alertId) { setAlertId(r.alertId); setPhase('sent'); } else setPhase('queued');
+    } catch (e) { setErr(String((e as Error).message)); setPhase('error'); }
+  };
   // Aftelling start ook als het profiel (offline) niet laadt: standaard 5 s
   useEffect(() => { if (left === null) { const t = setTimeout(() => setLeft((l) => l ?? 5), 1500); return () => clearTimeout(t); } }, [left]);
   useEffect(() => { if (left === null && profile) setLeft(profile.sosCountdownSeconds); }, [profile, left]);
@@ -34,14 +42,6 @@ export default function Sos() {
     return () => clearTimeout(tm);
   }, [left, phase]);
 
-  const fire = async () => {
-    if (fired.current) return; fired.current = true; setPhase('sending');
-    try {
-      const r = await triggerSos((sessionId as Id<'sessions'>) ?? null);
-      clientRef.current = r.clientRef;
-      if (r.alertId) { setAlertId(r.alertId); setPhase('sent'); } else setPhase('queued');
-    } catch (e) { setErr(String((e as Error).message)); setPhase('error'); }
-  };
   const cancelAfter = async () => {
     if (alertId) await cancelAlert({ alertId }).catch(() => {});
     if (clientRef.current) await sosQueue.remove(clientRef.current);

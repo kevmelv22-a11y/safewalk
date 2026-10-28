@@ -38,6 +38,27 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard" options={{ title: 'SafeWalk', headerBackVisible: false }} />
+          <Stack.Screen name="login" options={{ title: 'Inloggen' }} />
+          <Stack.Screen name="signup" options={{ title: 'Account aanmaken' }} />
+          <Stack.Screen name="forgot-password" options={{ title: 'Wachtwoord vergeten' }} />
+          <Stack.Screen name="reset-password" options={{ title: 'Nieuw wachtwoord' }} />
+          <Stack.Screen name="verify-email" options={{ title: 'E-mail bevestigen' }} />
+          <Stack.Screen name="alert/[id]" options={{ title: 'Melding' }} />
+          <Stack.Screen name="assistant" options={{ title: 'Veiligheidsassistent' }} />
+          <Stack.Screen name="contacts" options={{ title: 'Vertrouwde contacten' }} />
+          <Stack.Screen name="history" options={{ title: 'Reisgeschiedenis' }} />
+          <Stack.Screen name="invite/[token]" options={{ title: 'Uitnodiging' }} />
+          <Stack.Screen name="onboarding/contacts" options={{ title: 'Contacten' }} />
+          <Stack.Screen name="onboarding/location" options={{ title: 'Locatie' }} />
+          <Stack.Screen name="onboarding/notifications" options={{ title: 'Meldingen' }} />
+          <Stack.Screen name="onboarding/settings" options={{ title: 'Veiligheid' }} />
+          <Stack.Screen name="premium" options={{ title: 'Premium' }} />
+          <Stack.Screen name="report" options={{ title: 'Misbruik melden' }} />
+          <Stack.Screen name="session/[id]" options={{ title: 'Reis' }} />
+          <Stack.Screen name="session/destination" options={{ title: 'Bestemming' }} />
+          <Stack.Screen name="session/new" options={{ title: 'Nieuwe reis' }} />
+          <Stack.Screen name="settings" options={{ title: 'Instellingen' }} />
+          <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>
       </ConvexAuthProvider>
