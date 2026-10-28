@@ -5,6 +5,7 @@ import { Logo } from '../src/components/Logo';
 import { GoogleButton } from '../src/components/GoogleButton';
 import { Screen, H1, P, Button, Field, Notice } from '../src/components/ui';
 import { errorCode } from '../src/lib/convex';
+import { mapErrorNl } from '../src/lib/safety';
 
 export default function SignUp() {
   const { signIn } = useAuthActions();
@@ -14,8 +15,15 @@ export default function SignUp() {
     setErr(null);
     if (pw.length < 10) return setErr('Gebruik een wachtwoord van minstens 10 tekens.');
     setBusy(true);
-    try { await signIn('password', { flow: 'signUp', email: email.trim(), password: pw, name: name.trim() }); router.replace('/onboarding/location'); }
-    catch (e) { setErr(errorCode(e).includes('WEAK_PASSWORD') ? 'Wachtwoord te zwak.' : 'Account aanmaken mislukt. Bestaat dit e-mailadres al?'); }
+    try {
+      const e = email.trim().toLowerCase();
+      const res = await signIn('password', { flow: 'signUp', email: e, password: pw, name: name.trim() });
+      if (!res.signingIn) router.push({ pathname: '/verify-email', params: { email: e, next: 'onboarding' } });
+      else router.replace('/onboarding/location');
+    } catch (e) {
+      const c = errorCode(e);
+      setErr(c.includes('WEAK_PASSWORD') ? 'Wachtwoord te zwak.' : /EMAIL_/.test(c) ? mapErrorNl(c) : 'Account aanmaken mislukt. Bestaat dit e-mailadres al?');
+    }
     finally { setBusy(false); }
   };
   return (

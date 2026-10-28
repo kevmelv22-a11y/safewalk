@@ -56,6 +56,9 @@ Extra omgevingsvariabelen (per deployment, `npx convex env set NAAM waarde`):
 | `EXPO_ACCESS_TOKEN` | optioneel: Expo push security |
 | `REVENUECAT_WEBHOOK_SECRET` | Premium-webhook (zelfde waarde als "Authorization header" in RevenueCat) |
 | `OPENAI_API_KEY`, optioneel `OPENAI_MODEL` | AI-assistent (zonder sleutel netjes uitgeschakeld) |
+| `RESEND_API_KEY`, `AUTH_EMAIL_FROM` | E-mailverificatie en wachtwoordherstel (OTP-codes) via Resend (gratis tier). `AUTH_EMAIL_FROM` bv. `SafeWalk <noreply@jouwdomein.nl>` (geverifieerd domein); standaard `onboarding@resend.dev` (alleen naar je eigen Resend-adres). Zonder sleutel geeft de server `EMAIL_NOT_CONFIGURED` en ziet de gebruiker een duidelijke melding. |
+| `AUTH_EMAIL_DEV_LOG=true` | **Alleen lokaal/dev**: zonder Resend-sleutel wordt de code in de Convex-logs gezet (`npx convex logs`). Nooit op prod zetten. |
+| `SITE_URL`, `JWT_PRIVATE_KEY`, `JWKS` | Convex Auth (zie `npx @convex-dev/auth`); `SITE_URL` moet een geldige URL zijn. |
 
 Beheerder aanwijzen: `npx convex run admin:grantAdmin '{"email":"jij@…"}'` (met `--prod` voor productie).
 

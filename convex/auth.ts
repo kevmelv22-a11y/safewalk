@@ -4,6 +4,7 @@ import Google from '@auth/core/providers/google';
 import { ConvexError } from 'convex/values';
 import { query, type MutationCtx } from './_generated/server';
 import type { Id } from './_generated/dataModel';
+import { ResendOTPReset, ResendOTPVerify } from './authEmail';
 
 export const googleConfigured = () => Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
@@ -27,6 +28,9 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       profile(params) {
         return { email: String(params.email).trim().toLowerCase(), name: String(params.name ?? '').slice(0, 80) };
       },
+      // E-mailverificatie (OTP) bij registratie/inloggen en wachtwoordherstel (OTP)
+      verify: ResendOTPVerify,
+      reset: ResendOTPReset,
       validatePasswordRequirements(pw: string) {
         if (pw.length < 10) throw new ConvexError('WEAK_PASSWORD');
       },
