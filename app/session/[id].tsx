@@ -9,7 +9,7 @@ import { SosButton } from '../../src/components/SosButton';
 import { errorNl } from '../../src/lib/convex';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
 import { checkInPhase, deliveryIcon, deliveryLabel, formatCountdown, notificationKindLabel } from '../../src/lib/safety';
-import { signalText } from '../../convex/motion';
+import { signalText } from '../../convex/motionText';
 import { stopSharing } from '../../src/lib/location';
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 

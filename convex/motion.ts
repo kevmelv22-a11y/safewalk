@@ -7,7 +7,9 @@ import { fail, requireUser } from './lib';
  * Optionele bewegingssignalen. Deze signalen zijn NOOIT een noodsituatie: ze leiden uitsluitend tot
  * een extra check-in-vraag aan de gebruiker zelf. Contacten worden hierdoor niet gewaarschuwd.
  */
-export type SignalKind = 'stationary' | 'deviation' | 'no_data';
+import { SignalKind, signalText } from './motionText';
+export type { SignalKind };
+export { signalText };
 export const NO_DATA_MS = 10 * 60_000;
 export const STATIONARY_MS = 15 * 60_000;
 export const STATIONARY_RADIUS_M = 40;
@@ -33,11 +35,6 @@ export function detectSignals(i: { locations: (Pt & { recordedAt: number })[]; n
   return out;
 }
 
-export const signalText: Record<SignalKind, string> = {
-  stationary: 'Je staat al een tijdje stil. Alles goed?',
-  deviation: 'Je lijkt verder van je bestemming te gaan. Alles goed?',
-  no_data: 'We ontvangen al even geen locatie meer. Alles goed? (Controleer GPS en internet.)',
-};
 
 export const acknowledge = mutation({ args: { signalId: v.id('motionSignals') }, handler: async (ctx, { signalId }) => {
   const uid = await requireUser(ctx);
