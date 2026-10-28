@@ -1,6 +1,6 @@
 import { Image, useWindowDimensions } from 'react-native';
 
-const RATIO = 900 / 1242; // breedte / hoogte van assets/logo-full.png
+const RATIO = 900 / 1232; // breedte / hoogte van assets/logo-full.png (transparant)
 /** Officieel SafeWalk-logo; schaalt mee met kleine en grote schermen. */
 export function Logo({ size = 'large' }: { size?: 'large' | 'small' }) {
   const { width, height } = useWindowDimensions();

@@ -17,6 +17,12 @@ def shield(size, frac):
 shield(1024, .92).save('assets/icon.png')            # iOS: ondoorzichtig
 shield(1024, .62).save('assets/adaptive-icon.png')    # Android: binnen veilige zone (~66%)
 shield(48, .95).save('assets/favicon.png')
-full = src.crop(S(22, 62, 665, 950))
+# Transparante master (zie make-transparent.py) voor logo in de app, splash en Android-foreground
+import os
+TR = os.path.join(os.path.dirname(SRC), 'logo-transparent.png')
+full = Image.open(TR).convert('RGBA')
+sh = full.crop((0, 0, full.width, int(full.height * 0.80))); sh = sh.crop(sh.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox())
+fg = Image.new('RGBA', (1024, 1024), (0, 0, 0, 0)); t = sh.copy(); t.thumbnail((620, 620), Image.LANCZOS)
+fg.paste(t, ((1024 - t.width) // 2, (1024 - t.height) // 2), t); fg.save('assets/adaptive-icon.png')  # Android: transparant
 full.resize((900, int(900 * full.height / full.width)), Image.LANCZOS).save('assets/logo-full.png', optimize=True)
 full.resize((600, int(600 * full.height / full.width)), Image.LANCZOS).save('assets/splash-icon.png', optimize=True)
