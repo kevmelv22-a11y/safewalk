@@ -20,7 +20,7 @@ export function Markdown({ source }: { source: string }) {
         if (b.type === 'h1') return <Inline key={i} text={b.text} style={{ ...base, fontSize: 24, fontWeight: '800' }} />;
         if (b.type === 'h2') return <Inline key={i} text={b.text} style={{ ...base, fontSize: 18, fontWeight: '700', marginTop: 8 }} />;
         if (b.type === 'quote') return <View key={i} style={{ borderLeftWidth: 4, borderLeftColor: t.amber, paddingLeft: 10 }}><Inline text={b.text} style={{ ...base, color: t.muted }} /></View>;
-        if (b.type === 'li') return <Inline key={i} text={`•  ${b.text}`} style={{ ...base, paddingLeft: 6 }} />;
+        if (b.type === 'li') return <Inline key={i} text={/^\d+\. /.test(b.text) ? b.text : `•  ${b.text}`} style={{ ...base, paddingLeft: 6 }} />;
         if (b.type === 'row') return (
           <View key={i} style={{ borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 10, backgroundColor: i === header ? t.card : undefined }}>
             <Inline text={b.text} style={{ ...base, fontSize: 14, fontWeight: i === header ? '700' : '400' }} />
