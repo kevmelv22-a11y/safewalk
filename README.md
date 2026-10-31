@@ -89,6 +89,9 @@ cd admin && cp .env.example .env   # VITE_CONVEX_URL
 npm run dev                        # of npm run build → dist/ (statisch hosten, bv. achter toegangsbeveiliging)
 ```
 
+## Juridisch
+Privacybeleid en gebruiksvoorwaarden (`docs/`, in de app via `node scripts/sync-legal.mjs`) zijn ingevuld voor **Vonk Byte** (support@vonkbyte.nl, KvK volgt januari 2027, geen adres). **Juridische toetsing (AVG) staat nog open** – laat de teksten controleren vóór publicatie en vul daarna het KvK-nummer in.
+
 ## Store-voorbereiding
 - `app.json`: Nederlandstalige permissieteksten (`NSLocationWhenInUse…`, `NSLocationAlwaysAndWhenInUse…`, `UIBackgroundModes: location, remote-notification`), Android foreground-service-permissies, iconen/splash (placeholders in merkkleuren in `assets/`).
 - `eas.json`: `development`, `preview`, `production` (+ submit-placeholders).

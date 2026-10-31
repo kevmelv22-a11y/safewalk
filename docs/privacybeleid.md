@@ -1,9 +1,7 @@
-# Privacybeleid SafeWalk (CONCEPT)
+# Privacybeleid SafeWalk
 
-> Concept – laat dit juridisch toetsen (AVG/GDPR) voordat je het publiceert. Vul de [placeholders] in.
-
-**Verwerkingsverantwoordelijke:** [Bedrijfsnaam], [adres], [KvK], [e-mail privacy@…]
-**Laatst bijgewerkt:** [datum]
+**Verwerkingsverantwoordelijke:** Vonk Byte · KvK-nummer volgt (inschrijving januari 2027) · support@vonkbyte.nl
+**Laatst bijgewerkt:** 31 oktober 2026
 
 ## 1. Wat SafeWalk is
 SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt met vertrouwde contacten. SafeWalk is **geen hulpdienst**, belt nooit automatisch 112 en kan niet garanderen dat meldingen aankomen.
@@ -19,7 +17,7 @@ SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt m
 | Pushtoken, afleverstatus van meldingen | Meldingen versturen en status tonen | Overeenkomst | Tot verwijdering/ongeldig |
 | Abonnementsstatus (via RevenueCat/App Store/Google Play) | Premium | Overeenkomst | Zolang wettelijk nodig |
 | Vragen aan de AI-assistent (optioneel, Premium) | Antwoord genereren via OpenAI | Toestemming | Niet door SafeWalk opgeslagen |
-| Misbruikmeldingen, auditlog, foutmeldingen | Veiligheid, misbruikpreventie | Gerechtvaardigd belang | Max. [12] maanden |
+| Misbruikmeldingen, auditlog, foutmeldingen | Veiligheid, misbruikpreventie | Gerechtvaardigd belang | Max. 12 maanden |
 
 We verkopen geen gegevens, tonen geen advertenties en volgen je niet buiten een reis die je zelf start.
 
@@ -27,7 +25,7 @@ We verkopen geen gegevens, tonen geen advertenties en volgen je niet buiten een 
 Alleen personen die (1) jouw uitnodiging hebben geaccepteerd **en** (2) door jou voor een specifieke reis zijn gekozen, en alleen zolang die reis actief is. Je kunt toegang per persoon direct intrekken, een contact verwijderen of blokkeren. **Beheerders van SafeWalk kunnen je locatie niet inzien.**
 
 ## 4. Verwerkers
-- Convex (database en serverfuncties) – [regio]
+- Convex, Inc. (database en serverfuncties; servers in de Verenigde Staten)
 - Expo (pushmeldingen) en Apple/Google (aflevering van pushberichten)
 - RevenueCat, Apple App Store, Google Play (abonnementen)
 - OpenAI (alleen bij gebruik van de optionele AI-assistent)
@@ -44,4 +42,4 @@ Versleutelde verbindingen (TLS), tokens in de beveiligde opslag van je telefoon,
 SafeWalk is bedoeld voor gebruikers van 16 jaar en ouder.
 
 ## 8. Contact
-[privacy@…]
+Vragen over privacy of een verzoek over je gegevens? Mail naar support@vonkbyte.nl.

@@ -40,6 +40,7 @@ Premium (€2.99/month): more contacts, 90-day history, custom check-ins, motion
 
 Important: SafeWalk is not an emergency service and never calls 112/911 automatically. Notifications and location updates may be delayed or not delivered. In immediate danger, call 112 yourself.
 
+**Ontwikkelaar / Developer:** Vonk Byte · **Support / contact:** support@vonkbyte.nl · **Privacybeleid-URL:** (volgt; tekst = docs/privacybeleid.md)
 **Categorie / Category:** Lifestyle (of Navigation) · **Leeftijd / Age rating:** 12+ (iOS), Everyone/PEGI 12 (Play)
 **Screenshots nodig:** dashboard met SOS, reis starten, live kaart (kijker), check-in “Alles goed?”, SOS-status per contact, privacy-instellingen.
 **Review-notities (Apple):** Achtergrondlocatie wordt alleen gebruikt tijdens een door de gebruiker gestarte reis (zichtbare indicator, stopknop). Testaccount: [e-mail/wachtwoord] met een tweede account als contact.

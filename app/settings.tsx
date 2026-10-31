@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../convex/_generated/api';
@@ -49,6 +49,7 @@ export default function Settings() {
         <Button title="Mijn locatiegeschiedenis nu verwijderen" variant="secondary" onPress={() => deleteHistory().then((n) => setMsg(`${n} locatiepunten verwijderd.`)).catch((e) => setMsg(errorNl(e)))} />
         <Button title="Privacybeleid" variant="secondary" onPress={() => router.push('/privacy')} />
         <Button title="Gebruiksvoorwaarden" variant="secondary" onPress={() => router.push('/terms')} />
+        <Button title="Contact: support@vonkbyte.nl" variant="secondary" hint="Opent je e-mailapp" onPress={() => Linking.openURL('mailto:support@vonkbyte.nl?subject=SafeWalk')} />
         <Button title="Uitloggen" variant="secondary" onPress={async () => { await stopSharing(); await resetPurchases(); await signOut(); router.replace('/welcome'); }} />
         <Button title="Account verwijderen" variant="danger" onPress={confirmDelete} />
       </Card>

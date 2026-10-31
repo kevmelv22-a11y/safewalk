@@ -108,11 +108,11 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('INVITATION_SELF')) return 'Je kunt je eigen uitnodiging niet accepteren.';
   if (msg.includes('VIEWER_NOT_TRUSTED')) return 'Alleen geaccepteerde vertrouwde contacten kunnen meekijken.';
   if (msg.includes('PREMIUM_REQUIRED')) return 'Deze functie is onderdeel van Premium.';
-  if (msg.includes('RESTRICTED')) return 'Je account is beperkt. Neem contact op met support. SOS blijft werken.';
+  if (msg.includes('RESTRICTED')) return 'Je account is beperkt. Neem contact op met support@vonkbyte.nl. SOS blijft werken.';
   if (msg.includes('RATE_LIMITED')) return 'Te veel verzoeken. Probeer het later opnieuw.';
   if (msg.includes('INVALID_ARRIVAL')) return 'Ongeldige aankomsttijd.';
   if (msg.includes('EXTENSION_NOT_ALLOWED')) return 'Verlengen is niet meer mogelijk.';
-  if (msg.includes('EMAIL_NOT_CONFIGURED')) return 'E-mail versturen is nog niet ingesteld op de server. Probeer het later opnieuw of neem contact op met support.';
+  if (msg.includes('EMAIL_NOT_CONFIGURED')) return 'E-mail versturen is nog niet ingesteld op de server. Probeer het later opnieuw of neem contact op met support@vonkbyte.nl.';
   if (msg.includes('EMAIL_SEND_FAILED')) return 'De e-mail kon niet worden verstuurd. Probeer het later opnieuw.';
   if (msg.includes('WEAK_PASSWORD')) return 'Gebruik een wachtwoord van minstens 10 tekens.';
   if (/invalid code|could not verify|InvalidAccountId|InvalidSecret/i.test(msg)) return 'De code is onjuist of verlopen.';

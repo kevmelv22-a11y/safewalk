@@ -2,7 +2,7 @@
 
 ## Google Play – Data safety
 - **Verzamelt of deelt de app gegevens?** Ja (verzamelen). Gedeeld met derden: nee (alleen met verwerkers en met door de gebruiker gekozen contacten op diens verzoek; dit valt onder "user-initiated sharing" en hoeft niet als delen te worden opgegeven).
-- **Versleuteld tijdens overdracht:** Ja. **Gebruiker kan verwijdering aanvragen:** Ja (in-app accountverwijdering + [URL webformulier]).
+- **Versleuteld tijdens overdracht:** Ja. **Gebruiker kan verwijdering aanvragen:** Ja (in-app accountverwijdering of per e-mail via support@vonkbyte.nl).
 | Categorie | Type | Verzameld | Verplicht/optioneel | Doel |
 |---|---|---|---|---|
 | Locatie | Precieze locatie | Ja (ook op achtergrond tijdens reis) | Optioneel (vereist voor delen) | App-functionaliteit |
@@ -23,5 +23,5 @@
 | Other User Content (AI-vragen, meldingen) | App Functionality | Ja | Nee |
 | Crash/Other Diagnostic Data | App Functionality | Nee | Nee |
 | Device ID (push token) | App Functionality | Ja | Nee |
-- **Tracking:** Nee (geen ATT-prompt nodig). **Privacybeleid-URL:** [https://…/privacy].
+- **Tracking:** Nee (geen ATT-prompt nodig). **Privacybeleid-URL:** volgt (publiceer docs/privacybeleid.md op een openbare URL). Contact ontwikkelaar: Vonk Byte, support@vonkbyte.nl.
 - **Account deletion:** in-app aanwezig (Instellingen → Account verwijderen) – vereist door App Store-richtlijn 5.1.1(v).
