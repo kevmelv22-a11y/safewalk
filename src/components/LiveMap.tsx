@@ -1,8 +1,7 @@
 import MapView, { Circle, Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import { View } from 'react-native';
-import { palette } from '../lib/theme';
+import { palette , useIsDark } from '../lib/theme';
 import { accuracyLabel, etaLabel, formatDistance, freshnessLabel, haversineMeters, locationFreshness, roughEtaMs, timeAgo } from '../lib/safety';
-import { useIsDark } from '../lib/theme';
 import { darkMapStyle } from '../lib/mapStyle';
 import { Notice, P, Card } from './ui';
 

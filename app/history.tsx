@@ -10,7 +10,8 @@ export default function History() {
     <Screen>
       <H1>Geschiedenis</H1>
       <P muted>Alleen bestemming en tijden – locatiepunten worden na 24 uur verwijderd. Je ziet de afgelopen {h?.days ?? 7} dagen.</P>
-      {h?.sessions.length === 0 && <P muted>Nog geen reizen.</P>}
+      {h === undefined && <P muted>Laden…</P>}
+      {h?.sessions.length === 0 && <P muted>Nog geen reizen. Start een reis vanaf het startscherm.</P>}
       {h?.sessions.map((s) => (
         <Card key={s.id}><P>{s.destination}</P>
           <P muted>{new Date(s.startedAt).toLocaleString('nl-NL')} · {statusNl[s.status]}{s.endedAt ? ` · tot ${new Date(s.endedAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}</P></Card>

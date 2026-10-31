@@ -33,13 +33,16 @@ export default function Sos() {
   };
   // Aftelling start ook als het profiel (offline) niet laadt: standaard 5 s
   useEffect(() => { if (left === null) { const t = setTimeout(() => setLeft((l) => l ?? 5), 1500); return () => clearTimeout(t); } }, [left]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- eenmalig de aftelduur uit het (later geladen) profiel overnemen
   useEffect(() => { if (left === null && profile) setLeft(profile.sosCountdownSeconds); }, [profile, left]);
   useEffect(() => {
     if (phase !== 'countdown' || left === null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- teller op 0: SOS versturen
     if (left <= 0) { fire(); return; }
     Vibration.vibrate(150);
     const tm = setTimeout(() => setLeft((l) => (l ?? 1) - 1), 1000);
     return () => clearTimeout(tm);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fire is idempotent (fired-ref); alleen op tik van de teller reageren
   }, [left, phase]);
 
   const cancelAfter = async () => {

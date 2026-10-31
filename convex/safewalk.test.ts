@@ -5,6 +5,10 @@ import schema from './schema';
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 
+import { detectSignals } from './motion';
+
+import { ensureProfile, isAllowedRedirect } from './auth';
+
 const modules = import.meta.glob('./**/*.ts');
 const MIN = 60_000;
 
@@ -82,7 +86,7 @@ describe('locatietoegang', () => {
     expect(await t.query(api.sessions.locations, { sessionId: sid })).toHaveLength(0);
   });
   test('alleen geaccepteerde contacten kunnen als kijker worden toegevoegd', async () => {
-    const { owner, stranger, startTrip } = await setup();
+    const { stranger, startTrip } = await setup();
     await expect(startTrip([stranger.id])).rejects.toThrow(/VIEWER_NOT_TRUSTED/);
   });
   test('geaccepteerd contact dat niet voor DEZE sessie is gekozen ziet niets', async () => {
@@ -300,8 +304,6 @@ describe('meldingen en receipts', () => {
     expect(await reminders()).toBe(2);
   });
 });
-
-import { detectSignals } from './motion';
 describe('bewegingsdetectie', () => {
   const now = 10_000_000; const p = (lat: number, ago: number) => ({ lat, lng: 5, recordedAt: now - ago * MIN });
   test('pure detectie', () => {
@@ -416,7 +418,7 @@ describe('AI-assistent', () => {
 
 describe('adminpaneel', () => {
   test('alleen admins; geen locatiegegevens in admin-output', async () => {
-    const { t, owner, friend, admin, connect, startTrip, ping } = await setup();
+    const { owner, friend, admin, connect, startTrip, ping } = await setup();
     await connect(owner, friend); const sid = await startTrip([friend.id]); await ping(sid, 52.123456);
     for (const fn of [api.admin.users, api.admin.reports, api.admin.stats, api.admin.errors, api.admin.subscriptions, api.admin.auditLog])
       await expect(owner.as.query(fn, {})).rejects.toThrow(/FORBIDDEN/);
@@ -454,8 +456,6 @@ test('geblokkeerde personen tonen en deblokkeren herstelt geen relatie', async (
   expect(await friend.as.query(api.contacts.blocked, {})).toHaveLength(0);
   expect((await owner.as.query(api.contacts.list, {})).mine).toHaveLength(0);
 });
-
-import { ensureProfile, isAllowedRedirect } from './auth';
 describe('Google OAuth', () => {
   afterEach(() => { delete process.env.AUTH_GOOGLE_ID; delete process.env.AUTH_GOOGLE_SECRET; });
   test('redirect alleen naar app-scheme, Expo-dev of SITE_URL', () => {

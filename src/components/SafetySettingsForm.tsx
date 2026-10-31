@@ -19,6 +19,7 @@ export function SafetySettingsForm() {
   const [grace, setGrace] = useState(5); const [countdown, setCountdown] = useState(5); const [motion, setMotion] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const premium = !!data?.premium;
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- formulier vullen zodra het profiel van de server binnen is
   useEffect(() => { if (data) { setGrace(data.defaultGraceMinutes); setCountdown(data.sosCountdownSeconds); setMotion(!!data.motionDetection); } }, [data]);
   const save = async () => {
     try { await update({ defaultGraceMinutes: grace, sosCountdownSeconds: countdown, ...(premium ? { motionDetection: motion } : {}) }); setSaved('Opgeslagen'); }

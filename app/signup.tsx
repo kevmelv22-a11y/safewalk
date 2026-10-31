@@ -38,6 +38,8 @@ export default function SignUp() {
       <Field label="Wachtwoord (min. 10 tekens)" value={pw} onChangeText={setPw} secureTextEntry autoComplete="new-password" />
       {err && <Notice kind="danger">{err}</Notice>}
       <Button title="Account aanmaken" onPress={submit} loading={busy} disabled={!name || !email || !pw} />
+      <P muted style={{ fontSize: 13 }}>Door een account aan te maken ga je akkoord met de gebruiksvoorwaarden en het privacybeleid.</P>
+      <Button title="Gebruiksvoorwaarden en privacybeleid" variant="secondary" onPress={() => router.push('/privacy')} />
       <Button title="Ik heb al een account" variant="secondary" onPress={() => router.replace('/login')} />
     </Screen>
   );

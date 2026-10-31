@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
@@ -8,6 +7,7 @@ import { api } from '../convex/_generated/api';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
 import { SafetySettingsForm } from '../src/components/SafetySettingsForm';
 import { errorNl } from '../src/lib/convex';
+import { confirmAction } from '../src/lib/confirm';
 import { stopSharing } from '../src/lib/location';
 import { resetPurchases } from '../src/lib/purchases';
 import { useThemePref, ThemePref } from '../src/store/theme';
@@ -20,13 +20,10 @@ export default function Settings() {
   const { pref, setPref } = useThemePref();
   const blocked = useQuery(api.contacts.blocked) ?? [];
   const unblock = useMutation(api.contacts.unblock);
-  const confirmDelete = () => Alert.alert('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', [
-    { text: 'Annuleren', style: 'cancel' },
-    { text: 'Definitief verwijderen', style: 'destructive', onPress: async () => {
-      try { await stopSharing(); await deleteAccount({ confirm: 'VERWIJDER' }); await signOut().catch(() => {}); router.replace('/welcome'); }
-      catch (e) { setMsg('Verwijderen mislukt: ' + errorNl(e)); }
-    } },
-  ]);
+  const confirmDelete = () => confirmAction('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', 'Definitief verwijderen', async () => {
+    try { await stopSharing(); await deleteAccount({ confirm: 'VERWIJDER' }); await signOut().catch(() => {}); router.replace('/welcome'); }
+    catch (e) { setMsg('Verwijderen mislukt: ' + errorNl(e)); }
+  });
   return (
     <Screen>
       <H1>Instellingen</H1>
@@ -50,6 +47,8 @@ export default function Settings() {
         <P>Privacy</P>
         <P muted>Locaties worden uiterlijk 24 uur na het einde van een reis automatisch verwijderd (en nooit langer dan 3 dagen bewaard). Beheerders kunnen je locatie niet inzien.</P>
         <Button title="Mijn locatiegeschiedenis nu verwijderen" variant="secondary" onPress={() => deleteHistory().then((n) => setMsg(`${n} locatiepunten verwijderd.`)).catch((e) => setMsg(errorNl(e)))} />
+        <Button title="Privacybeleid" variant="secondary" onPress={() => router.push('/privacy')} />
+        <Button title="Gebruiksvoorwaarden" variant="secondary" onPress={() => router.push('/terms')} />
         <Button title="Uitloggen" variant="secondary" onPress={async () => { await stopSharing(); await resetPurchases(); await signOut(); router.replace('/welcome'); }} />
         <Button title="Account verwijderen" variant="danger" onPress={confirmDelete} />
       </Card>

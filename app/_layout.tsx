@@ -59,6 +59,8 @@ export default function RootLayout() {
           <Stack.Screen name="session/new" options={{ title: 'Nieuwe reis' }} />
           <Stack.Screen name="settings" options={{ title: 'Instellingen' }} />
           <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
+          <Stack.Screen name="privacy" options={{ title: 'Privacybeleid' }} />
+          <Stack.Screen name="terms" options={{ title: 'Gebruiksvoorwaarden' }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>
       </ConvexAuthProvider>

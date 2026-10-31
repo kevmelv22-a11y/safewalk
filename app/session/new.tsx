@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNow } from '../../src/lib/useLiveLocations';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useMutation } from 'convex/react';
@@ -10,7 +11,6 @@ import { errorNl } from '../../src/lib/convex';
 import { etaLabel, roughEtaMs, suggestMinutes, validateSessionInput } from '../../src/lib/safety';
 import { useTripDraft } from '../../src/store/trip';
 import * as Location from 'expo-location';
-import { useEffect } from 'react';
 import { startSharing } from '../../src/lib/location';
 import { localNotify, scheduleCheckInReminder } from '../../src/lib/notifications';
 
@@ -21,7 +21,9 @@ export default function NewSession() {
   const [sel, setSel] = useState<Id<'users'>[]>([]); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const destination = useTripDraft((s) => s.destination); const setDestination = useTripDraft((s) => s.setDestination);
   const [eta, setEta] = useState<number | null>(null);
+  const now = useNow(15_000);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- formulier volgt de gekozen bestemming
     if (!destination) return setEta(null);
     setDest(destination.label);
     Location.getLastKnownPositionAsync().then((l) => {
@@ -56,7 +58,7 @@ export default function NewSession() {
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {[10, 20, 30, 45, 60, 90].map((m) => <View key={m} style={{ flexGrow: 1 }}><Button title={`${m} min`} variant={m === minutes ? 'primary' : 'secondary'} onPress={() => setMinutes(m)} /></View>)}
       </View>
-      <P muted>Verwachte aankomst: {new Date(Date.now() + minutes * 60_000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</P>
+      <P muted>Verwachte aankomst: {new Date(now + minutes * 60_000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</P>
       <Card>
         <P>Wie mag meekijken tijdens deze reis?</P>
         {contacts.map((c) => <Button key={c.userId} title={`${sel.includes(c.userId) ? '✓ ' : ''}${c.name}`} variant={sel.includes(c.userId) ? 'success' : 'secondary'} onPress={() => toggle(c.userId)} />)}

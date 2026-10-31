@@ -76,6 +76,13 @@ App-omgeving (`.env` / EAS-secrets): `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_REVE
 3. Webhook: URL `https://<deployment>.convex.site/revenuecat/webhook`, Authorization header = `REVENUECAT_WEBHOOK_SECRET`.
 4. De app logt bij RevenueCat in met de Convex user-id, zodat de webhook de juiste gebruiker bijwerkt.
 
+**Huidige stand (RevenueCat-project `SafeWalk`, id `projb1fbceba`):** apps *SafeWalk (iOS)* (`nl.safewalk.app`),
+*SafeWalk (Android)* (`nl.safewalk.app`) en *Test Store*; entitlement `premium`; offering `default` (current) met
+package `$rc_monthly` → producten `safewalk_premium_monthly` (iOS), `safewalk_premium:monthly` (Play, productId:basePlanId)
+en `safewalk_premium_monthly_test` (Test Store). Webhook *SafeWalk Convex prod* → `https://agile-capybara-401.convex.site/revenuecat/webhook`.
+Publieke SDK-sleutels staan in `eas.json` en `.env.example`. `REVENUECAT_WEBHOOK_SECRET` staat op dev en prod (waarde alleen in het lokale, niet-gecommitte `.env.cloud`).
+Nog handmatig: de Authorization-header van de webhook in het RC-dashboard op `Bearer <secret>` zetten, de producten in App Store Connect / Play Console aanmaken (€2,99/maand) en de store-credentials in RevenueCat koppelen.
+
 ### Adminpaneel
 ```bash
 cd admin && cp .env.example .env   # VITE_CONVEX_URL

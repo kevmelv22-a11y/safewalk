@@ -1,5 +1,6 @@
-import { locationFreshness, checkInPhase, formatCountdown, validateSessionInput, parseInviteToken, accuracyLabel, mapErrorNl, haversineMeters, timeAgo } from '../src/lib/safety';
+import { locationFreshness, checkInPhase, formatCountdown, validateSessionInput, parseInviteToken, accuracyLabel, mapErrorNl, haversineMeters, timeAgo , etaLabel, formatDistance, roughEtaMs, suggestMinutes } from '../src/lib/safety';
 import { PersistentQueue, backoffMs } from '../src/lib/queue';
+
 
 const now = Date.parse('2026-10-27T20:00:00Z');
 describe('locationFreshness', () => {
@@ -59,8 +60,6 @@ describe('PersistentQueue (offline SOS)', () => {
     expect(await q.flush(async () => {}, it.nextAt)).toBe(1);
   });
 });
-
-import { etaLabel, formatDistance, roughEtaMs, suggestMinutes } from '../src/lib/safety';
 test('afstand, ETA en suggestie', () => {
   expect(formatDistance(240)).toBe('240 m'); expect(formatDistance(1530)).toBe('1,5 km');
   const e = roughEtaMs({ lat: 52.37, lng: 4.9 }, { lat: 52.38, lng: 4.9 }); // ~1,1 km

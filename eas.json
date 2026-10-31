@@ -8,7 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_VARIANT": "development"
+        "APP_VARIANT": "development",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_iKwOnTWFKCnvNmkwxcBBtcKGnJE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_oguASbDRCUUMdrgHkcuGSmTVmRy"
       }
     },
     "development-simulator": {
@@ -21,14 +23,18 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "APP_VARIANT": "preview"
+        "APP_VARIANT": "preview",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_iKwOnTWFKCnvNmkwxcBBtcKGnJE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_oguASbDRCUUMdrgHkcuGSmTVmRy"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "APP_VARIANT": "production"
+        "APP_VARIANT": "production",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_iKwOnTWFKCnvNmkwxcBBtcKGnJE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_oguASbDRCUUMdrgHkcuGSmTVmRy"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -47,7 +53,9 @@
       "env": {
         "SAFEWALK_IOS_ADHOC": "1",
         "APP_VARIANT": "adhoc",
-        "EXPO_PUBLIC_CONVEX_URL": "https://agile-capybara-401.convex.cloud"
+        "EXPO_PUBLIC_CONVEX_URL": "https://agile-capybara-401.convex.cloud",
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_iKwOnTWFKCnvNmkwxcBBtcKGnJE",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "goog_oguASbDRCUUMdrgHkcuGSmTVmRy"
       }
     }
   },

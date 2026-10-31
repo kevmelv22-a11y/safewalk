@@ -16,7 +16,7 @@ export default function VerifyEmail() {
   const [busy, setBusy] = useState(false);
   // Pas doorsturen als de sessie echt actief is (voorkomt terugval naar het welkomstscherm)
   const { isAuthenticated } = useConvexAuth(); const [done, setDone] = useState(false);
-  useEffect(() => { if (done && isAuthenticated) router.replace(params.next === 'onboarding' ? '/onboarding/location' : '/'); }, [done, isAuthenticated]);
+  useEffect(() => { if (done && isAuthenticated) router.replace(params.next === 'onboarding' ? '/onboarding/location' : '/'); }, [done, isAuthenticated, params.next]);
   const submit = async () => {
     setErr(null); setInfo(null);
     const c = normalizeCode(code);

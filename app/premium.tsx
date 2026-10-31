@@ -14,7 +14,8 @@ export default function Premium() {
   const [msg, setMsg] = useState<{ k: 'ok' | 'warn' | 'danger'; t: string } | null>(null);
   const [busy, setBusy] = useState(false); const [pending, setPending] = useState(false);
   useEffect(() => { getPremiumPackage().then(setPkg).catch(() => setMsg({ k: 'warn', t: 'Abonnementen konden niet worden geladen.' })); }, []);
-  useEffect(() => { if (pending && status?.premium) { setPending(false); setMsg({ k: 'ok', t: 'Premium is actief. Bedankt!' }); } }, [pending, status?.premium]);
+  // Aankoop afgerond zodra de server (webhook) Premium bevestigt
+  const shown = pending && status?.premium ? { k: 'ok' as const, t: 'Premium is actief. Bedankt!' } : msg;
   const run = async (fn: () => Promise<boolean>) => {
     setBusy(true); setMsg(null);
     try {
@@ -32,7 +33,7 @@ export default function Premium() {
       <Card><P>Altijd gratis</P>{FREE.map((f) => <P key={f} muted>✓ {f}</P>)}<P muted style={{ fontSize: 13 }}>Essentiële veiligheidsfuncties blijven gratis.</P></Card>
       <Card><P>Premium – {pkg?.product.priceString ?? '€2,99'} per maand</P>{PREMIUM.map((f) => <P key={f} muted>★ {f}</P>)}</Card>
       {!purchasesEnabled && <Notice kind="warn">Aankopen zijn in deze build nog niet geconfigureerd (RevenueCat-sleutel ontbreekt).</Notice>}
-      {msg && <Notice kind={msg.k}>{msg.t}</Notice>}
+      {shown && <Notice kind={shown.k}>{shown.t}</Notice>}
       {!status?.premium && <Button title={`Word Premium${pkg ? ` – ${pkg.product.priceString}/maand` : ''}`} disabled={!pkg} loading={busy} onPress={() => run(() => buy(pkg!))} />}
       <Button title="Aankopen herstellen" variant="secondary" disabled={!purchasesEnabled} onPress={() => run(restore)} />
       <P muted style={{ fontSize: 13 }}>Het abonnement verlengt automatisch per maand en is op elk moment op te zeggen via de App Store of Google Play.</P>

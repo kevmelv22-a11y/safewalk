@@ -7,7 +7,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 export const useLiveLocations = (sessionId: Id<'sessions'>) => useQuery(api.sessions.locations, { sessionId }) ?? [];
 
 export function useNow(intervalMs = 5000) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), intervalMs); return () => clearInterval(i); }, [intervalMs]);
   return now;
 }

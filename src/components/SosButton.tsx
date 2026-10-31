@@ -1,10 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
 import { palette } from '../lib/theme';
 
 export function SosButton({ sessionId }: { sessionId?: string | null }) {
-  const pulse = useRef(new Animated.Value(1)).current;
+  const [pulse] = useState(() => new Animated.Value(1));
   useEffect(() => {
     const a = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1.06, duration: 900, useNativeDriver: true }),

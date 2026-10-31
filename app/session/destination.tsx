@@ -4,11 +4,10 @@ import { router } from 'expo-router';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Screen, Button, Field, Notice, P, Card } from '../../src/components/ui';
-import { useIsDark } from '../../src/lib/theme';
+import { useIsDark , palette } from '../../src/lib/theme';
 import { darkMapStyle } from '../../src/lib/mapStyle';
 import { etaLabel, formatDistance, haversineMeters, roughEtaMs } from '../../src/lib/safety';
 import { useTripDraft, Destination } from '../../src/store/trip';
-import { palette } from '../../src/lib/theme';
 
 async function labelFor(lat: number, lng: number): Promise<string> {
   try {
