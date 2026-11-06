@@ -6,6 +6,7 @@ import { api } from '../convex/_generated/api';
 import { Logo } from '../src/components/Logo';
 import { GoogleButton } from '../src/components/GoogleButton';
 import { AuthPanel } from '../src/components/AuthPanel';
+import { AuthCapabilityNotice, mapAuthEmailError } from '../src/components/AuthCapabilityNotice';
 import { Screen, H1, P, Button, Field, Notice } from '../src/components/ui';
 import { errorCode } from '../src/lib/convex';
 import { mapErrorNl } from '../src/lib/safety';
@@ -15,6 +16,7 @@ export default function Login() {
   const providers = useQuery(api.auth.providers);
   const [email, setEmail] = useState(''); const [pw, setPw] = useState('');
   const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const emailBlocked = providers && !providers.emailDelivery && !providers.emailDevLog;
   const submit = async () => {
     setBusy(true); setErr(null);
     try {
@@ -24,9 +26,7 @@ export default function Login() {
       else router.replace('/');
     } catch (x) {
       const c = errorCode(x);
-      if (c === 'EMAIL_NOT_CONFIGURED') setErr('E-mailverificatie is op deze server nog niet geconfigureerd (Resend). Lokaal: zet AUTH_EMAIL_DEV_LOG=true.');
-      else if (/EMAIL_/.test(c)) setErr(mapErrorNl(c));
-      else setErr('Inloggen mislukt. Controleer je e-mailadres en wachtwoord.');
+      setErr(mapAuthEmailError(c) ?? (/EMAIL_/.test(c) ? mapErrorNl(c) : 'Inloggen mislukt. Controleer je e-mailadres en wachtwoord.'));
     }
     finally { setBusy(false); }
   };
@@ -36,16 +36,14 @@ export default function Login() {
       <AuthPanel>
         <H1>Inloggen</H1>
         <P muted>Log in met je SafeWalk-account. Bij direct gevaar bel je zelf 112 — SafeWalk doet dat niet automatisch.</P>
+        <AuthCapabilityNotice providers={providers} />
         <GoogleButton />
-        <P muted style={{ textAlign: 'center' }}>of met e-mail</P>
-        {providers && !providers.email && (
-          <Notice kind="warn">E-mailcodes (verificatie/reset) werken pas met Resend of AUTH_EMAIL_DEV_LOG op de Convex-deployment.</Notice>
-        )}
-        <Field label="E-mailadres" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-        <Field label="Wachtwoord" value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" />
+        {providers?.google ? <P muted style={{ textAlign: 'center' }}>of met e-mail</P> : null}
+        <Field label="E-mailadres" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="naam@voorbeeld.nl" />
+        <Field label="Wachtwoord" value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" placeholder="••••••••••" />
         {err && <Notice kind="danger">{err}</Notice>}
-        <Button title="Inloggen" onPress={submit} loading={busy} disabled={!email || !pw} />
-        <Button title="Wachtwoord vergeten?" variant="secondary" onPress={() => router.push('/forgot-password')} />
+        <Button title="Inloggen" onPress={submit} loading={busy} disabled={!email || !pw || !!emailBlocked} />
+        <Button title="Wachtwoord vergeten?" variant="secondary" onPress={() => router.push('/forgot-password')} disabled={!!emailBlocked} />
         <Button title="Account aanmaken" variant="secondary" onPress={() => router.push('/signup')} />
       </AuthPanel>
     </Screen>

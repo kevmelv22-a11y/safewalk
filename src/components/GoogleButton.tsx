@@ -7,7 +7,7 @@ import { useAuthActions } from '@convex-dev/auth/react';
 import { useQuery } from 'convex/react';
 import { router } from 'expo-router';
 import { api } from '../../convex/_generated/api';
-import { useIsDark } from '../lib/theme';
+import { useTheme } from '../lib/theme';
 import { Notice } from './ui';
 
 const GoogleG = () => (
@@ -19,24 +19,14 @@ const GoogleG = () => (
   </Svg>
 );
 
-/**
- * Google Sign-In. Hidden (with clear NL note) when AUTH_GOOGLE_* is not configured.
- * Never pretends OAuth works without server credentials.
- */
+/** Renders Google CTA only when server reports google=true. Otherwise null (AuthCapabilityNotice covers copy). */
 export function GoogleButton() {
   const { signIn } = useAuthActions();
   const providers = useQuery(api.auth.providers);
-  const dark = useIsDark();
+  const { isDark: dark } = useTheme();
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
 
-  if (providers === undefined) return null;
-  if (!providers.google) {
-    return (
-      <Notice kind="info">
-        Inloggen met Google is hier nog niet geconfigureerd. Gebruik e-mail en wachtwoord.
-      </Notice>
-    );
-  }
+  if (providers === undefined || !providers.google) return null;
 
   const press = async () => {
     setMsg(null); setBusy(true);

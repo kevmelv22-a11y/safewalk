@@ -9,7 +9,6 @@ export function Screen({
 }: {
   children: React.ReactNode;
   scroll?: boolean;
-  /** Soft theme decorations (off for danger chrome). */
   ambient?: boolean;
   backgroundColor?: string;
 }) {
@@ -35,12 +34,19 @@ export function Card({ children, style }: { children: React.ReactNode; style?: V
 type BtnProps = { title: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' | 'success'; disabled?: boolean; loading?: boolean; hint?: string };
 export function Button({ title, onPress, variant = 'primary', disabled, loading, hint }: BtnProps) {
   const t = useTheme();
-  const bg = { primary: t.purple, secondary: 'transparent', danger: t.red, success: t.green }[variant];
+  const bg = {
+    primary: t.purple,
+    secondary: t.field,
+    danger: t.red,
+    success: t.green,
+  }[variant];
+  const border = variant === 'secondary' ? t.border : bg;
+  const label = variant === 'secondary' ? t.text : '#FFFFFF';
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={hint} accessibilityState={{ disabled: disabled || loading }}
       disabled={disabled || loading} onPress={onPress}
-      style={({ pressed }) => [s.btn, { backgroundColor: bg, borderColor: variant === 'secondary' ? t.border : bg, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }]}>
-      {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: variant === 'secondary' ? t.text : '#fff', fontSize: 17, fontWeight: '700' }}>{title}</Text>}
+      style={({ pressed }) => [s.btn, { backgroundColor: bg, borderColor: border, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }]}>
+      {loading ? <ActivityIndicator color={label} /> : <Text style={{ color: label, fontSize: 17, fontWeight: '700' }}>{title}</Text>}
     </Pressable>
   );
 }
@@ -48,18 +54,34 @@ export function Field(props: TextInputProps & { label: string }) {
   const t = useTheme();
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: t.muted, fontSize: 14 }}>{props.label}</Text>
-      <TextInput accessibilityLabel={props.label} placeholderTextColor={t.muted} {...props}
-        style={{ color: t.text, borderColor: t.border, borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 17, backgroundColor: t.card }} />
+      <Text style={{ color: t.muted, fontSize: 14, fontWeight: '600' }}>{props.label}</Text>
+      <TextInput
+        accessibilityLabel={props.label}
+        placeholderTextColor={t.placeholder}
+        {...props}
+        style={{
+          color: t.text,
+          borderColor: t.border,
+          borderWidth: 1.5,
+          borderRadius: 12,
+          padding: 14,
+          fontSize: 17,
+          backgroundColor: t.field,
+        }}
+      />
     </View>
   );
 }
 export function Notice({ kind = 'info', children }: { kind?: 'info' | 'warn' | 'danger' | 'ok'; children: React.ReactNode }) {
   const t = useTheme();
   const c = { info: t.purple, warn: t.amber, danger: t.red, ok: t.green }[kind];
-  return <View accessibilityRole="alert" style={{ borderLeftWidth: 4, borderLeftColor: c, backgroundColor: t.card, padding: 12, borderRadius: 10 }}><Text style={{ color: t.text, fontSize: 15, lineHeight: 21 }}>{children}</Text></View>;
+  return (
+    <View accessibilityRole="alert" style={{ borderLeftWidth: 4, borderLeftColor: c, backgroundColor: t.field, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: t.border }}>
+      <Text style={{ color: t.text, fontSize: 15, lineHeight: 21 }}>{children}</Text>
+    </View>
+  );
 }
 export const Disclaimer = () => (
   <Notice kind="warn">SafeWalk is geen officiële hulpdienst. De app belt 112 niet automatisch en kan niet garanderen dat meldingen aankomen. Bel bij direct gevaar zelf 112.</Notice>
 );
-const s = StyleSheet.create({ btn: { minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, borderWidth: 1 } });
+const s = StyleSheet.create({ btn: { minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, borderWidth: 1.5 } });

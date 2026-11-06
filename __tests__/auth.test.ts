@@ -10,7 +10,7 @@ describe('isValidEmail', () => {
   it('ongeldig', () => { expect(isValidEmail('a@b')).toBe(false); expect(isValidEmail('')).toBe(false); });
 });
 describe('mapErrorNl auth', () => {
-  it('e-mail niet ingesteld', () => expect(mapErrorNl('EMAIL_NOT_CONFIGURED')).toMatch(/niet ingesteld/));
+  it('e-mail niet beschikbaar', () => expect(mapErrorNl('EMAIL_NOT_CONFIGURED')).toMatch(/niet beschikbaar/));
   it('versturen mislukt', () => expect(mapErrorNl('EMAIL_SEND_FAILED')).toMatch(/niet worden verstuurd/));
   it('ongeldige code', () => expect(mapErrorNl('Invalid code')).toBe('De code is onjuist of verlopen.'));
 });
