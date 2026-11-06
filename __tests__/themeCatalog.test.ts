@@ -102,8 +102,9 @@ describe('theme catalog', () => {
 });
 
 describe('theme override helpers', () => {
-  it('parseert alleen bekende query-ids', () => {
+  it('parseert alleen bekende query-ids (string of string[])', () => {
     expect(parseThemeQueryParam('galaxy')).toBe('galaxy');
+    expect(parseThemeQueryParam(['halloween'])).toBe('halloween');
     expect(parseThemeQueryParam('nope')).toBeNull();
   });
 });

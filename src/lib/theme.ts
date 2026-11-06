@@ -36,6 +36,10 @@ export function useIsDark() {
   return pref === 'system' ? system !== 'light' : pref === 'dark';
 }
 
+/**
+ * Active skin: ephemeral DEV override (if any) else persisted store.
+ * Picker / setSkin clears the override, so UI selection always sticks.
+ */
 export function useThemeSkinId(): ThemeSkinId {
   const stored = useThemePref((s) => s.skin);
   return getDevThemeSkinOverride() ?? normalizeThemeSkinId(stored);

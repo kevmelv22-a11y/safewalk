@@ -31,9 +31,14 @@ export function P({ children, muted, style }: { children: React.ReactNode; muted
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const t = useTheme(); return <View style={[{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, padding: 16, gap: 8 }, style]}>{children}</View>;
 }
-type BtnProps = { title: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger' | 'success'; disabled?: boolean; loading?: boolean; hint?: string };
-export function Button({ title, onPress, variant = 'primary', disabled, loading, hint }: BtnProps) {
-  const t = useTheme();
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success';
+
+/** Resolved button chrome — never dims the whole control via opacity when disabled. */
+export function resolveButtonChrome(
+  t: { purple: string; field: string; red: string; green: string; border: string; text: string; muted: string },
+  variant: ButtonVariant,
+  disabled: boolean,
+) {
   const bg = {
     primary: t.purple,
     secondary: t.field,
@@ -41,11 +46,26 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
     success: t.green,
   }[variant];
   const border = variant === 'secondary' ? t.border : bg;
-  const label = variant === 'secondary' ? t.text : '#FFFFFF';
+  // Solid fills keep #FFFFFF labels (AA on purple/green; danger large-text OK). Secondary uses text/muted.
+  const label = variant === 'secondary'
+    ? (disabled ? t.muted : t.text)
+    : '#FFFFFF';
+  return { bg, border, label };
+}
+
+type BtnProps = { title: string; onPress: () => void; variant?: ButtonVariant; disabled?: boolean; loading?: boolean; hint?: string };
+export function Button({ title, onPress, variant = 'primary', disabled, loading, hint }: BtnProps) {
+  const t = useTheme();
+  const { bg, border, label } = resolveButtonChrome(t, variant, !!disabled);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={hint} accessibilityState={{ disabled: disabled || loading }}
       disabled={disabled || loading} onPress={onPress}
-      style={({ pressed }) => [s.btn, { backgroundColor: bg, borderColor: border, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 }]}>
+      style={({ pressed }) => [s.btn, {
+        backgroundColor: bg,
+        borderColor: border,
+        // Disabled: full opacity so labels stay readable; pressed only when interactive
+        opacity: disabled || loading ? 1 : pressed ? 0.85 : 1,
+      }]}>
       {loading ? <ActivityIndicator color={label} /> : <Text style={{ color: label, fontSize: 17, fontWeight: '700' }}>{title}</Text>}
     </Pressable>
   );

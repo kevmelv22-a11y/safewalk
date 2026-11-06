@@ -11,22 +11,15 @@ import { confirmAction } from '../src/lib/confirm';
 import { stopSharing } from '../src/lib/location';
 import { resetPurchases } from '../src/lib/purchases';
 import { ThemePicker } from '../src/components/ThemePicker';
-import { parseThemeQueryParam, setDevThemeSkinOverride } from '../src/lib/themeOverride';
-import { useThemePref } from '../src/store/theme';
+import { applyThemeSkinFromQuery } from '../src/store/theme';
 import { maybePromptQsTile, getNativeCapabilitiesSafe } from '../src/lib/nativeEntryPoints';
 import { registerPush } from '../src/lib/notifications';
 
 export default function Settings() {
-  const params = useLocalSearchParams<{ theme?: string }>();
-  const setSkin = useThemePref((s) => s.setSkin);
+  const params = useLocalSearchParams<{ theme?: string | string[] }>();
   useEffect(() => {
-    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
-    const id = parseThemeQueryParam(params.theme);
-    if (id) {
-      setDevThemeSkinOverride(id);
-      setSkin(id);
-    }
-  }, [params.theme, setSkin]);
+    void applyThemeSkinFromQuery(params.theme);
+  }, [params.theme]);
   const { signOut } = useAuthActions();
   const deleteHistory = useMutation(api.sessions.deleteMyHistory);
   const deleteAccount = useMutation(api.account.deleteAccount);

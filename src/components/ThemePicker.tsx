@@ -11,7 +11,7 @@ export function ThemePicker() {
   const skins = listThemeSkins();
 
   return (
-    <View style={{ gap: 14 }}>
+    <View style={{ gap: 14 }} testID="theme-picker">
       <Text style={[styles.section, { color: t.text }]}>Weergave</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {([['system', 'Systeem'], ['dark', 'Donker'], ['light', 'Licht']] as [ThemePref, string][]).map(([k, l]) => (
@@ -70,7 +70,13 @@ export function ThemePicker() {
               <Text style={{ color: t.text, fontWeight: '800', fontSize: 15 }}>{s.label}</Text>
               <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }} numberOfLines={2}>{s.description}</Text>
               {selected && (
-                <Text style={{ color: t.accent, fontWeight: '800', fontSize: 12, marginTop: 2 }}>Actief</Text>
+                <Text
+                  testID={`theme-skin-${s.id}-active`}
+                  accessibilityLabel={`Thema ${s.label} actief`}
+                  style={{ color: t.accent, fontWeight: '800', fontSize: 12, marginTop: 2 }}
+                >
+                  Actief · {s.label}
+                </Text>
               )}
             </Pressable>
           );
