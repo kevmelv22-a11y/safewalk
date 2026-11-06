@@ -129,17 +129,38 @@ export default defineSchema({
     phoneE164: v.string(),
     createdAt: v.number(),
   }).index('by_user', ['userId']).index('by_user_phone', ['userId', 'phoneE164']),
-  // Audio-opnames bij unsafe: Convex file storage + ACL; géén client-E2E (zie docs)
+  // Audio-opnames: storage + ACL. encryption 'none'=legacy plaintext; 'e2e-v1'=AES-GCM ciphertext (keys never on server)
   recordings: defineTable({
     userId: v.id('users'),
     incidentId: v.optional(v.id('incidents')),
     alertId: v.optional(v.id('alerts')),
     storageId: v.id('_storage'),
-    mime: v.string(),
-    byteSize: v.number(),
+    mime: v.string(), // plaintext mime for e2e; storage holds ciphertext when encryption=e2e-v1
+    byteSize: v.number(), // stored object size (ciphertext size when encrypted)
+    plaintextByteSize: v.optional(v.number()),
     durationMs: v.optional(v.number()),
     createdAt: v.number(),
     deletedAt: v.optional(v.number()),
+    encryption: v.optional(v.union(v.literal('none'), v.literal('e2e-v1'))),
+    clientUploadId: v.optional(v.string()), // binds client AAD; not a secret
   }).index('by_user', ['userId']).index('by_incident', ['incidentId']),
+  // Device X25519 public keys for envelope wrap (private keys stay on device SecureStore)
+  deviceCryptoKeys: defineTable({
+    userId: v.id('users'),
+    keyId: v.string(),
+    publicKeyX25519: v.string(), // hex
+    createdAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  }).index('by_user', ['userId']).index('by_user_key', ['userId', 'keyId']),
+  // Wrapped DEKs for trusted app recipients (server stores ciphertext of DEK only)
+  recordingKeyEnvelopes: defineTable({
+    recordingId: v.id('recordings'),
+    ownerId: v.id('users'),
+    recipientId: v.id('users'),
+    recipientKeyId: v.string(),
+    ephemeralPubX25519: v.string(),
+    wrappedDek: v.string(), // base64url nonce||ct||tag
+    createdAt: v.number(),
+  }).index('by_recording', ['recordingId']).index('by_recipient', ['recipientId']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

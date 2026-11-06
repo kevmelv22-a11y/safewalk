@@ -333,6 +333,7 @@ html,body,#map{height:100%;margin:0}
 <script>
 const API=${JSON.stringify(api)};
 const REC=${JSON.stringify(recApi)};
+const PLAY=${JSON.stringify(site+'/track/recording-play')};
 const TOKEN=${JSON.stringify(token)};
 const map=L.map('map').setView([52.37,4.9],13);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
@@ -356,21 +357,150 @@ async function tick(){
     const box=document.getElementById('recs');
     if(j.recordings && j.recordings.length){
       box.hidden=false;
-      box.innerHTML='<strong>Opnames</strong><br/>'+j.recordings.map(function(x){
-        return '<a href="#" data-id="'+x.id+'">Opname '+new Date(x.createdAt).toLocaleString('nl-NL')+' ('+Math.round(x.byteSize/1024)+' KB)</a>';
+      box.innerHTML='<strong>Opnames</strong> (E2E: fragment-sleutel nodig op aparte player; geen 3rd-party scripts)<br/>'+j.recordings.map(function(x){
+        return '<a href="'+PLAY+'?token='+encodeURIComponent(TOKEN)+'&id='+encodeURIComponent(x.id)+'" rel="noreferrer">Opname '+new Date(x.createdAt).toLocaleString('nl-NL')+' ('+Math.round(x.byteSize/1024)+' KB)</a>';
       }).join('<br/>');
-      box.querySelectorAll('a').forEach(function(a){
-        a.onclick=async function(ev){
-          ev.preventDefault();
-          const rr=await fetch(REC+'?token='+encodeURIComponent(TOKEN)+'&id='+encodeURIComponent(a.getAttribute('data-id')),{cache:'no-store',referrerPolicy:'no-referrer'});
-          const jj=await rr.json();
-          if(jj.ok && jj.url) location.href=jj.url; else alert('Opname niet beschikbaar');
-        };
-      });
     } else { box.hidden=true; }
   }catch(e){ document.getElementById('meta').textContent='Kon locatie niet laden.'; }
 }
 tick(); setInterval(tick,10000);
 </script></body></html>`;
   return new Response(html, { status: 200, headers: htmlHeaders });
+});
+
+
+/** Ciphertext-only metadata for external E2E player (no keys; fragment holds DEK). */
+export const resolveRecordingMeta = internalQuery({
+  args: { token: v.string(), recordingId: v.id('recordings') },
+  handler: async (ctx, { token, recordingId }) => {
+    if (!/^[0-9a-f]{64}$/.test(token)) return null;
+    const tokenHash = await sha256Hex(token);
+    const link = await ctx.db.query('shareLinks').withIndex('by_hash', (q) => q.eq('tokenHash', tokenHash)).first();
+    if (!link || link.revokedAt || link.expiresAt < Date.now()) return null;
+    if (!(link.scopes ?? []).includes('recording')) return null;
+    const row = await ctx.db.get(recordingId);
+    if (!row || row.deletedAt || row.userId !== link.userId) return null;
+    if (link.incidentId && row.incidentId && row.incidentId !== link.incidentId) return null;
+    const enc = (row.encryption ?? 'none') as 'none' | 'e2e-v1';
+    return {
+      storageId: row.storageId,
+      mime: row.mime,
+      byteSize: row.byteSize,
+      encryption: enc,
+      clientUploadId: row.clientUploadId ?? null,
+      ownerId: row.userId,
+    };
+  },
+});
+
+/**
+ * Isolated player page: NO third-party scripts (CSP default-src none + unsafe-inline only).
+ * DEK must come from location.hash only; never query/path. Legacy plaintext plays without key.
+ */
+export const publicRecordingPlayer = httpAction(async (ctx, req) => {
+  const url = new URL(req.url);
+  const token = url.searchParams.get('token') ?? '';
+  const recordingId = url.searchParams.get('id') ?? '';
+  const site = (process.env.CONVEX_SITE_URL ?? '').replace(/\/$/, '');
+  const h = securityHeaders({
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Security-Policy': [
+      "default-src 'none'",
+      "script-src 'unsafe-inline'",
+      "style-src 'unsafe-inline'",
+      "media-src 'self' blob: " + site,
+      "connect-src 'self' " + site,
+      "img-src 'none'",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+      "frame-ancestors 'none'",
+    ].join('; '),
+  });
+  if (!recordingId) {
+    return new Response('<!doctype html><meta charset=utf-8><meta name="referrer" content="no-referrer"/><p>Ongeldig.</p>', { status: 400, headers: h });
+  }
+  let meta: { encryption: string; clientUploadId: string | null; ownerId: string; mime: string } | null = null;
+  let signed: string | null = null;
+  try {
+    const resolved = await ctx.runQuery(internal.tracking.resolveRecordingMeta, { token, recordingId: recordingId as never });
+    if (!resolved) {
+      return new Response('<!doctype html><meta charset=utf-8><meta name="referrer" content="no-referrer"/><p>Link ongeldig, verlopen of zonder recording-scope.</p>', { status: 404, headers: h });
+    }
+    meta = resolved;
+    signed = await ctx.storage.getUrl(resolved.storageId as never);
+  } catch {
+    return new Response('<!doctype html><meta charset=utf-8><p>Fout.</p>', { status: 404, headers: h });
+  }
+  if (!signed || !meta) {
+    return new Response('<!doctype html><meta charset=utf-8><p>Bestand weg.</p>', { status: 404, headers: h });
+  }
+  const html = `<!doctype html>
+<html lang="nl"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="referrer" content="no-referrer"/>
+<title>SafeWalk opname</title>
+<style>
+body{font:16px/1.4 system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:24px}
+.warn{background:#7f1d1d;padding:12px;border-radius:8px;margin:12px 0}
+.ok{background:#14532d;padding:12px;border-radius:8px;margin:12px 0}
+audio{width:100%;margin-top:16px}
+code{font-size:12px;word-break:break-all}
+</style></head><body>
+<h1>SafeWalk opname</h1>
+<p id="status">Laden…</p>
+<div id="box"></div>
+<script>
+(function(){
+  var ENC=${JSON.stringify(meta.encryption)};
+  var URL_CT=${JSON.stringify(signed)};
+  var MIME=${JSON.stringify(meta.mime)};
+  var OWNER=${JSON.stringify(meta.ownerId)};
+  var UPLOAD=${JSON.stringify(meta.clientUploadId)};
+  var status=document.getElementById('status');
+  var box=document.getElementById('box');
+  function b64urlToBytes(s){
+    s=s.replace(/-/g,'+').replace(/_/g,'/');
+    while(s.length%4) s+='=';
+    var bin=atob(s); var out=new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+    return out;
+  }
+  function parseKey(hash){
+    var m=/^#?k=v1\.([A-Za-z0-9_-]+)$/.exec(hash||'');
+    return m?b64urlToBytes(m[1]):null;
+  }
+  async function playPlain(){
+    status.innerHTML='<div class="warn">LEGACY: opname is <strong>niet</strong> end-to-end versleuteld. Server/storage kon bytes zien bij ACL-toegang. Intrekken stopt nieuwe toegang; reeds gedownloade kopieën niet.</div>';
+    var a=document.createElement('audio'); a.controls=true; a.src=URL_CT; box.appendChild(a);
+  }
+  async function playE2e(){
+    var dek=parseKey(location.hash);
+    if(!dek||dek.length!==32){
+      status.innerHTML='<div class="warn">E2E-opname: voeg de sleutel toe in de URL-fragment (<code>#k=v1.…</code>). De sleutel wordt niet naar de server gestuurd. Zonder fragment geen afspelen.</div>';
+      return;
+    }
+    status.textContent='Ciphertext ophalen en lokaal ontsleutelen…';
+    var res=await fetch(URL_CT,{cache:'no-store',referrerPolicy:'no-referrer'});
+    var buf=new Uint8Array(await res.arrayBuffer());
+    if(buf.length<28){ status.textContent='Bestand te kort.'; return; }
+    var iv=buf.slice(0,12); var ct=buf.slice(12);
+    var aadStr='safewalk-rec-aad-v1|'+OWNER+'|'+(UPLOAD||'');
+    var aad=new TextEncoder().encode(aadStr);
+    try{
+      var key=await crypto.subtle.importKey('raw',dek,{name:'AES-GCM'},false,['decrypt']);
+      var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv,additionalData:aad,tagLength:128},key,ct);
+      var blob=new Blob([pt],{type:MIME.indexOf('audio/')===0?MIME:'audio/webm'});
+      var a=document.createElement('audio'); a.controls=true; a.src=URL.createObjectURL(blob); box.appendChild(a);
+      status.innerHTML='<div class="ok">E2E: lokaal ontsleuteld. Fragment-sleutel is niet naar SafeWalk gestuurd. Intrekken voorkomt nieuwe downloads; kopieën die je al hebt blijven.</div>';
+    }catch(e){
+      status.innerHTML='<div class="warn">Ontsleutelen mislukt (verkeerde/ontbrekende sleutel of manipulatiedetectie).</div>';
+    }
+  }
+  if(ENC==='e2e-v1') playE2e(); else playPlain();
+})();
+</script>
+</body></html>`;
+  return new Response(html, { status: 200, headers: h });
 });

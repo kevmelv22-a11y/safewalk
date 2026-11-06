@@ -8,7 +8,7 @@ export const me = query({ args: {}, handler: async (ctx) => {
   const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
   if (!p) return null;
   const { pinHash: _h, pinSalt: _s, ...safe } = p;
-  return { ...safe, pinSet: Boolean(p.pinHash && p.pinSalt), premium: await isPremium(ctx, uid) };
+  return { ...safe, userId: uid, pinSet: Boolean(p.pinHash && p.pinSalt), premium: await isPremium(ctx, uid) };
 } });
 
 export const update = mutation({

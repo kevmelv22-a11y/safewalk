@@ -17,6 +17,7 @@ import type * as billing from "../billing.js";
 import type * as contacts from "../contacts.js";
 import type * as crons from "../crons.js";
 import type * as deviceContacts from "../deviceContacts.js";
+import type * as deviceCrypto from "../deviceCrypto.js";
 import type * as geo from "../geo.js";
 import type * as http from "../http.js";
 import type * as incidents from "../incidents.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   contacts: typeof contacts;
   crons: typeof crons;
   deviceContacts: typeof deviceContacts;
+  deviceCrypto: typeof deviceCrypto;
   geo: typeof geo;
   http: typeof http;
   incidents: typeof incidents;

@@ -32,6 +32,20 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   await del(await q('profiles').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   await del(await q('subscriptions').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   await del(await q('abuseReports').withIndex('by_reporter', (x) => x.eq('reporterId', uid)).collect());
+  // Recordings + E2E envelopes/keys (storage blobs)
+  for (const rec of await q('recordings').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
+    try { await ctx.storage.delete(rec.storageId); } catch { /* */ }
+    await del(await q('recordingKeyEnvelopes').withIndex('by_recording', (x) => x.eq('recordingId', rec._id)).collect());
+    await ctx.db.delete(rec._id);
+  }
+  await del(await q('recordingKeyEnvelopes').withIndex('by_recipient', (x) => x.eq('recipientId', uid)).collect());
+  await del(await q('deviceCryptoKeys').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  await del(await q('shareLinks').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  await del(await q('deviceContacts').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  for (const inc of await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'active')).collect()) await ctx.db.delete(inc._id);
+  for (const inc of await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'resolved')).collect()) await ctx.db.delete(inc._id);
+  for (const inc of await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'cancelled')).collect()) await ctx.db.delete(inc._id);
+
   // Convex Auth-tabellen
   for (const s of await q('authSessions').withIndex('userId', (x) => x.eq('userId', uid)).collect()) {
     await del(await q('authRefreshTokens').withIndex('sessionId', (x) => x.eq('sessionId', s._id)).collect());

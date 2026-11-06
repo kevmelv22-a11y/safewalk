@@ -154,3 +154,23 @@ Web SPA: HTTP 200 op path + routes in `entry.bundle` (geen browser-automation in
 
 ### Fysieke tests
 Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro dekt UI-routes; native modules: plugin/unit source checks only.
+
+
+## 11. Recording encryption — applied mode (bounded E2E)
+
+**Applied mode:** `e2e-v1` = AES-256-GCM ( @noble/ciphers, audited ) before upload; DEK in device SecureStore (sessionStorage on web — labeled weaker). Server stores ciphertext only + optional wrapped DEK envelopes (X25519 + HKDF + AES-GCM via @noble/curves/@noble/hashes).
+
+| Scope | Status |
+|---|---|
+| Owner encrypt-before-upload | **Implemented** (`RecordingControls`, danger upload) |
+| Owner local DEK | SecureStore / web sessionStorage |
+| Trusted-app recipient envelopes | **Implemented** when contact registered public key |
+| External fragment-key player | **Implemented** `/track/recording-play` — no 3rd-party scripts; DEK only in `#k=v1…` |
+| Legacy `encryption: none` | Labeled; not silently called E2E |
+| Server never sees DEK | By design for e2e-v1 |
+| Revoke/delete | Stops new access; **downloaded copies acknowledged** |
+| Key rotation | New keyId + `revokePrevious`; old envelopes need re-wrap (documented in UI) |
+| Universal multi-device recovery | **Out of scope** this pass |
+| Web = hardware E2E | **Not claimed** |
+
+Libs: `@noble/ciphers`, `@noble/curves`, `@noble/hashes` (audited). No handmade AES/ECDH.
