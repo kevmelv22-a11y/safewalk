@@ -41,6 +41,7 @@ export default function Danger() {
     if (!perm?.granted) { requestPerm(); return; }
     const id = setInterval(() => setTorch((t) => !t), 500);
     return () => { clearInterval(id); setTorch(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- requestPerm is stabiel genoeg; voorkom herhaalde prompts
   }, [strobeOn, perm?.granted]);
 
   const unlock = async (pin: string) => {
