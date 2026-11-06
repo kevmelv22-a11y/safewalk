@@ -103,6 +103,11 @@ export const notificationKindLabel: Record<string, string> = {
 
 export function mapErrorNl(msg: string | undefined): string {
   if (!msg) return 'Er ging iets mis.';
+  if (msg.includes('E2E_ENVELOPE_MISSING')) return 'Voor deze versleutelde opname is geen sleutel voor jou gedeeld. Vraag de eigenaar je opnieuw toe te voegen nadat je je publieke sleutel hebt geregistreerd.';
+  if (msg.includes('E2E_KEY_MISMATCH')) return 'Deze opname is versleuteld voor een andere (oudere) sleutel van jou. Ontsleutelen kan niet op dit apparaat.';
+  if (msg.includes('DEK_MISSING')) return 'De sleutel van deze opname staat niet op dit apparaat (alleen op het apparaat dat uploadde).';
+  if (msg.includes('DECRYPT_FAILED')) return 'Ontsleutelen mislukt: verkeerde sleutel of het bestand is gewijzigd.';
+  if (msg.includes('RECORDING_TOO_LARGE')) return 'Opname is te groot (max. 24 MB).';
   if (msg.includes('CONTACT_LIMIT')) return 'Gratis account: maximaal 2 vertrouwde contacten.';
   if (msg.includes('INVITATION_INVALID')) return 'Deze uitnodiging is ongeldig of verlopen.';
   if (msg.includes('INVITATION_SELF')) return 'Je kunt je eigen uitnodiging niet accepteren.';

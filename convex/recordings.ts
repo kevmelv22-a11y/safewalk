@@ -42,6 +42,12 @@ export const finalize = mutation({
       if (a.mime !== 'application/octet-stream' && !/^audio\//.test(a.mime)) fail('BAD_REQUEST');
       if (!a.clientUploadId || a.clientUploadId.length < 8 || a.clientUploadId.length > 80) fail('BAD_REQUEST');
     }
+    // Bind the stored object to this row: real size must match and it may not be claimed twice.
+    const meta = await ctx.db.system.get(a.storageId);
+    if (!meta || meta.size !== a.byteSize) fail('BAD_REQUEST');
+    if (enc === 'e2e-v1' && a.byteSize < 12 + 16) fail('BAD_REQUEST');
+    const claimed = await ctx.db.query('recordings').withIndex('by_storage', (q) => q.eq('storageId', a.storageId)).first();
+    if (claimed) fail('FORBIDDEN');
     if (a.incidentId) {
       const i = await ctx.db.get(a.incidentId);
       if (!i || i.userId !== uid) fail('FORBIDDEN');
@@ -136,6 +142,26 @@ export const getDownloadUrl = mutation({
         ? 'LEGACY_PLAINTEXT: opname is niet end-to-end versleuteld; server/storage kan bytes lezen bij ACL-toegang.'
         : 'E2E_V1: ciphertext op server; DEK niet op server. Intrekken stopt nieuwe downloads, niet reeds gedownloade kopieën.',
     };
+  },
+});
+
+/** Recordings van mensen die mij als vertrouwd contact hebben (recipient-pad). Geen sleutels. */
+export const listSharedWithMe = query({
+  args: {},
+  handler: async (ctx) => {
+    const uid = await getAuthUserId(ctx);
+    if (!uid) return [];
+    const envs = await ctx.db.query('recordingKeyEnvelopes').withIndex('by_recipient', (q) => q.eq('recipientId', uid)).collect();
+    const out = [];
+    for (const e of envs) {
+      const r = await ctx.db.get(e.recordingId);
+      if (!r || r.deletedAt) continue;
+      const tc = await ctx.db.query('trustedContacts')
+        .withIndex('by_pair', (q) => q.eq('ownerId', r.userId).eq('contactId', uid)).first();
+      if (tc?.status !== 'accepted') continue;
+      out.push({ id: r._id, ownerId: r.userId, createdAt: r.createdAt, byteSize: r.byteSize, recipientKeyId: e.recipientKeyId });
+    }
+    return out;
   },
 });
 

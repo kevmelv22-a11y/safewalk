@@ -12,7 +12,9 @@ import { uploadBlob } from './recording';
 export { E2E_MODE, LEGACY_MODE, encodeFragmentKey, webKeyStorageWarning };
 export type { EncryptionMode };
 
-/** Encrypt (e2e-v1) then upload ciphertext. Falls back to legacy plaintext only if encrypt fails hard. */
+export const MAX_PLAINTEXT_BYTES = 24 * 1024 * 1024; // server cap 25 MB incl. 28 B overhead
+
+/** Encrypt (e2e-v1) then upload ciphertext. Never falls back to plaintext: encrypt errors throw. Plaintext only when preferE2e === false (explicit). */
 export async function encryptAndUpload(opts: {
   blob: Blob;
   mime: string;
@@ -30,8 +32,10 @@ export async function encryptAndUpload(opts: {
   note: string;
 }> {
   const prefer = opts.preferE2e !== false;
+  if (opts.blob.size > MAX_PLAINTEXT_BYTES) throw new Error('RECORDING_TOO_LARGE');
   const plaintext = new Uint8Array(await opts.blob.arrayBuffer());
   const plaintextByteSize = plaintext.byteLength;
+  if (plaintextByteSize > MAX_PLAINTEXT_BYTES) throw new Error('RECORDING_TOO_LARGE');
   const clientUploadId = randomUUID();
 
   if (!prefer) {
@@ -96,6 +100,7 @@ export async function decryptDownload(opts: {
     dek = await loadLocalDek(opts.recordingId);
   } else if (opts.envelope) {
     const id = await ensureIdentityKeypair();
+    if (id.keyId !== opts.envelope.recipientKeyId) throw new Error('E2E_KEY_MISMATCH');
     dek = unwrapDek(
       b64urlDecode(opts.envelope.wrappedDek),
       fromHex(opts.envelope.ephemeralPubX25519),

@@ -13,6 +13,7 @@ import type { Id } from '../convex/_generated/dataModel';
 
 export default function RecordingsScreen() {
   const list = useQuery(api.recordings.listMine) ?? [];
+  const shared = useQuery(api.recordings.listSharedWithMe) ?? [];
   const remove = useMutation(api.recordings.remove);
   const getUrl = useMutation(api.recordings.getDownloadUrl);
   const registerKey = useMutation(api.deviceCrypto.registerPublicKey);
@@ -86,6 +87,27 @@ export default function RecordingsScreen() {
               await remove({ id: r.id as Id<'recordings'> });
               await deleteLocalDek(r.id);
               setMsg('Opname + envelopes verwijderd; lokale DEK gewist. Gedownloade kopieën elders blijven.');
+            } catch (e) { setErr(errorNl(e)); }
+          }} />
+        </Card>
+      ))}
+      <H1>Met mij gedeeld</H1>
+      {shared.length === 0 && <P muted>Niemand heeft (versleuteld) een opname met jou gedeeld.</P>}
+      {shared.map((r) => (
+        <Card key={r.id}>
+          <P>{new Date(r.createdAt).toLocaleString('nl-NL')} · {Math.round(r.byteSize / 1024)} KB · e2e-v1</P>
+          <Button title="Ophalen en ontsleutelen" variant="secondary" onPress={async () => {
+            try {
+              const meta = await getUrl({ id: r.id });
+              if (!meta.url) throw new Error('NO_URL');
+              const res = await fetch(meta.url);
+              const buf = new Uint8Array(await res.arrayBuffer());
+              const pt = await decryptDownload({
+                ciphertext: buf, encryption: meta.encryption, userIdOwner: meta.ownerId,
+                clientUploadId: meta.clientUploadId, isOwner: meta.isOwner, recordingId: r.id, envelope: meta.envelope,
+              });
+              setMsg(`E2E ontsleuteld: ${pt.length} B. ${meta.warning}`);
+              setErr(null);
             } catch (e) { setErr(errorNl(e)); }
           }} />
         </Card>

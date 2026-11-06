@@ -143,7 +143,7 @@ export default defineSchema({
     deletedAt: v.optional(v.number()),
     encryption: v.optional(v.union(v.literal('none'), v.literal('e2e-v1'))),
     clientUploadId: v.optional(v.string()), // binds client AAD; not a secret
-  }).index('by_user', ['userId']).index('by_incident', ['incidentId']),
+  }).index('by_user', ['userId']).index('by_incident', ['incidentId']).index('by_storage', ['storageId']),
   // Device X25519 public keys for envelope wrap (private keys stay on device SecureStore)
   deviceCryptoKeys: defineTable({
     userId: v.id('users'),

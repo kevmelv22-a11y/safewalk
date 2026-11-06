@@ -380,7 +380,8 @@ export const resolveRecordingMeta = internalQuery({
     if (!(link.scopes ?? []).includes('recording')) return null;
     const row = await ctx.db.get(recordingId);
     if (!row || row.deletedAt || row.userId !== link.userId) return null;
-    if (link.incidentId && row.incidentId && row.incidentId !== link.incidentId) return null;
+    // Strict: a recording-scoped link only exposes recordings of its own incident.
+    if (!link.incidentId || row.incidentId !== link.incidentId) return null;
     const enc = (row.encryption ?? 'none') as 'none' | 'e2e-v1';
     return {
       storageId: row.storageId,
