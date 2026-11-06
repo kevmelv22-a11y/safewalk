@@ -11,6 +11,10 @@ import { PinPad } from '../src/components/PinPad';
 import { startAlarm } from '../src/lib/dangerAlarm';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { uploadEncryptedRecording } from '../src/lib/recordingUpload';
+import { runDangerUnlock } from '../src/lib/dangerUnlock';
+import { ContactComposer } from '../src/components/ContactComposer';
+import { locationMessage } from '../src/lib/composer';
+import { getBackgroundRecordingOptIn } from '../src/lib/recordingPrefs';
 import { deleteLocalOriginal } from '../src/lib/playbackFile';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { errorNl } from '../src/lib/convex';
@@ -79,11 +83,14 @@ export default function Danger() {
           setRecNote('Microfoon geweigerd — geen opname. Alarm/locatie gaan door.');
           return;
         }
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+        const bg = await getBackgroundRecordingOptIn();
+        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, allowsBackgroundRecording: bg });
         await recorder.prepareToRecordAsync();
         recorder.record();
         setRecActive(true);
-        setRecNote('OPNAME ACTIEF — alarmgeluid kan meegenomen worden in de audio.');
+        setRecNote(bg
+          ? 'OPNAME ACTIEF — loopt door op de achtergrond (jouw keuze; systeemmelding zichtbaar). Het OS kan opname alsnog onderbreken.'
+          : 'OPNAME ACTIEF — stopt als de app naar de achtergrond gaat (achtergrond-opname staat uit).');
       } catch {
         setRecNote('Opname starten mislukt (toestemming/module).');
       }
@@ -111,56 +118,58 @@ export default function Danger() {
     return () => { cancelled = true; clearInterval(id); };
   }, [iid, ping]);
 
-  const stopRecordingUpload = async () => {
-    if (!recActive || !iid) return;
-    try {
-      await recorder.stop();
-      setRecActive(false);
-      const uri = recorder.uri;
-      if (!uri || !me?.userId) return;
+  /** Stops the recorder locally and returns the (deferred) encrypted upload; never called before PIN verification. */
+  const stopRecorder = async (): Promise<(() => Promise<void>) | null> => {
+    if (!recActive || !iid) return null;
+    await recorder.stop();
+    setRecActive(false);
+    const uri = recorder.uri;
+    const durationMs = Math.round((recorder.currentTime || 0) * 1000);
+    if (!uri || !me?.userId) return null;
+    const userId = me.userId; const token = authToken; const contacts = contactKeys; const incident = iid;
+    return async () => {
       const res = await fetch(uri);
       const blob = await res.blob();
       const mime = blob.type || 'audio/m4a';
       const up = await uploadEncryptedRecording({
-        blob, mime, userId: me.userId, authToken, contacts: contactKeys, putEnvelopes: putEnvelopes as never,
-        durationMs: Math.round((recorder.currentTime || 0) * 1000), incidentId: iid,
+        blob, mime, userId, authToken: token, contacts, putEnvelopes: putEnvelopes as never, durationMs, incidentId: incident,
       });
       deleteLocalOriginal(uri);
-      setRecNote(up.note + ' (alarmgeluid kan in plaintext gezeten hebben vóór encryptie.)');
-    } catch (e) {
-      setRecNote('Upload mislukt: ' + errorNl(e));
-    }
+      setRecNote(up.note);
+    };
   };
 
   const unlock = async (pin: string) => {
     setBusy(true); setErr(null); setOfflineHint(false);
     try {
-      await stopRecordingUpload();
-      const loc = await getConsentedLocation();
-      const res = await verify({
-        pin,
-        purpose: 'unlock_danger',
-        incidentId: iid,
-        ...loc,
+      const outcome = await runDangerUnlock({
+        verify: async () => {
+          const loc = await getConsentedLocation();
+          return verify({ pin, purpose: 'unlock_danger', incidentId: iid, ...loc });
+        },
+        stopRecorder,
+        stopAlarm: async () => { await alarm.current?.stop(); setTorch(false); },
+        classifyError: (e) => {
+          const msg = errorNl(e);
+          if (/RATE_LIMITED/.test(String(e)) || msg.includes('Te veel')) return 'rate_limited';
+          if (/network|fetch|Failed|offline|NOT_AUTHENTICATED/i.test(String(e)) || msg.includes('netwerk')) return 'offline';
+          return 'error';
+        },
+        onUploadError: (e) => setRecNote('Upload mislukt: ' + errorNl(e)),
       });
-      if (!res.ok) {
-        setErr('Onjuiste code. Probeer opnieuw.');
-        return;
-      }
-      await alarm.current?.stop();
-      setTorch(false);
-      router.replace('/dashboard');
-    } catch (e) {
-      const msg = errorNl(e);
-      if (msg === 'RATE_LIMITED') setErr('Te veel pogingen. Wacht even.');
-      else if (/network|fetch|Failed|offline|NOT_AUTHENTICATED/i.test(String(e)) || msg.includes('netwerk')) {
+      if (outcome === 'ok') { router.replace('/dashboard'); return; }
+      if (outcome === 'rate_limited') setErr('Te veel pogingen. Wacht even.');
+      else if (outcome === 'offline') {
         setOfflineHint(true);
-        setErr('Geen verbinding met de server. Alarm stopt pas na geslaagde PIN-verificatie online — we beweren geen offline-unlock.');
-      } else {
-        setErr('Onjuiste code. Probeer opnieuw.');
-      }
+        setErr('Geen verbinding met de server. Alarm en opname lopen door tot de PIN online is gecontroleerd.');
+      } else setErr('Onjuiste code. Probeer opnieuw.');
     } finally { setBusy(false); }
   };
+
+  const trackMessage = (() => {
+    const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, '') ?? '';
+    try { return sharePath ? locationMessage(`${site}${sharePath}`) : null; } catch { return null; }
+  })();
 
   const shareTrack = async () => {
     if (!sharePath) return;
@@ -173,7 +182,7 @@ export default function Danger() {
   };
 
   return (
-    <Screen scroll={false}>
+    <Screen>
       <View style={{ flex: 1, backgroundColor: '#1a0505', margin: -20, padding: 20, gap: 14 }}>
         <H1>GEVAARMODUS ACTIEF</H1>
         <Notice kind="danger">Alarm speelt tot je het stopt met je veiligheids-PIN (server-check). SafeWalk belt 112 niet automatisch.</Notice>
@@ -205,6 +214,7 @@ export default function Danger() {
           <>
             <Button title="Stop met veiligheids-PIN" onPress={() => setShowPin(true)} />
             {sharePath ? <Button title="Deel tracking-link (jij bevestigt Send)" variant="secondary" onPress={shareTrack} /> : null}
+            {sharePath && trackMessage ? <ContactComposer message={trackMessage} /> : null}
             <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
           </>
         ) : (

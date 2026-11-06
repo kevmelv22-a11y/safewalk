@@ -5,6 +5,9 @@ import { api } from '../convex/_generated/api';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
 import { useSessions } from '../src/lib/queries';
 import { errorNl } from '../src/lib/convex';
+import * as Location from 'expo-location';
+import { ContactComposer } from '../src/components/ContactComposer';
+import { locationMessage } from '../src/lib/composer';
 
 /**
  * Externe tracking-link voor contacten zonder app.
@@ -18,12 +21,17 @@ export default function ShareLinkScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [composerText, setComposerText] = useState<string | null>(null);
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, '') ?? '';
 
   const make = async () => {
     setBusy(true); setErr(null); setMsg(null);
     try {
-      const locOk = true; // scherm vraagt niet opnieuw; link vereist dat gebruiker al locatie deelt via actieve reis of later pings
+      // Explicit consent: the user pressed this button AND granted location permission (asked here if needed).
+      let perm = await Location.getForegroundPermissionsAsync();
+      if (perm.status !== 'granted') perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== 'granted') { setErr('Zonder locatietoestemming maakt SafeWalk geen locatielink.'); return; }
+      const locOk = true;
       const r = await create({
         sessionId: sessions?.mine?._id,
         label: 'Live locatie',
@@ -31,7 +39,8 @@ export default function ShareLinkScreen() {
         scopes: ['location'],
       });
       const url = `${site}${r.path}`;
-      const text = `Ik deel mijn live locatie via SafeWalk (tijdelijk, intrekbaar): ${url}\nSafeWalk belt niet 112.`;
+      const text = locationMessage(url);
+      setComposerText(text);
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(text);
         setMsg('Link gekopieerd. Plak in sms/WhatsApp — jij bevestigt zelf “versturen”.');
@@ -50,6 +59,7 @@ export default function ShareLinkScreen() {
       <Notice kind="info">Techniek: Convex HTTP + Leaflet + OpenStreetMap-tegels (© OSM-bijdragers). Poll elke 10s. Geen betaalde kaart-API.</Notice>
       <Button title="Nieuwe link maken en delen" onPress={make} loading={busy} />
       {msg && <Notice kind="ok">{msg}</Notice>}
+      {composerText && <ContactComposer message={composerText} />}
       {err && <Notice kind="danger">{err}</Notice>}
       <H1>Actieve links</H1>
       {links.length === 0 && <P muted>Geen links.</P>}

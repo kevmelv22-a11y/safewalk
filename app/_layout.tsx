@@ -13,6 +13,9 @@ import { api } from '../convex/_generated/api';
 import { configurePurchases } from '../src/lib/purchases';
 import { AlarmGuard } from '../src/lib/alarmGuard';
 import { cleanupPlaybackLeftovers } from '../src/lib/playbackFile';
+import { handleVolumeDoublePress } from '../src/lib/volumeAction';
+import { getVolumeSendOptIn } from '../src/lib/recordingPrefs';
+import { getConsentedLocation } from '../src/lib/locationOnce';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
 
 function PurchasesBootstrap() {
@@ -27,7 +30,14 @@ export default function RootLayout() {
     const stopRetry = startSosRetry();
     cleanupPlaybackLeftovers(); // only sw-play-* in the app's own playback cache dir
     initQuickActions().catch(() => undefined);
-    const vol = initVolumeDoublePress(() => openQuickPing());
+    const vol = initVolumeDoublePress(() => {
+      void handleVolumeDoublePress({
+        optedIn: getVolumeSendOptIn,
+        getLocation: getConsentedLocation,
+        send: (loc) => convex.mutation(api.incidents.sendLiveLocationNow, loc),
+        navigate: (href) => router.push(href as never),
+      });
+    });
     void vol;
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
       const d = r.notification.request.content.data as { type?: string; sessionId?: string; alertId?: string };

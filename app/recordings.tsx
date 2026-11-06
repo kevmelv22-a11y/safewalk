@@ -13,6 +13,7 @@ import {
 } from '../src/lib/recordingUpload';
 import { loadLocalDek, getPinnedKey, pinContactKey, unpinContactKey } from '../src/lib/recordingKeys';
 import { fromHex } from '../src/lib/recordingCrypto';
+import { getBackgroundRecordingOptIn, setBackgroundRecordingOptIn } from '../src/lib/recordingPrefs';
 import type { Id } from '../convex/_generated/dataModel';
 
 type Playing = { id: string; bytes: Uint8Array; mime: string };
@@ -32,6 +33,8 @@ export default function RecordingsScreen() {
   const [myFp, setMyFp] = useState<string | null>(null);
   const [pins, setPins] = useState<Record<string, string | null>>({});
   const [pinTick, setPinTick] = useState(0);
+  const [bgRec, setBgRec] = useState(false);
+  useEffect(() => { getBackgroundRecordingOptIn().then(setBgRec); }, []);
 
   useEffect(() => { getIdentityKeypair().then((k) => setMyFp(k ? keyFingerprint(k.publicKey) : null)); }, []);
   const contactSig = contactKeys.map((c) => c.userId).join(',');
@@ -101,6 +104,13 @@ export default function RecordingsScreen() {
         );
       })}
 
+      {Platform.OS !== 'web' && (
+        <Button variant="secondary"
+          title={bgRec ? 'Opname op achtergrond: AAN (tik om uit te zetten)' : 'Opname op achtergrond: UIT (tik om aan te zetten)'}
+          hint="Alleen voor opnames die jij start. iOS toont de oranje microfoonstip, Android een vaste melding. Het systeem kan de opname alsnog stoppen."
+          onPress={async () => { const v = !bgRec; await setBackgroundRecordingOptIn(v); setBgRec(v); }} />
+      )}
+      {Platform.OS !== 'web' && <P muted>Achtergrond-opname geldt alleen voor opnames die jij start; iOS toont de oranje microfoonstip, Android een vaste melding. Het systeem kan de opname alsnog stoppen.</P>}
       <RecordingControls />
       {msg && <Notice kind="ok">{msg}</Notice>}
       {err && <Notice kind="danger">{err}</Notice>}

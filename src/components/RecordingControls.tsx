@@ -9,6 +9,7 @@ import { uploadEncryptedRecording, KEY_LOSS_WARNING } from '../lib/recordingUplo
 import { deleteLocalOriginal } from '../lib/playbackFile';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { errorNl } from '../lib/convex';
+import { getBackgroundRecordingOptIn } from '../lib/recordingPrefs';
 
 /** Zichtbare opname-UI; default e2e-v1 encrypt vóór upload. */
 export function RecordingControls() {
@@ -37,7 +38,7 @@ export function RecordingControls() {
       setErr('Microfoon geweigerd. Geen stille opname.');
       return;
     }
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, allowsBackgroundRecording: await getBackgroundRecordingOptIn() });
     await recorder.prepareToRecordAsync();
     recorder.record();
     setActive(true);

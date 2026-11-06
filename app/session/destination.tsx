@@ -8,6 +8,7 @@ import { useIsDark , palette } from '../../src/lib/theme';
 import { darkMapStyle } from '../../src/lib/mapStyle';
 import { etaLabel, formatDistance, haversineMeters, roughEtaMs } from '../../src/lib/safety';
 import { useTripDraft, Destination } from '../../src/store/trip';
+import { mapsAvailable } from '../../src/lib/mapsAvailability';
 
 async function labelFor(lat: number, lng: number): Promise<string> {
   try {
@@ -46,6 +47,9 @@ export default function DestinationPicker() {
       <Field label="Zoek adres" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={search} placeholder="bv. Damstraat 1, Amsterdam" />
       <Button title="Zoeken" variant="secondary" onPress={search} loading={busy} disabled={!query.trim()} />
       {err && <Notice kind="warn">{err}</Notice>}
+      {!mapsAvailable() ? (
+        <Notice kind="info">De kaart is in deze versie niet beschikbaar (geen kaartsleutel ingesteld). Zoek je bestemming via het adresveld hierboven.</Notice>
+      ) : (
       <View style={{ height: 360, borderRadius: 16, overflow: 'hidden' }}>
         <MapView style={{ flex: 1 }} provider={PROVIDER_DEFAULT} customMapStyle={isDark ? darkMapStyle : []} userInterfaceStyle={isDark ? 'dark' : 'light'} showsUserLocation
           region={{ latitude: center.lat, longitude: center.lng, latitudeDelta: 0.03, longitudeDelta: 0.03 }}
@@ -55,6 +59,7 @@ export default function DestinationPicker() {
           {pin && me && <Polyline coordinates={[{ latitude: me.lat, longitude: me.lng }, { latitude: pin.lat, longitude: pin.lng }]} strokeColor={palette.purple} strokeWidth={3} lineDashPattern={[8, 6]} />}
         </MapView>
       </View>
+      )}
       {pin && (
         <Card>
           <P>{pin.label}</P>

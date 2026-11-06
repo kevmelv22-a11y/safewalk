@@ -180,3 +180,17 @@ Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro 
 2. Envelopes whose recording is gone/deleted, or whose recipient is no longer an accepted contact: delete.
 3. Orphan files: **only** files tracked by a `recordingUploads` intent (the upload proxy creates the intent *before* storing, links the storageId, and removes the intent after success/failure). Intents > 24 h old with an unclaimed file → file deleted. Untracked or pre-existing storage (including any orphans from the old `generateUploadUrl` flow) is **never** deleted, because ownership can't be proven. Limitation: a crash between store and linking the intent leaves an untracked file behind.
 4. **Live recordings are never deleted by age.** No age-based retention without a confirmed policy.
+
+## 12. Integration fixes before build (2026-11-06)
+
+| Item | Status | Limitation |
+|---|---|---|
+| Danger PIN unlock | `src/lib/dangerUnlock.ts`: server verifies PIN **first**. Wrong PIN, offline or error → alarm and recording keep running. Correct PIN → recorder stops locally, alarm stops, upload runs in the background (never blocks unlock). | Requires network for unlock (no offline unlock). |
+| Build profiles | `eas.json`: development → dev deployment (hidden-ferret-142); preview/production/adhoc → prod (agile-capybara-401), both `.convex.cloud` and `.convex.site`. | **Prod has not been deployed with the latest Convex code**; it needs a deploy (and `RESEND_API_KEY`) before a build against prod works. |
+| Google Maps Android | `app.config.ts` only sets `googleMaps.apiKey` from env `GOOGLE_MAPS_ANDROID_API_KEY`; without a key the Android app shows an address-search fallback instead of a map (`src/lib/mapsAvailability.ts`). | Key must come from Kevin. |
+| iOS ad-hoc tile | With `SAFEWALK_IOS_ADHOC=1`, `react-native-quick-settings-tile` gets `ios.delegateToAppleTargets: false` → no extension target (existing single-target profile). Bundle IDs unchanged. Android tile untouched. | No Control Center control in the ad-hoc build. `targets/` is generated output (plugin). |
+| Android package | `nl.safewalk.native` → `nl.safewalk.nativehelpers` (Java reserved word). | Uncompiled until native build. |
+| Background recording | Config `enableBackgroundRecording: true` (iOS audio background mode, Android foreground service `microphone`) is only a capability. Runtime `allowsBackgroundRecording` only with a separate opt-in (Recordings screen, default OFF). | The OS can still interrupt recording; iOS shows the mic indicator, Android a notification. Untested on device. |
+| Phone contacts (SMS/WhatsApp) | `ContactComposer`: user ticks contacts, SafeWalk opens the SMS composer (one message, max 10 recipients) or one WhatsApp chat per tap with the tracking link. User presses Send themselves. | No automatic sending; WhatsApp has no multi-recipient link. |
+| Share-link consent | `share-link.tsx` no longer hard-codes `locationConsent=true`; it asks for/checks location permission first. | — |
+| Volume 2× | Android, foreground only. Default: opens `/quick-ping` (tap to confirm). With an explicit opt-in (quick-ping screen): sends immediately to app contacts, max 1×/minute, with visible confirmation. Deep links/tile/shortcuts **never** send automatically. | iOS: impossible (no volume API). |
