@@ -12,6 +12,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { configurePurchases } from '../src/lib/purchases';
 import { AlarmGuard } from '../src/lib/alarmGuard';
+import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
@@ -23,10 +24,18 @@ export default function RootLayout() {
   const t = useTheme(); const isDark = useIsDark();
   useEffect(() => {
     const stopRetry = startSosRetry();
+    initQuickActions().catch(() => undefined);
+    const vol = initVolumeDoublePress(() => openQuickPing());
+    void vol;
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
       const d = r.notification.request.content.data as { type?: string; sessionId?: string; alertId?: string };
+      const action = r.actionIdentifier;
+      if (action === 'QUICK_PING') { openQuickPing(); return; }
       if ((d.type === 'sos' || d.type === 'missed_check_in') && d.alertId) router.push(`/alert/${d.alertId}`);
       else if (d.type === 'check_in' && d.sessionId) router.push(`/session/${d.sessionId}`);
+      else if (d.type === 'unsafe' || d.type === 'wrong_pin' || d.type === 'come_quick') {
+        if (d.alertId) router.push(`/alert/${d.alertId}`);
+      }
     });
     return () => { stopRetry(); sub.remove(); };
   }, []);

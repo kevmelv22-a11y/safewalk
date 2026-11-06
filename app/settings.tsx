@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Linking, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../convex/_generated/api';
@@ -11,6 +11,8 @@ import { confirmAction } from '../src/lib/confirm';
 import { stopSharing } from '../src/lib/location';
 import { resetPurchases } from '../src/lib/purchases';
 import { useThemePref, ThemePref } from '../src/store/theme';
+import { maybePromptQsTile, getNativeCapabilitiesSafe } from '../src/lib/nativeEntryPoints';
+import { registerPush } from '../src/lib/notifications';
 
 export default function Settings() {
   const { signOut } = useAuthActions();
@@ -43,6 +45,19 @@ export default function Settings() {
       </Card>
       <Card><P>Veiligheids-PIN</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen.</P>
         <Button title="PIN instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
+      <Card>
+        <P>Snelkoppelingen (native)</P>
+        <P muted>Android Quick Settings-tegel en iOS Home Screen Quick Actions openen “Stuur live locatie”. Volume×2 alleen Android-foreground na development build. Geen background torch. Power-off/force-stop stopt alles.</P>
+        <Button title="Open live-locatie scherm" variant="secondary" onPress={() => router.push('/quick-ping')} />
+        {Platform.OS === 'android' && (
+          <Button title="Android: tegel toevoegen (prompt)" variant="secondary" onPress={async () => setMsg('Tegel: ' + await maybePromptQsTile())} />
+        )}
+        <Button title="Push opnieuw registreren" variant="secondary" onPress={async () => {
+          const r = await registerPush();
+          setMsg(r.ok ? 'Push-token opgeslagen.' : `Push niet gereed: ${r.reason}${r.detail ? ' — ' + r.detail : ''}`);
+        }} />
+        <P muted style={{ fontSize: 12 }}>{getNativeCapabilitiesSafe()}</P>
+      </Card>
       <Card>
         <P>Geblokkeerde personen</P>
         {blocked.length === 0 && <P muted>Niemand geblokkeerd.</P>}

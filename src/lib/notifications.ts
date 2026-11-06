@@ -6,22 +6,70 @@ import { convex } from './convex';
 import { api } from '../../convex/_generated/api';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
+  handleNotification: async () => ({
+    shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false,
+  }),
 });
 
-export async function registerPush(): Promise<string | null> {
+export type PushRegistrationResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: 'web' | 'simulator' | 'permission_denied' | 'no_project_id' | 'token_failed' | 'register_failed'; detail?: string };
+
+/** Android notification actions → deep link (lokaal; remote push data handled in _layout). */
+export async function ensureNotificationCategories() {
+  if (Platform.OS === 'web') return;
+  await Notifications.setNotificationCategoryAsync('safety', [
+    {
+      identifier: 'QUICK_PING',
+      buttonTitle: 'Stuur locatie',
+      options: { opensAppToForeground: true },
+    },
+  ]);
+}
+
+export async function registerPush(): Promise<PushRegistrationResult> {
+  if (Platform.OS === 'web') return { ok: false, reason: 'web', detail: 'Web heeft geen Expo push tokens' };
+  await ensureNotificationCategories();
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('safety-alerts', {
-      name: 'Veiligheidsmeldingen', importance: Notifications.AndroidImportance.MAX, vibrationPattern: [0, 400, 200, 400], lightColor: '#EF4444',
+      name: 'Veiligheidsmeldingen',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 400, 200, 400],
+      lightColor: '#EF4444',
+      bypassDnd: false,
+    });
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Algemeen',
+      importance: Notifications.AndroidImportance.DEFAULT,
     });
   }
-  if (!Device.isDevice) return null;
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') return null;
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  const token = (await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)).data;
-  await convex.mutation(api.profiles.registerPushToken, { token, platform: Platform.OS });
-  return token;
+  if (!Device.isDevice) {
+    return { ok: false, reason: 'simulator', detail: 'Push vereist fysiek toestel; simulator/emulator geeft geen betrouwbare APNs/FCM token' };
+  }
+  const perm = await Notifications.requestPermissionsAsync();
+  if (perm.status !== 'granted') {
+    return { ok: false, reason: 'permission_denied', detail: 'Notificatietoestemming geweigerd' };
+  }
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+  if (!projectId) {
+    return { ok: false, reason: 'no_project_id', detail: 'EAS projectId ontbreekt in app config' };
+  }
+  let token: string;
+  try {
+    token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  } catch (e) {
+    return {
+      ok: false,
+      reason: 'token_failed',
+      detail: 'Token ophalen mislukt (vaak: ontbrekende APNs-key in Expo/EAS of FCM config). ' + String(e).slice(0, 160),
+    };
+  }
+  try {
+    await convex.mutation(api.profiles.registerPushToken, { token, platform: Platform.OS });
+  } catch (e) {
+    return { ok: false, reason: 'register_failed', detail: String(e).slice(0, 160) };
+  }
+  return { ok: true, token };
 }
 
 /** Lokale herinnering vlak voor de check-in-deadline (aanvulling; server bewaakt de echte deadline). */
@@ -30,12 +78,19 @@ export async function scheduleCheckInReminder(dueAt: Date) {
   const at = new Date(dueAt.getTime() - 60_000);
   if (at.getTime() <= Date.now()) return;
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'Alles goed?', body: 'Je verwachte aankomsttijd is bijna. Bevestig in SafeWalk of verleng.', data: { type: 'check_in' } },
+    content: {
+      title: 'Alles goed?',
+      body: 'Je verwachte aankomsttijd is bijna. Bevestig in SafeWalk of verleng.',
+      data: { type: 'check_in' },
+      categoryIdentifier: 'safety',
+    },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
   });
 }
 export const cancelReminders = () => Notifications.cancelAllScheduledNotificationsAsync();
 
-/** Directe lokale melding op dit toestel (bijv. "Reis gestart"). */
 export const localNotify = (title: string, body: string) =>
-  Notifications.scheduleNotificationAsync({ content: { title, body }, trigger: null }).catch(() => undefined);
+  Notifications.scheduleNotificationAsync({
+    content: { title, body, categoryIdentifier: 'safety' },
+    trigger: null,
+  }).catch(() => undefined);

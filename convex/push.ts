@@ -6,7 +6,7 @@ import type { Id } from './_generated/dataModel';
 const SEND_URL = 'https://exp.host/--/api/v2/push/send';
 const RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 const RECEIPT_DELAY_MS = 15 * 60_000; // Expo adviseert receipts na ~15 min op te halen
-const CRITICAL = new Set(['sos', 'missed_check_in']);
+const CRITICAL = new Set(['sos', 'missed_check_in', 'unsafe', 'wrong_pin', 'come_quick']);
 const headers = () => ({ 'Content-Type': 'application/json', ...(process.env.EXPO_ACCESS_TOKEN ? { Authorization: `Bearer ${process.env.EXPO_ACCESS_TOKEN}` } : {}) });
 
 export const load = internalQuery({ args: { ids: v.array(v.id('pushMessages')) }, handler: async (ctx, { ids }) => {
@@ -48,7 +48,7 @@ export const deliver = internalAction({ args: { ids: v.array(v.id('pushMessages'
       const dead = m.tokens.filter((_, i) => tickets[i]?.details?.error === 'DeviceNotRegistered');
       if (res.ok && ok.length) { await ctx.runMutation(internal.push.update, { id: m._id, status: 'sent', ticketIds: ok, deadTokens: dead, attempts: attempt + 1 }); sent.push(m._id); }
       else {
-        await ctx.runMutation(internal.push.update, { id: m._id, status: 'failed', detail: tickets.find((t) => t.status !== 'ok')?.message ?? `HTTP ${res.status}`, deadTokens: dead, attempts: attempt + 1 });
+        await ctx.runMutation(internal.push.update, { id: m._id, status: 'failed', detail: (tickets.find((t) => t.status !== 'ok')?.message ?? `HTTP ${res.status}`) + (process.env.EXPO_ACCESS_TOKEN ? '' : ' · tip: EXPO_ACCESS_TOKEN optioneel voor hogere Expo push quota'), deadTokens: dead, attempts: attempt + 1 });
         if (CRITICAL.has(m.kind)) retry.push(m._id);
       }
     } catch (e) {

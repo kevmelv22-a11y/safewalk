@@ -112,3 +112,45 @@ Fresh Metro (cache cleared): **`http://localhost:8081`** (web). Routes in bundle
 | `/onboarding/pin` | Eerste PIN |
 
 Web SPA: HTTP 200 op path + routes in `entry.bundle` (geen browser-automation in deze run).
+
+## 10. Native snelkoppelingen & achtergrond (mijlpaal “Bouw dat”) — bronstatus
+
+### Geïmplementeerde bron / config (nog **uncompiled** tot development build)
+| Entry point | Platform | Bron | Gedrag |
+|---|---|---|---|
+| Home Screen Quick Actions | iOS (+ Android dynamic) | `expo-quick-actions` + `app.json` `iosActions` → `/quick-ping` | Opent app; vereist unlock zoals OS |
+| Quick Settings tile / iOS 18 Control | Android 7+ / iOS 18+ | `react-native-quick-settings-tile` → `safewalk://quick-ping` | `requireUnlock: true`; **geen** `ios.appGroup` (signing/adhoc behouden) |
+| Volume×2 | Android foreground only | `modules/safewalk-native` + MainActivity `dispatchKeyEvent` plugin | Geen Accessibility; iOS = unsupported |
+| Deep link / in-app | alle | `/quick-ping`, dashboard-knop | Werkt op web/dev zonder native compile |
+| Alarm audio background attempt | iOS/Android | `expo-audio` `enableBackgroundPlayback: true` | **Niet** native getest; Android FGS media; OS kan dempen |
+| Torch background | — | — | **Niet ondersteund** (CameraView foreground) |
+| Silent mic background | — | `enableBackgroundRecording: false` | Alleen met toekomstige expliciete consent + OS disclosure |
+
+**Niet oplosbaar in software:** power-off, force-stop, OS kill, airplane mode zonder netwerk voor push.
+
+**Signing IDs:** `nl.safewalk.app` ongewijzigd; tile zonder app group zodat wildcard/adhoc niet breekt.
+
+### Push pipeline
+- Server: `convex/push.ts` tickets → receipts; CRITICAL retries incl. `unsafe`/`wrong_pin`/`come_quick`.
+- Client: `registerPush()` retourneert gestructureerde fouten (`permission_denied`, `token_failed`/APNs-hint, …).
+- **Geblokkeerd zonder user-config:** APNs key in Expo/EAS; FCM; fysiek toestel. Geen credentials hier opgehaald; geen echte pushes vanuit deze agent-run.
+
+### E2E-opnames — evaluatie (geen nep-E2E)
+**Huidige garantie (getest in Convex):** TLS + server ACL + tijdelijke storage-URL; revoke/expiry voor share-tokens. **Geen** end-to-end encryptie.
+
+**Waarom geen snelle “volledige E2E” in deze pass:**
+1. Key distribution naar trusted app-users + optionele externe fragment-keys + recovery/backup is een hoog-risico herontwerp (auth, device keys in Secure Enclave/Keystore, forward secrecy, multi-device).
+2. Server-side “encryptie met sleutel die de server kent” is **geen** E2E — claimen we niet.
+3. Reeds gedownloade plaintext/ciphertext-kopieën zijn na revoke niet intrebaar — moet eerlijk in UX.
+
+**Voorgestelde architectuur (nog niet geïmplementeerd):**
+- Per-opname DEK (AES-256-GCM) in Secure Store / Keystore; ciphertext in Convex storage.
+- Wrap DEK voor elke trusted contact met diens public key (device-bound); server bewaart alleen wrapped blobs + ACL.
+- Externe link: DEK in URL **fragment** (`#key=`) — server ziet fragment niet; TTL/revoke stopt nieuwe ciphertext-URLs, niet oude downloads.
+- Migratie: bestaande `recordings` markeren `encryption: 'none'`; nieuwe `encryption: 'e2e-v1'`.
+- Limieten: max 25 MB; streaming/chunked encryptie i.p.v. alles in RAM; key deletion bij account delete.
+
+**Minimale ondersteunde scope nu:** TLS+ACL (bestaand) + documentatie. Eerstvolgende veilige increment (apart): client-side encryptie vóór upload met sleutel alleen op owner-device (contacten kunnen dan **niet** beluisteren tot key-share klaar is) — dat is owner-only seal, geen multi-party E2E.
+
+### Fysieke tests
+Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro dekt UI-routes; native modules: plugin/unit source checks only.
