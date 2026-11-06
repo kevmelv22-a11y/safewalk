@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAction, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Screen, H1, P, Button, Field, Notice, Card } from '../src/components/ui';
 import { errorNl } from '../src/lib/convex';
 import { useTheme } from '../src/lib/theme';
+import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 export default function Assistant() {
@@ -28,7 +29,7 @@ export default function Assistant() {
     <Screen>
       <H1>Veiligheidsassistent</H1>
       <Notice kind="warn">De assistent geeft algemene tips en is geen hulpdienst. Hij kan geen noodsituaties beoordelen en belt niemand. Bij gevaar: bel zelf 112 of gebruik SOS.</Notice>
-      <Button title="📞 Bel 112" variant="danger" onPress={() => Linking.openURL('tel:112')} />
+      <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
       {avail && !avail.enabled && <Notice kind="info">De AI-assistent is (nog) niet beschikbaar.</Notice>}
       {avail && avail.enabled && !avail.premium && <><Notice kind="info">De assistent is onderdeel van Premium.</Notice><Button title="Bekijk Premium" variant="secondary" onPress={() => router.push('/premium')} /></>}
       {notice && <Notice kind="danger">{notice}</Notice>}

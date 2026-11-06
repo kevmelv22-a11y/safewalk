@@ -34,7 +34,7 @@ export function NavGrid({
 
   const items: Item[] = [
     { key: 'live', label: 'Stuur live locatie nu', hint: 'Foreground-alternatief voor volume×2', onPress: onLiveNow, icon: <IconPin size={20} color={t.teal} />, wide: true },
-    { key: '112', label: 'Bel zelf 112', hint: 'Opent de telefoon-app. SafeWalk belt niet zelf.', onPress: onCall112, icon: <IconSos size={20} color={dash.red} />, wide: true },
+    { key: '112', label: 'Open 112 in de telefoon-app', hint: 'Je bevestigt zelf; SafeWalk belt niet automatisch', onPress: onCall112, icon: <IconSos size={20} color={dash.red} />, wide: true },
     { key: 'contacts', label: 'Contacten', onPress: onContacts, icon: <IconPeople size={20} color={icon} /> },
     { key: 'history', label: 'Geschiedenis', onPress: onHistory, icon: <IconClock size={20} color={icon} /> },
     { key: 'sos', label: 'Klassieke SOS', onPress: onSos, icon: <IconSos size={20} color={icon} /> },

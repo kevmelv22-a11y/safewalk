@@ -1,5 +1,4 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Linking } from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
@@ -7,6 +6,7 @@ import { Screen, H1, P, Notice, Button, Card } from '../../src/components/ui';
 import { LiveMap } from '../../src/components/LiveMap';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
 import { formatCountdown } from '../../src/lib/safety';
+import { COPY as DialCopy, onPressOpen112 } from '../../src/lib/dial112';
 
 export default function Watch() {
   const id = useLocalSearchParams<{ id: string }>().id as Id<'sessions'>; const now = useNow(1000);
@@ -23,7 +23,7 @@ export default function Watch() {
       <Card><P>Verwachte aankomst {new Date(s.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</P>
         <P muted>{s.expectedArrival > now ? `nog ${formatCountdown(s.expectedArrival - now)}` : 'Verwachte tijd verstreken'}</P></Card>
       <LiveMap trail={trail} dest={s.destinationLat !== undefined && s.destinationLng !== undefined ? { lat: s.destinationLat, lng: s.destinationLng, label: s.destinationLabel } : null} now={now} />
-      <Button title="📞 Bel zelf 112" variant="danger" hint="Opent je telefoon-app; SafeWalk belt niet automatisch" onPress={() => Linking.openURL('tel:112')} />
+      <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
     </Screen>
   );
 }

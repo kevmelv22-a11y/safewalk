@@ -6,6 +6,8 @@ type NativeShape = {
   isVolumeDoublePressSupported(): boolean;
   setVolumeDoublePressEnabled(enabled: boolean): void;
   getCapabilities(): Caps;
+  /** Android: Intent.ACTION_DIAL tel:112. iOS: not used (JS tel:). */
+  openEmergencyDialer(): Promise<boolean>;
   addListener?(event: string, cb: () => void): { remove: () => void };
 };
 
@@ -45,4 +47,13 @@ export function getNativeCapabilities(): Caps & { compiled: boolean } {
 export function addVolumeDoublePressListener(handler: () => void) {
   if (!Native?.addListener) return { remove: () => undefined };
   return Native.addListener('onVolumeDoublePress', handler);
+}
+
+/**
+ * Android: opent de kiezer via ACTION_DIAL met 112 (gebruiker belt zelf).
+ * iOS/web/uncompiled: false — caller gebruikt Linking tel:112.
+ */
+export async function openEmergencyDialer(): Promise<boolean> {
+  if (Platform.OS !== 'android' || !Native?.openEmergencyDialer) return false;
+  return Native.openEmergencyDialer();
 }

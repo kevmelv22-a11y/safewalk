@@ -1,5 +1,7 @@
 package nl.safewalk.native
 
+import android.content.Intent
+import android.net.Uri
 import android.view.KeyEvent
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -47,6 +49,21 @@ class SafewalkNativeModule : Module() {
 
     Function("setVolumeDoublePressEnabled") { value: Boolean ->
       enabled = value
+    }
+
+    // Alleen ACTION_DIAL + tel:112 — nooit ACTION_CALL, geen CALL_PHONE-permission.
+    AsyncFunction("openEmergencyDialer") {
+      val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:112"))
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      val activity = appContext.currentActivity
+      if (activity != null) {
+        activity.startActivity(intent)
+      } else {
+        val ctx = appContext.reactContext
+          ?: throw IllegalStateException("Geen Activity/Context voor kiezer")
+        ctx.startActivity(intent)
+      }
+      true
     }
 
     Function("getCapabilities") {

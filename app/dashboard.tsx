@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Card, Notice, Disclaimer } from '../src/components/ui';
@@ -16,6 +16,7 @@ import { formatCountdown } from '../src/lib/safety';
 import { useNow } from '../src/lib/useLiveLocations';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { errorNl } from '../src/lib/convex';
+import { onPressOpen112 } from '../src/lib/dial112';
 
 function clientRef(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -171,7 +172,7 @@ export default function Dashboard() {
       <NavGrid
         disabled={!!busy}
         onLiveNow={onLiveNow}
-        onCall112={() => Linking.openURL('tel:112')}
+        onCall112={() => { void onPressOpen112(); }}
         onContacts={() => router.push('/contacts')}
         onHistory={() => router.push('/history')}
         onSos={() => router.push({ pathname: '/sos', params: mine?._id ? { sessionId: mine._id } : {} })}

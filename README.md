@@ -2,7 +2,7 @@
 
 Persoonlijke veiligheidsapp: deel je reis tijdelijk met vertrouwde contacten. Bevestig je niet op tijd dat je veilig bent aangekomen, dan waarschuwt de **server** je contacten.
 
-> ⚠️ **SafeWalk is geen officiële hulpdienst.** De app belt 112 nooit automatisch en kan niet garanderen dat pushmeldingen aankomen. De 112-knop opent alleen de telefoon-app.
+> ⚠️ **SafeWalk is geen officiële hulpdienst.** De app belt 112 nooit automatisch en kan niet garanderen dat pushmeldingen aankomen. De 112-knop opent de telefoon-app met 112 klaargezet; jij drukt zelf op bellen (Android: ACTION_DIAL).
 
 ## Stack
 Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve queries, mutations, actions, crons, HTTP-actions) · **Convex Auth** (wachtwoord) · expo-location + expo-task-manager · expo-notifications · react-native-maps · Zustand · RevenueCat (`react-native-purchases`) · optioneel OpenAI · Admin: Vite + React.
@@ -17,7 +17,7 @@ Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve quer
 | Live kaart (donkere stijl): afgelegde route, hemelsbrede richting + ruwe ETA (bewust geen routeadvies), nauwkeurigheid, laatste update, waarschuwing verouderde data | `src/components/LiveMap.tsx`, `app/watch/[id].tsx` |
 | Meldingen: reis gestart, contact deelt locatie, bijna aangekomen (< 300 m), check-in vereist, check-in gemist, SOS (+ vals alarm), reis beëindigd | `convex/notify.ts`, `convex/push.ts` |
 | Afleverstatus per ontvanger met **Expo push receipts**: *verstuurd* / *mislukt* / *onbekend* | `push.deliver` → `push.checkReceipts` (na 15 min, retries) |
-| SOS: aftelling + annuleren, incident, push met laatste locatie, retries, offline-wachtrij (idempotent), tel:112-knop | `convex/sos.ts`, `app/sos.tsx` |
+| SOS: aftelling + annuleren, incident, push met laatste locatie, retries, offline-wachtrij (idempotent), 112-knop opent kiezer (Android ACTION_DIAL / iOS tel:) | `convex/sos.ts`, `app/sos.tsx`, `src/lib/dial112.ts` |
 | Check-in: deadline + respijt server-side, cron elke minuut, "Alles goed?" met verlengen | `convex/monitor.ts`, `convex/crons.ts` |
 | Bewegingsdetectie (opt-in, Premium): lang stilstaan, afwijking van bestemming, geen nieuwe locatie → **alleen** extra check-in voor de gebruiker zelf, nooit automatisch alarm | `convex/motion.ts` |
 | Premium €2,99/maand via RevenueCat (entitlement `premium`), paywall, webhook | `app/premium.tsx`, `convex/billing.ts`, `src/lib/purchases.ts` |

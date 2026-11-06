@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Platform, Share, Text, View } from 'react-native';
+import { Platform, Share, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -12,6 +12,7 @@ import { startAlarm } from '../src/lib/dangerAlarm';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { encryptAndUpload, persistDekAfterFinalize, registerMyPublicKey, buildEnvelopesForContacts } from '../src/lib/recordingUpload';
 import { errorNl } from '../src/lib/convex';
+import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { palette } from '../src/lib/theme';
 
 /**
@@ -216,7 +217,7 @@ export default function Danger() {
           <>
             <Button title="Stop met veiligheids-PIN" onPress={() => setShowPin(true)} />
             {sharePath ? <Button title="Deel tracking-link (jij bevestigt Send)" variant="secondary" onPress={shareTrack} /> : null}
-            <Button title="📞 Bel zelf 112" variant="danger" hint="Opent de telefoon-app; SafeWalk belt niet" onPress={() => Linking.openURL('tel:112')} />
+            <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
           </>
         ) : (
           <PinPad

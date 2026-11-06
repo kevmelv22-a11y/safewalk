@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Text, View, Vibration } from 'react-native';
+import { Text, View, Vibration } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -7,6 +7,7 @@ import type { Id } from '../convex/_generated/dataModel';
 import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
 import { DeliveryList } from '../src/components/DeliveryList';
 import { triggerSos, sosQueue } from '../src/lib/sos';
+import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { useProfile } from '../src/lib/queries';
 import { palette } from '../src/lib/theme';
 
@@ -74,8 +75,8 @@ export default function Sos() {
       {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err}. Bel bij direct gevaar zelf 112.</Notice>}
       {phase === 'cancelled' && <Notice kind="ok">SOS geannuleerd.</Notice>}
       {phase !== 'countdown' && (<>
-        <Button title="📞 Bel zelf 112" variant="danger" hint="Opent de telefoon-app met 112" onPress={() => Linking.openURL('tel:112')} />
-        <P muted>SafeWalk belt 112 niet automatisch. Deze knop opent alleen je telefoon-app.</P>
+        <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
+        <P muted>{DialCopy.hint}. Het nummer 112 staat klaar; jij drukt op bellen.</P>
         {(phase === 'sent' || phase === 'queued') && <Button title="Vals alarm – ik ben veilig" variant="secondary" onPress={cancelAfter} />}
         <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />
       </>)}

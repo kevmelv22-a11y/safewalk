@@ -11,3 +11,7 @@ export function getNativeCapabilities() {
 export function addVolumeDoublePressListener(_handler: () => void) {
   return { remove: () => undefined };
 }
+/** Web: geen ACTION_DIAL; JS-laag toont uitleg + nummer. */
+export async function openEmergencyDialer(): Promise<boolean> {
+  return false;
+}

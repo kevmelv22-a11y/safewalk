@@ -6,6 +6,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { Screen, H1, P, Notice, Button, Card } from '../../src/components/ui';
 import { DeliveryList } from '../../src/components/DeliveryList';
 import { accuracyLabel, timeAgo } from '../../src/lib/safety';
+import { COPY as DialCopy, onPressOpen112 } from '../../src/lib/dial112';
 
 export default function AlertDetail() {
   const id = useLocalSearchParams<{ id: string }>().id as Id<'alerts'>;
@@ -27,7 +28,7 @@ export default function AlertDetail() {
       {data.isOwner && <DeliveryList deliveries={data.deliveries} />}
       {a.sessionId && !data.isOwner && <Button title="Live kaart (indien nog gedeeld)" variant="secondary" onPress={() => router.push(`/watch/${a.sessionId}`)} />}
       <Notice kind="warn">Probeer eerst zelf contact op te nemen. Bel bij direct gevaar 112 – SafeWalk doet dat niet automatisch.</Notice>
-      <Button title="📞 Bel 112" variant="danger" onPress={() => Linking.openURL('tel:112')} />
+      <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
     </Screen>
   );
 }

@@ -58,7 +58,7 @@ docs/engineering.md     # dit document
 | 4 | Stil alarm bij verkeerd wachtwoord | **Geïmplementeerd**; exacte NL-tekst | `security.verifyPin` → push body |
 | 5 | Live locatie zonder app (tracking-link) | **Geïmplementeerd** OSM+Leaflet SRI; live alleen met updater+verse ping | `tracking`, `/track/*`, `share-link`, auto in `startUnsafe` |
 | 6 | Volume 2× = live locatie | **Niet als native background**; **wel** foreground: knop + `quick-ping` deep link | `sendLiveLocationNow`, `dashboard`, `quick-ping` |
-| 7 | Geen auto-112 | **Geïmplementeerd** | alleen `tel:112` user-actie |
+| 7 | Geen auto-112 | **Geïmplementeerd** | Expliciete knop → Android `ACTION_DIAL` (`openEmergencyDialer`), iOS/public `tel:112`; gebruiker bevestigt zelf; nooit vanuit SOS/gevaar-start |
 | 8 | Audio bij “niet veilig” | **Geïmplementeerd** na mic-consent; zichtbare status; TLS+ACL; **kan alarmgeluid bevatten** | `danger` + `recordings` |
 
 ## 5. Security / privacy garanties (evidence-based)
