@@ -74,7 +74,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding/contacts" options={{ title: 'Contacten' }} />
           <Stack.Screen name="onboarding/location" options={{ title: 'Locatie' }} />
           <Stack.Screen name="onboarding/notifications" options={{ title: 'Meldingen' }} />
-          <Stack.Screen name="onboarding/pin" options={{ title: 'Veiligheids-PIN' }} />
+          <Stack.Screen name="onboarding/pin" options={{ title: 'Veiligheidscode' }} />
           <Stack.Screen name="onboarding/settings" options={{ title: 'Veiligheid' }} />
           <Stack.Screen name="premium" options={{ title: 'Premium' }} />
           <Stack.Screen name="report" options={{ title: 'Misbruik melden' }} />
@@ -88,7 +88,7 @@ export default function RootLayout() {
           <Stack.Screen name="share-link" options={{ title: 'Tracking-link' }} />
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
-          <Stack.Screen name="settings/pin" options={{ title: 'PIN wijzigen' }} />
+          <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
           <Stack.Screen name="quick-ping" options={{ title: "Live locatie" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />

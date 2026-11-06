@@ -82,7 +82,7 @@ export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }:
       <BigAction
         testID="btn-safe"
         title="Ik ben veilig aangekomen"
-        subtitle="Alleen met je veiligheids-PIN · stopt alarm"
+        subtitle="Alleen met je veiligheidscode · stopt alarm"
         color={CRITICAL_ACTIONS.green}
         deep='#15803D'
         icon={<IconSafe size={26} color="#fff" />}

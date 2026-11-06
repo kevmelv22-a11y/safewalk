@@ -4,13 +4,13 @@ import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { audit, displayName, fail, rateLimit, requireUser, sha256Hex } from './lib';
 import { queuePush, mapsLink } from './notify';
+import { isValidSafetyCode } from './safetyCode';
 
-const PIN_MIN = 4;
-const PIN_MAX = 8;
 const PBKDF2_ITERS = 210_000;
 
+/** Zelfde regels als de client. Geen trim of case-fold: de hash is van de exacte string. */
 function isValidPin(pin: string) {
-  return new RegExp(`^\\d{${PIN_MIN},${PIN_MAX}}$`).test(pin);
+  return isValidSafetyCode(pin);
 }
 
 function timingSafeEqualHex(a: string, b: string) {
@@ -51,8 +51,8 @@ export const pinStatus = query({
 });
 
 /**
- * Stelt of wijzigt de veiligheids-PIN. Alleen server-side hashing (PBKDF2-SHA256 + random salt).
- * De client stuurt de PIN één keer mee; die wordt niet gelogd en niet opgeslagen.
+ * Stelt of wijzigt de veiligheidscode. Alleen server-side hashing (PBKDF2-SHA256 + random salt).
+ * Cijfers en letters, 4–8, hoofdlettergevoelig. De code wordt niet gelogd en niet opgeslagen.
  */
 export const setPin = mutation({
   args: { pin: v.string(), confirmPin: v.string(), currentPin: v.optional(v.string()) },
@@ -172,7 +172,7 @@ export const verifyPin = mutation({
           await queuePush(ctx, {
             kind: 'arrived_safe', recipients: contacts.map((c) => c.contactId),
             title: `✅ ${name}: alarm gestopt`,
-            body: `${name} heeft het alarm met de veiligheids-PIN gestopt.`,
+            body: `${name} heeft het alarm met de veiligheidscode gestopt.`,
             alertId: lastAlert, sessionId: a.sessionId ?? lastSession,
           });
         }

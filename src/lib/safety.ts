@@ -122,8 +122,8 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('EXTENSION_NOT_ALLOWED')) return 'Verlengen is niet meer mogelijk.';
   if (msg.includes('EMAIL_NOT_CONFIGURED')) return 'E-mailverificatie is momenteel niet beschikbaar. Probeer het later opnieuw.';
   if (msg.includes('EMAIL_SEND_FAILED')) return 'De e-mail kon niet worden verstuurd. Probeer het later opnieuw.';
-  if (msg.includes('PIN_NOT_SET')) return 'Stel eerst een veiligheids-PIN in.';
-  if (msg.includes('PIN_INVALID')) return 'Gebruik 4–8 cijfers en bevestig hetzelfde.';
+  if (msg.includes('PIN_NOT_SET')) return 'Stel eerst een veiligheidscode in.';
+  if (msg.includes('PIN_INVALID')) return 'Gebruik 4–8 tekens (cijfers en letters) en bevestig dezelfde code. Hoofdletters tellen mee.';
   if (msg.includes('PIN_WRONG') || msg.includes('PIN_REQUIRED')) return 'Onjuiste code. Probeer opnieuw.';
   if (msg.includes('WEAK_PASSWORD')) return 'Gebruik een wachtwoord van minstens 10 tekens.';
   if (/invalid code|could not verify|InvalidAccountId|InvalidSecret/i.test(msg)) return 'De code is onjuist of verlopen.';

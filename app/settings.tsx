@@ -43,8 +43,8 @@ export default function Settings() {
         <Button title="Telefooncontacten kiezen" variant="secondary" onPress={() => router.push('/device-contacts')} />
         <Button title="Audio-opnames" variant="secondary" onPress={() => router.push('/recordings')} />
       </Card>
-      <Card><P>Veiligheids-PIN</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen.</P>
-        <Button title="PIN instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
+      <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
+        <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
       <Card>
         <P>Snelkoppelingen (native)</P>
         <P muted>Android Quick Settings-tegel en iOS Home Screen Quick Actions openen “Stuur live locatie”. Volume×2 alleen Android-foreground na development build. Geen background torch. Power-off/force-stop stopt alles.</P>

@@ -3,6 +3,8 @@ import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import schema from './schema';
 import { api } from './_generated/api';
+import { isValidSafetyCode } from './safetyCode';
+import { _test } from './security';
 
 const modules = import.meta.glob('./**/*.ts');
 
@@ -83,5 +85,55 @@ describe('veiligheids-PIN', () => {
     const a = await user(t, 'anna');
     await expect(a.as.mutation(api.security.setPin, { pin: '12', confirmPin: '12' })).rejects.toThrow(/PIN_INVALID/);
     await expect(a.as.mutation(api.security.setPin, { pin: '1234', confirmPin: '1235' })).rejects.toThrow(/PIN_INVALID/);
+  });
+
+  test('alfanumeriek: set, bevestig, verify; hoofdletters anders; cijfercode blijft dezelfde hash', async () => {
+    const t = convexTest(schema, modules);
+    const a = await user(t, 'anna');
+    expect(isValidSafetyCode('1234')).toBe(true);
+    expect(isValidSafetyCode('Ab12')).toBe(true);
+    expect(isValidSafetyCode('ab12')).toBe(true);
+    expect(isValidSafetyCode('1234 ')).toBe(false);
+    expect(isValidSafetyCode(' 1234')).toBe(false);
+    expect(isValidSafetyCode('ab c1')).toBe(false);
+    expect(isValidSafetyCode('ab-c1')).toBe(false);
+    expect(isValidSafetyCode('éééé')).toBe(false);
+    expect(isValidSafetyCode('abc')).toBe(false);
+    expect(isValidSafetyCode('Abcdefghi')).toBe(false);
+    expect(_test.isValidPin('123456')).toBe(true);
+
+    await a.as.mutation(api.security.setPin, { pin: '123456', confirmPin: '123456' });
+    const numeric = await t.run(async (ctx) => (await ctx.db.query('profiles').collect())[0]);
+    expect(await _test.derivePinHash('123456', numeric.pinSalt!)).toBe(numeric.pinHash);
+    expect(await _test.derivePinHash('123456', numeric.pinSalt!)).not.toBe(await _test.derivePinHash('Ab12', numeric.pinSalt!));
+    expect(numeric.pinHash).not.toContain('123456');
+
+    await a.as.mutation(api.security.setPin, { pin: 'Ab12', confirmPin: 'Ab12', currentPin: '123456' });
+    await expect(a.as.mutation(api.security.setPin, { pin: 'ab12', confirmPin: 'Ab12', currentPin: 'Ab12' })).rejects.toThrow(/PIN_INVALID/);
+    const wrongCase = await a.as.mutation(api.security.verifyPin, { pin: 'ab12', purpose: 'change_pin' });
+    expect(wrongCase).toEqual({ ok: false, reason: 'wrong' });
+    const ok = await a.as.mutation(api.security.verifyPin, { pin: 'Ab12', purpose: 'change_pin' });
+    expect(ok).toEqual({ ok: true });
+    const invalid = await a.as.mutation(api.security.verifyPin, { pin: 'ab c', purpose: 'unlock_danger' });
+    expect(invalid).toEqual({ ok: false, reason: 'invalid' });
+
+    const pushes = await t.run((ctx) => ctx.db.query('pushMessages').collect());
+    const alerts = await t.run((ctx) => ctx.db.query('alerts').collect());
+    expect(alerts.some((x) => x.kind === 'wrong_pin')).toBe(true);
+    expect(JSON.stringify(pushes)).not.toContain('Ab12');
+    expect(JSON.stringify(alerts)).not.toContain('Ab12');
+    const raw = await t.run(async (ctx) => (await ctx.db.query('profiles').collect())[0]);
+    expect(raw.pinHash).not.toContain('Ab12');
+    expect(await _test.derivePinHash('Ab12', raw.pinSalt!)).toBe(raw.pinHash);
+    expect(await _test.derivePinHash('ab12', raw.pinSalt!)).not.toBe(raw.pinHash);
+  });
+
+  test('letters van 8 en afgewezen lengte/tekens', async () => {
+    const t = convexTest(schema, modules);
+    const a = await user(t, 'cem');
+    await a.as.mutation(api.security.setPin, { pin: 'Abcdefgh', confirmPin: 'Abcdefgh' });
+    expect(await a.as.mutation(api.security.verifyPin, { pin: 'Abcdefgh', purpose: 'arrived_safe' })).toEqual({ ok: true });
+    await expect(a.as.mutation(api.security.setPin, { pin: 'Abcdefghi', confirmPin: 'Abcdefghi', currentPin: 'Abcdefgh' })).rejects.toThrow(/PIN_INVALID/);
+    await expect(a.as.mutation(api.security.setPin, { pin: 'ab!', confirmPin: 'ab!', currentPin: 'Abcdefgh' })).rejects.toThrow(/PIN_INVALID/);
   });
 });
