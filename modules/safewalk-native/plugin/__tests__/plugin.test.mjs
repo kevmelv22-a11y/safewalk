@@ -15,7 +15,7 @@ test('plugin module exports function', () => {
 
 test('kotlin module source declares SafewalkNative and volume keys', () => {
   const kt = readFileSync(
-    join(__dirname, '../../android/src/main/java/nl/safewalk/native/SafewalkNativeModule.kt'),
+    join(__dirname, '../../android/src/main/java/nl/safewalk/nativehelpers/SafewalkNativeModule.kt'),
     'utf8',
   );
   assert.match(kt, /KEYCODE_VOLUME_UP/);

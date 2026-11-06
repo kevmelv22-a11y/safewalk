@@ -45,11 +45,6 @@
         "android.permission.READ_CONTACTS",
         "android.permission.RECORD_AUDIO"
       ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "${GOOGLE_MAPS_ANDROID_API_KEY}"
-        }
-      },
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -104,8 +99,8 @@
         "expo-audio",
         {
           "enableBackgroundPlayback": true,
-          "enableBackgroundRecording": false,
-          "microphonePermission": "SafeWalk neemt geluid op als jij \"Ik voel me niet veilig\" activeert. Opname stopt wanneer jij het alarm stopt of de opname beëindigt."
+          "enableBackgroundRecording": true,
+          "microphonePermission": "SafeWalk neemt geluid op als jij \"Ik voel me niet veilig\" activeert. Alleen als jij dat apart aanzet, loopt de opname door op de achtergrond of bij vergrendeld scherm (met zichtbare melding). Opname stopt wanneer jij hem beëindigt."
         }
       ],
       [
@@ -181,7 +176,8 @@
           "qsTile": "source-configured-requires-dev-build",
           "iosQuickActions": "source-configured-requires-dev-build",
           "backgroundTorch": "not-supported",
-          "backgroundAlarmAudio": "attempt-via-expo-audio-background-playback-untested-native"
+          "backgroundAlarmAudio": "attempt-via-expo-audio-background-playback-untested-native",
+          "backgroundRecording": "explicit-opt-in-runtime-untested-native"
         }
       }
     },

@@ -1,4 +1,4 @@
-package nl.safewalk.native
+package nl.safewalk.nativehelpers
 
 import android.content.Intent
 import android.net.Uri

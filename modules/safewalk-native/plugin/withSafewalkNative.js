@@ -18,10 +18,10 @@ function withVolumeKeyDispatch(config) {
     }
     if (src.includes('class MainActivity')) {
       // Kotlin MainActivity (Expo default)
-      if (!src.includes('import nl.safewalk.native.SafewalkNativeModule')) {
+      if (!src.includes('import nl.safewalk.nativehelpers.SafewalkNativeModule')) {
         src = src.replace(
           /(package .*?\n)/,
-          '$1\nimport nl.safewalk.native.SafewalkNativeModule\nimport android.view.KeyEvent\n',
+          '$1\nimport nl.safewalk.nativehelpers.SafewalkNativeModule\nimport android.view.KeyEvent\n',
         );
       }
       if (!src.includes('override fun dispatchKeyEvent')) {

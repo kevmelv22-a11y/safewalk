@@ -1,5 +1,5 @@
 {
   "platforms": ["android", "ios"],
-  "android": { "modules": ["nl.safewalk.native.SafewalkNativeModule"] },
+  "android": { "modules": ["nl.safewalk.nativehelpers.SafewalkNativeModule"] },
   "ios": { "modules": ["SafewalkNativeModule"] }
 }
