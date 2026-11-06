@@ -55,3 +55,24 @@ Dev: `npx expo start --web --port 8081` + lokale Convex.
 | `/onboarding/pin` | PIN + torch opt-in |
 | `/danger?incidentId=…` | Gevaarmodus (na rood) |
 | `/settings` | PIN wijzigen |
+
+
+## Mijlpaal 2 (tracking / contacten / opnames)
+| Feature | Code |
+|---|---|
+| Share links (hash-only, revoke, TTL) | `convex/tracking.ts`, HTTP `/track/live`, `/track/location` |
+| OSM+Leaflet publieke kaart | HTML in `publicPage`; tegels `tile.openstreetmap.org`; attributie zichtbaar; poll 10s; `stale` als >2 min; `X-Robots-Tag: noindex` |
+| Telefooncontacten (toestemming + checkbox) | `app/device-contacts.tsx`, `convex/deviceContacts.ts` — alleen geselecteerde naam+E.164 |
+| Opnames | `app/recordings.tsx`, `RecordingControls`, `convex/recordings.ts` — mic consent, zichtbare status, TLS+ACL, **geen E2E-claim** |
+| PIN wijzigen (vereist oude PIN) | `app/settings/pin.tsx` (niet via open onboarding-overwrite) |
+| AlarmGuard | `src/lib/alarmGuard.tsx` in root layout — alarm volgt zolang server-incident actief; **OS kill/power-off kan alsnog stoppen** |
+
+### Security fixes (audit m1)
+- `unlock_danger` lost **alle** actieve incidenten van de user op bij juiste PIN (geen bypass door incidentId weg te laten).
+- `setPin` met bestaande hash **vereist** `currentPin` (server).
+- Mutations eisen auth → geen unauthenticated PBKDF2-DoS; verify rate-limit 12/15min, set 5/uur.
+- Wrong-PIN push body start met exact: `Er is een melding verstuurd met een fout wachtwoord.`
+- Guarantees die we **niet** claimen: absolute “kan niet zonder PIN stoppen” tegen OS-kill; background torch; geteste native volume-hooks vanuit web.
+
+### OSM policy (samenvatting)
+Tiles: https://operations.osmfoundation.org/policies/tiles/ — attributie, User-Agent/Referer, geen bulk scrape. Nominatim niet voor autocomplete/bulk.

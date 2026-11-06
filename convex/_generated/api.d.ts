@@ -16,6 +16,7 @@ import type * as authEmail from "../authEmail.js";
 import type * as billing from "../billing.js";
 import type * as contacts from "../contacts.js";
 import type * as crons from "../crons.js";
+import type * as deviceContacts from "../deviceContacts.js";
 import type * as geo from "../geo.js";
 import type * as http from "../http.js";
 import type * as incidents from "../incidents.js";
@@ -26,9 +27,11 @@ import type * as motionText from "../motionText.js";
 import type * as notify from "../notify.js";
 import type * as profiles from "../profiles.js";
 import type * as push from "../push.js";
+import type * as recordings from "../recordings.js";
 import type * as security from "../security.js";
 import type * as sessions from "../sessions.js";
 import type * as sos from "../sos.js";
+import type * as tracking from "../tracking.js";
 
 import type {
   ApiFromModules,
@@ -45,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   billing: typeof billing;
   contacts: typeof contacts;
   crons: typeof crons;
+  deviceContacts: typeof deviceContacts;
   geo: typeof geo;
   http: typeof http;
   incidents: typeof incidents;
@@ -55,9 +59,11 @@ declare const fullApi: ApiFromModules<{
   notify: typeof notify;
   profiles: typeof profiles;
   push: typeof push;
+  recordings: typeof recordings;
   security: typeof security;
   sessions: typeof sessions;
   sos: typeof sos;
+  tracking: typeof tracking;
 }>;
 
 /**

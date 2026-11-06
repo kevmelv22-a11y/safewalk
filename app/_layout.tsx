@@ -11,6 +11,7 @@ import { useIsDark, useTheme } from '../src/lib/theme';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { configurePurchases } from '../src/lib/purchases';
+import { AlarmGuard } from '../src/lib/alarmGuard';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
@@ -33,6 +34,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ConvexAuthProvider client={convex} storage={tokenStorage}>
         <PurchasesBootstrap />
+        <AlarmGuard />
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -62,6 +64,10 @@ export default function RootLayout() {
           <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacybeleid' }} />
           <Stack.Screen name="terms" options={{ title: 'Gebruiksvoorwaarden' }} />
+          <Stack.Screen name="share-link" options={{ title: 'Tracking-link' }} />
+          <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
+          <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
+          <Stack.Screen name="settings/pin" options={{ title: 'PIN wijzigen' }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>

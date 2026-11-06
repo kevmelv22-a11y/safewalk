@@ -98,5 +98,36 @@ export default defineSchema({
     resolvedAt: v.optional(v.number()),
     torchRequested: v.boolean(),
   }).index('by_user_status', ['userId', 'status']),
+
+  // Publieke tracking-links (alleen token-hash opgeslagen; raw token één keer naar client)
+  shareLinks: defineTable({
+    userId: v.id('users'),
+    tokenHash: v.string(),
+    sessionId: v.optional(v.id('sessions')),
+    incidentId: v.optional(v.id('incidents')),
+    label: v.optional(v.string()),
+    expiresAt: v.number(),
+    revokedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']),
+  // Geselecteerde telefooncontacten (minimaal: naam + genormaliseerd telefoonnummer); geen volledige adresboek-dump
+  deviceContacts: defineTable({
+    userId: v.id('users'),
+    displayName: v.string(),
+    phoneE164: v.string(),
+    createdAt: v.number(),
+  }).index('by_user', ['userId']).index('by_user_phone', ['userId', 'phoneE164']),
+  // Audio-opnames bij unsafe: Convex file storage + ACL; géén client-E2E (zie docs)
+  recordings: defineTable({
+    userId: v.id('users'),
+    incidentId: v.optional(v.id('incidents')),
+    alertId: v.optional(v.id('alerts')),
+    storageId: v.id('_storage'),
+    mime: v.string(),
+    byteSize: v.number(),
+    durationMs: v.optional(v.number()),
+    createdAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  }).index('by_user', ['userId']).index('by_incident', ['incidentId']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

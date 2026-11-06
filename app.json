@@ -101,7 +101,13 @@
           "barcodeScannerEnabled": false
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "SafeWalk toont je telefooncontacten zodat jij er kunt aanvinken wie een melding mag krijgen. We bewaren alleen wat jij selecteert."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

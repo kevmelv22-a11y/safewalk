@@ -35,8 +35,14 @@ export default function Settings() {
         </View>
       </Card>
       <SafetySettingsForm />
+      <Card>
+        <P>Delen & opnames</P>
+        <Button title="Tracking-link (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
+        <Button title="Telefooncontacten kiezen" variant="secondary" onPress={() => router.push('/device-contacts')} />
+        <Button title="Audio-opnames" variant="secondary" onPress={() => router.push('/recordings')} />
+      </Card>
       <Card><P>Veiligheids-PIN</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen.</P>
-        <Button title="PIN instellen of wijzigen" variant="secondary" onPress={() => router.push('/onboarding/pin')} /></Card>
+        <Button title="PIN instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
       <Card>
         <P>Geblokkeerde personen</P>
         {blocked.length === 0 && <P muted>Niemand geblokkeerd.</P>}

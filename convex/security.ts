@@ -57,7 +57,7 @@ export const setPin = mutation({
   args: { pin: v.string(), confirmPin: v.string(), currentPin: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
-    await rateLimit(ctx, `pin-set:${uid}`, 10, 60 * 60_000);
+    await rateLimit(ctx, `pin-set:${uid}`, 5, 60 * 60_000);
     if (!isValidPin(a.pin) || a.pin !== a.confirmPin) fail('PIN_INVALID');
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
     if (!p || p.restricted) fail('FORBIDDEN');
@@ -105,7 +105,7 @@ export const verifyPin = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
-    await rateLimit(ctx, `pin-verify:${uid}`, 30, 15 * 60_000);
+    await rateLimit(ctx, `pin-verify:${uid}`, 12, 15 * 60_000);
     if (!isValidPin(a.pin)) return { ok: false as const, reason: 'invalid' as const };
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
     if (!p?.pinHash || !p.pinSalt) fail('PIN_NOT_SET');
@@ -132,25 +132,35 @@ export const verifyPin = mutation({
         await queuePush(ctx, {
           kind: 'wrong_pin', alertId, sessionId: a.sessionId, recipients: contacts.map((c) => c.contactId),
           title: `⚠️ Melding van ${name}`,
+          // Exacte gevraagde tekst; locatie apart erachter (geen secrets/PIN in push)
           body: link
-            ? `Er is een melding verstuurd met een fout wachtwoord. Laatst bekende locatie: ${link}`
-            : `Er is een melding verstuurd met een fout wachtwoord. Geen recente locatie beschikbaar.`,
+            ? `Er is een melding verstuurd met een fout wachtwoord. Locatie: ${link}`
+            : `Er is een melding verstuurd met een fout wachtwoord.`,
         });
       }
       await audit(ctx, uid, 'security.pin_wrong', alertId, { purpose: a.purpose, hadLocation: !!fresh, recipients: contacts.length });
       return { ok: false as const, reason: 'wrong' as const };
     }
     // Juiste PIN: doel-specifieke acties
-    if (a.purpose === 'unlock_danger' && a.incidentId) {
-      const raw = await ctx.db.get(a.incidentId);
-      if (!raw || raw.userId !== uid) fail('NOT_FOUND');
-      const inc = raw!;
-      if (inc.status === 'active') {
+    if (a.purpose === 'unlock_danger') {
+      // Server-autoriteit: juiste PIN lost ALLE actieve incidenten van deze user op
+      // (niet alleen het meegestuurde id — voorkomt bypass door id weg te laten)
+      if (a.incidentId) {
+        const raw = await ctx.db.get(a.incidentId);
+        if (raw && raw.userId !== uid) fail('FORBIDDEN');
+      }
+      const open = await ctx.db.query('incidents').withIndex('by_user_status', (q) => q.eq('userId', uid).eq('status', 'active')).collect();
+      let lastAlert: typeof open[0]['alertId'] | undefined;
+      let lastSession: typeof open[0]['sessionId'] | undefined;
+      for (const inc of open) {
         await ctx.db.patch(inc._id, { status: 'resolved', resolvedAt: Date.now() });
         if (inc.alertId) {
           const al = await ctx.db.get(inc.alertId);
           if (al && al.status === 'open') await ctx.db.patch(inc.alertId, { status: 'resolved' });
         }
+        lastAlert = inc.alertId; lastSession = inc.sessionId;
+      }
+      if (open.length) {
         const contacts = await ctx.db.query('trustedContacts').withIndex('by_owner', (q) => q.eq('ownerId', uid).eq('status', 'accepted')).collect();
         const name = await displayName(ctx, uid);
         if (contacts.length) {
@@ -158,10 +168,10 @@ export const verifyPin = mutation({
             kind: 'arrived_safe', recipients: contacts.map((c) => c.contactId),
             title: `✅ ${name}: alarm gestopt`,
             body: `${name} heeft het alarm met de veiligheids-PIN gestopt.`,
-            alertId: inc.alertId, sessionId: a.sessionId ?? inc.sessionId,
+            alertId: lastAlert, sessionId: a.sessionId ?? lastSession,
           });
         }
-        await audit(ctx, uid, 'incident.unlocked', a.incidentId);
+        await audit(ctx, uid, 'incident.unlocked', a.incidentId, { cleared: open.length });
       }
     }
     if (a.purpose === 'arrived_safe') {

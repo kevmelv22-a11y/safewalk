@@ -55,7 +55,10 @@ describe('veiligheids-PIN', () => {
     const alerts = await t.run((ctx) => ctx.db.query('alerts').collect());
     expect(alerts.some((x) => x.kind === 'wrong_pin' && x.lat === 52.37)).toBe(true);
     const pushes = await t.run((ctx) => ctx.db.query('pushMessages').collect());
-    expect(pushes.some((p) => p.kind === 'wrong_pin' && p.recipientId === b.id)).toBe(true);
+    const wp = pushes.find((p) => p.kind === 'wrong_pin' && p.recipientId === b.id);
+    expect(wp).toBeTruthy();
+    expect(wp!.body.startsWith('Er is een melding verstuurd met een fout wachtwoord.')).toBe(true);
+    expect(wp!.body).not.toMatch(/654321|pinHash|salt/i);
   });
 
   test('juiste PIN unlockt incident; client succes alleen na server ok', async () => {
