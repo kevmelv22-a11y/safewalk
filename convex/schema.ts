@@ -122,11 +122,14 @@ export default defineSchema({
     accuracyM: v.optional(v.number()),
     recordedAt: v.number(),
   }).index('by_incident', ['incidentId', 'recordedAt']),
-  // Geselecteerde telefooncontacten (minimaal: naam + genormaliseerd telefoonnummer); geen volledige adresboek-dump
+  // Telefooncontacten én handmatig ingevulde contacten zonder SafeWalk-account.
+  // manual=true blijft staan als het adresboek opnieuw wordt gekozen. Geen adresboek-dump.
   deviceContacts: defineTable({
     userId: v.id('users'),
     displayName: v.string(),
-    phoneE164: v.string(),
+    phoneE164: v.optional(v.string()),
+    email: v.optional(v.string()),
+    manual: v.optional(v.boolean()),
     createdAt: v.number(),
   }).index('by_user', ['userId']).index('by_user_phone', ['userId', 'phoneE164']),
   // Audio-opnames: storage + ACL. encryption 'none'=legacy plaintext; 'e2e-v1'=AES-GCM ciphertext (keys never on server)

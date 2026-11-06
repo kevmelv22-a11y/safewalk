@@ -111,6 +111,9 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('DEK_MISSING')) return 'De sleutel van deze opname staat niet op dit apparaat (alleen op het apparaat dat uploadde).';
   if (msg.includes('DECRYPT_FAILED')) return 'Ontsleutelen mislukt: verkeerde sleutel of het bestand is gewijzigd.';
   if (msg.includes('RECORDING_TOO_LARGE')) return 'Opname is te groot (max. 24 MB).';
+  if (msg.includes('EXTERNAL_CONTACT_LIMIT')) return 'Maximaal 30 contacten zonder app.';
+  if (msg.includes('CONTACT_DUPLICATE')) return 'Dit telefoonnummer of e-mailadres staat er al in.';
+  if (msg.includes('CONTACT_INVALID')) return 'Vul een naam in en een geldig telefoonnummer of e-mailadres.';
   if (msg.includes('CONTACT_LIMIT')) return 'Gratis account: maximaal 2 vertrouwde contacten.';
   if (msg.includes('INVITATION_INVALID')) return 'Deze uitnodiging is ongeldig of verlopen.';
   if (msg.includes('INVITATION_SELF')) return 'Je kunt je eigen uitnodiging niet accepteren.';

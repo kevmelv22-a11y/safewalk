@@ -31,3 +31,10 @@ export function smsUrl(os: string, phones: string[], body: string): string {
 export function whatsappUrl(phone: string, body: string): string {
   return `https://wa.me/${e164Digits(phone).slice(1)}?text=${encodeURIComponent(body)}`;
 }
+
+/** Opens the mail composer. The user still presses Send. SafeWalk does not send mail. */
+export function mailtoUrl(email: string, body: string): string {
+  const to = email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error('BAD_EMAIL');
+  return `mailto:${to}?body=${encodeURIComponent(body)}`;
+}
