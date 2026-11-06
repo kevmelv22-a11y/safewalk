@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useIsDark } from '../../lib/theme';
-import { dash, dashDark, dashLight } from './tokens';
+import { useTheme } from '../../lib/theme';
+import { dash } from './tokens';
 
 type Mine = {
   _id: string;
@@ -29,8 +29,7 @@ type Props = {
 export function TripPanel({
   mine, watching, contactCount, countdown, onOpenMine, onStartTrip, onOpenWatch,
 }: Props) {
-  const dark = useIsDark();
-  const t = dark ? dashDark : dashLight;
+  const t = useTheme();
   const arrival = mine
     ? new Date(mine.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
     : null;
@@ -40,9 +39,9 @@ export function TripPanel({
       {mine ? (
         <View style={[styles.card, {
           backgroundColor: t.card,
-          borderColor: mine.status === 'alert' ? 'rgba(239,68,68,0.5)' : t.tealBorder,
+          borderColor: mine.status === 'alert' ? 'rgba(239,68,68,0.5)' : t.border,
         }]}>
-          <Text style={[styles.kicker, { color: mine.status === 'alert' ? dash.red : t.teal }]}>
+          <Text style={[styles.kicker, { color: mine.status === 'alert' ? t.red : t.accent }]}>
             {mine.status === 'alert' ? 'Check-in gemist' : 'Jouw actieve reis'}
           </Text>
           <Text style={[styles.title, { color: t.text }]}>Naar {mine.destinationLabel}</Text>
@@ -53,9 +52,9 @@ export function TripPanel({
             accessibilityRole="button"
             accessibilityLabel="Sessie openen"
             onPress={onOpenMine}
-            style={({ pressed }) => [styles.cta, { backgroundColor: t.tealDim, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
+            style={({ pressed }) => [styles.cta, { backgroundColor: t.blobA, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
           >
-            <Text style={[styles.ctaText, { color: t.teal }]}>Sessie openen</Text>
+            <Text style={[styles.ctaText, { color: t.accent }]}>Sessie openen</Text>
           </Pressable>
         </View>
       ) : (
@@ -77,20 +76,20 @@ export function TripPanel({
               styles.cta,
               contactCount === 0
                 ? {
-                    backgroundColor: dark ? '#1E2D44' : '#D9E2EC',
+                    backgroundColor: t.isDark ? '#1E2D44' : '#D9E2EC',
                     borderWidth: 1,
-                    borderColor: dark ? 'rgba(148,163,184,0.45)' : 'rgba(15,28,49,0.22)',
+                    borderColor: t.border,
                     opacity: 1,
                     minHeight: dash.touch,
                   }
                 : {
-                    backgroundColor: dash.green,
+                    backgroundColor: t.green,
                     opacity: pressed ? 0.88 : 1,
                     minHeight: dash.touch,
                   },
             ]}
           >
-            <Text style={[styles.ctaText, { color: contactCount === 0 ? (dark ? '#E2E8F0' : '#334155') : '#fff' }]}>
+            <Text style={[styles.ctaText, { color: contactCount === 0 ? (t.isDark ? '#E2E8F0' : '#334155') : '#fff' }]}>
               Veilig naar huis – start reis
             </Text>
           </Pressable>
@@ -99,13 +98,13 @@ export function TripPanel({
 
       {watching.map((s) => (
         <View key={s._id} style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]}>
-          <Text style={[styles.kicker, { color: t.teal }]}>Je volgt</Text>
+          <Text style={[styles.kicker, { color: t.accent }]}>Je volgt</Text>
           <Text style={[styles.title, { color: t.text }]}>{s.ownerName} → {s.destinationLabel}</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Live kaart bekijken"
             onPress={() => onOpenWatch(s._id)}
-            style={({ pressed }) => [styles.cta, { backgroundColor: t.elevated, borderColor: t.border, borderWidth: 1, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
+            style={({ pressed }) => [styles.cta, { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
           >
             <Text style={[styles.ctaText, { color: t.text }]}>Live kaart bekijken</Text>
           </Pressable>

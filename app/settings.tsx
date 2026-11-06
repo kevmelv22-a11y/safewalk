@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Linking, Platform, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
@@ -10,16 +10,27 @@ import { errorNl } from '../src/lib/convex';
 import { confirmAction } from '../src/lib/confirm';
 import { stopSharing } from '../src/lib/location';
 import { resetPurchases } from '../src/lib/purchases';
-import { useThemePref, ThemePref } from '../src/store/theme';
+import { ThemePicker } from '../src/components/ThemePicker';
+import { parseThemeQueryParam, setDevThemeSkinOverride } from '../src/lib/themeOverride';
+import { useThemePref } from '../src/store/theme';
 import { maybePromptQsTile, getNativeCapabilitiesSafe } from '../src/lib/nativeEntryPoints';
 import { registerPush } from '../src/lib/notifications';
 
 export default function Settings() {
+  const params = useLocalSearchParams<{ theme?: string }>();
+  const setSkin = useThemePref((s) => s.setSkin);
+  useEffect(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+    const id = parseThemeQueryParam(params.theme);
+    if (id) {
+      setDevThemeSkinOverride(id);
+      setSkin(id);
+    }
+  }, [params.theme, setSkin]);
   const { signOut } = useAuthActions();
   const deleteHistory = useMutation(api.sessions.deleteMyHistory);
   const deleteAccount = useMutation(api.account.deleteAccount);
   const [msg, setMsg] = useState<string | null>(null);
-  const { pref, setPref } = useThemePref();
   const blocked = useQuery(api.contacts.blocked) ?? [];
   const unblock = useMutation(api.contacts.unblock);
   const confirmDelete = () => confirmAction('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', 'Definitief verwijderen', async () => {
@@ -30,11 +41,7 @@ export default function Settings() {
     <Screen>
       <H1>Instellingen</H1>
       <Card>
-        <P>Weergave</P>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {([['system', 'Systeem'], ['dark', 'Donker'], ['light', 'Licht']] as [ThemePref, string][]).map(([k, l]) =>
-            <View key={k} style={{ flex: 1 }}><Button title={l} variant={pref === k ? 'primary' : 'secondary'} onPress={() => setPref(k)} /></View>)}
-        </View>
+        <ThemePicker />
       </Card>
       <SafetySettingsForm />
       <Card>

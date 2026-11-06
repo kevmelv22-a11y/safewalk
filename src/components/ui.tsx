@@ -2,11 +2,17 @@ import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
+import { ThemeBackdrop } from './ThemeBackdrop';
 
 export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
   const t = useTheme();
   const inner = <View style={{ padding: 20, gap: 14 }}>{children}</View>;
-  return <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>{scroll ? <ScrollView keyboardShouldPersistTaps="handled">{inner}</ScrollView> : inner}</SafeAreaView>;
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
+      <ThemeBackdrop />
+      {scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>{inner}</ScrollView> : inner}
+    </SafeAreaView>
+  );
 }
 export function H1({ children }: { children: React.ReactNode }) {
   const t = useTheme(); return <Text accessibilityRole="header" style={{ color: t.text, fontSize: 28, fontWeight: '800' }}>{children}</Text>;

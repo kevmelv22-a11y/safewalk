@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { IconAlert, IconRush, IconSafe } from './dashboard/icons';
 import { dash } from './dashboard/tokens';
+import { CRITICAL_ACTIONS } from '../lib/themeCatalog';
 
 type OneProps = {
   title: string;
@@ -60,8 +61,8 @@ export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }:
         testID="btn-unsafe"
         title="Ik voel me niet veilig"
         subtitle="Alarm + melding naar contacten · belt niet 112"
-        color={dash.red}
-        deep={dash.redDeep}
+        color={CRITICAL_ACTIONS.red}
+        deep='#B91C1C'
         icon={<IconAlert size={26} color="#fff" />}
         onPress={onUnsafe}
         loading={busy === 'unsafe'}
@@ -71,8 +72,8 @@ export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }:
         testID="btn-come"
         title="Kom snel"
         subtitle="Waarschuwt contacten om naar je toe te komen"
-        color={dash.orange}
-        deep={dash.orangeDeep}
+        color={CRITICAL_ACTIONS.orange}
+        deep='#C2410C'
         icon={<IconRush size={26} color="#fff" />}
         onPress={onComeQuick}
         loading={busy === 'come'}
@@ -82,8 +83,8 @@ export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }:
         testID="btn-safe"
         title="Ik ben veilig aangekomen"
         subtitle="Alleen met je veiligheids-PIN · stopt alarm"
-        color={dash.green}
-        deep={dash.greenDeep}
+        color={CRITICAL_ACTIONS.green}
+        deep='#15803D'
         icon={<IconSafe size={26} color="#fff" />}
         onPress={onSafe}
         loading={busy === 'safe'}

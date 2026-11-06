@@ -1,8 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useIsDark } from '../../lib/theme';
+import { useTheme } from '../../lib/theme';
 import { IconPin } from './icons';
-import { dash, dashDark, dashLight } from './tokens';
+import { dash } from './tokens';
 
 type Props = {
   sharing: boolean;
@@ -13,9 +13,8 @@ type Props = {
 
 /** Honest location-sharing status — never invents “protected” states. */
 export function StatusPanel({ sharing, destinationLabel, alert, contactCount }: Props) {
-  const dark = useIsDark();
-  const t = dark ? dashDark : dashLight;
-  const tone = alert ? dash.red : sharing ? t.teal : t.muted;
+  const t = useTheme();
+  const tone = alert ? t.red : sharing ? t.accent : t.muted;
   const title = alert
     ? 'Check-in gemist — contacten gewaarschuwd'
     : sharing
@@ -36,18 +35,18 @@ export function StatusPanel({ sharing, destinationLabel, alert, contactCount }: 
         styles.card,
         {
           backgroundColor: t.card,
-          borderColor: alert ? 'rgba(239,68,68,0.45)' : sharing ? t.tealBorder : t.border,
+          borderColor: alert ? 'rgba(239,68,68,0.45)' : sharing ? t.border : t.border,
         },
       ]}
     >
-      <View style={[styles.dotWrap, { backgroundColor: alert ? 'rgba(239,68,68,0.18)' : t.tealDim }]}>
+      <View style={[styles.dotWrap, { backgroundColor: alert ? 'rgba(239,68,68,0.18)' : t.blobA }]}>
         <IconPin color={tone} size={20} />
       </View>
       <View style={styles.copy}>
         <Text style={[styles.title, { color: t.text }]}>{title}</Text>
         <Text style={[styles.body, { color: t.muted }]}>{body}</Text>
       </View>
-      <View style={[styles.pill, { backgroundColor: alert ? 'rgba(239,68,68,0.16)' : t.tealDim }]}>
+      <View style={[styles.pill, { backgroundColor: alert ? 'rgba(239,68,68,0.16)' : t.blobA }]}>
         <Text style={[styles.pillText, { color: tone }]}>{sharing ? (alert ? 'Alert' : 'Delen') : 'Rust'}</Text>
       </View>
     </View>

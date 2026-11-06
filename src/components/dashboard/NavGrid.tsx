@@ -1,8 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useIsDark } from '../../lib/theme';
+import { useTheme } from '../../lib/theme';
 import { IconChat, IconClock, IconGear, IconPeople, IconPin, IconSos, IconStar } from './icons';
-import { dash, dashDark, dashLight } from './tokens';
+import { dash } from './tokens';
 
 type Item = {
   key: string;
@@ -28,13 +28,12 @@ type Props = {
 export function NavGrid({
   onLiveNow, onCall112, onContacts, onHistory, onSos, onAssistant, onPremium, onSettings, disabled,
 }: Props) {
-  const dark = useIsDark();
-  const t = dark ? dashDark : dashLight;
+  const t = useTheme();
   const icon = t.text;
 
   const items: Item[] = [
-    { key: 'live', label: 'Stuur live locatie nu', hint: 'Foreground-alternatief voor volume×2', onPress: onLiveNow, icon: <IconPin size={20} color={t.teal} />, wide: true },
-    { key: '112', label: 'Open 112 in de telefoon-app', hint: 'Je bevestigt zelf; SafeWalk belt niet automatisch', onPress: onCall112, icon: <IconSos size={20} color={dash.red} />, wide: true },
+    { key: 'live', label: 'Stuur live locatie nu', hint: 'Foreground-alternatief voor volume×2', onPress: onLiveNow, icon: <IconPin size={20} color={t.accent} />, wide: true },
+    { key: '112', label: 'Open 112 in de telefoon-app', hint: 'Je bevestigt zelf; SafeWalk belt niet automatisch', onPress: onCall112, icon: <IconSos size={20} color={t.red} />, wide: true },
     { key: 'contacts', label: 'Contacten', onPress: onContacts, icon: <IconPeople size={20} color={icon} /> },
     { key: 'history', label: 'Geschiedenis', onPress: onHistory, icon: <IconClock size={20} color={icon} /> },
     { key: 'sos', label: 'Klassieke SOS', onPress: onSos, icon: <IconSos size={20} color={icon} /> },
@@ -62,7 +61,7 @@ export function NavGrid({
             { backgroundColor: t.card, borderColor: t.border, opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
           ]}
         >
-          <View style={[styles.iconBox, { backgroundColor: t.tealDim }]}>{item.icon}</View>
+          <View style={[styles.iconBox, { backgroundColor: t.blobA }]}>{item.icon}</View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.label, { color: t.text }]}>{item.label}</Text>
             {!!item.hint && <Text style={[styles.hint, { color: t.muted }]}>{item.hint}</Text>}
@@ -82,7 +81,7 @@ export function NavGrid({
               { backgroundColor: t.card, borderColor: t.border, opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
             ]}
           >
-            <View style={[styles.iconBox, { backgroundColor: t.elevated }]}>{item.icon}</View>
+            <View style={[styles.iconBox, { backgroundColor: t.card }]}>{item.icon}</View>
             <Text style={[styles.cellLabel, { color: t.text }]}>{item.label}</Text>
           </Pressable>
         ))}

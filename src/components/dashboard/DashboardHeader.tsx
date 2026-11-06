@@ -1,12 +1,10 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { useIsDark } from '../../lib/theme';
-import { dashDark, dashLight } from './tokens';
+import { useTheme } from '../../lib/theme';
 
 /** Compact SafeWalk brand header for the home dashboard. */
 export function DashboardHeader() {
-  const dark = useIsDark();
-  const t = dark ? dashDark : dashLight;
+  const t = useTheme();
   return (
     <View style={styles.wrap} accessibilityRole="header">
       <Image

@@ -1,16 +1,44 @@
 import { useColorScheme } from 'react-native';
 import { useThemePref } from '../store/theme';
+import {
+  CRITICAL_ACTIONS,
+  ResolvedTheme,
+  ThemeSkinId,
+  normalizeThemeSkinId,
+  resolveTheme as resolveThemeBase,
+} from './themeCatalog';
+import { getDevThemeSkinOverride } from './themeOverride';
 
-export const palette = { night: '#080F23', purple: '#7856FF', green: '#22C55E', red: '#EF4444', white: '#FFFFFF', amber: '#F59E0B' };
-
-export const themes = {
-  dark: { bg: palette.night, card: '#121A33', text: palette.white, muted: '#A5ADC8', border: '#26304F', ...palette },
-  light: { bg: '#F5F6FB', card: palette.white, text: palette.night, muted: '#4A5272', border: '#DADFEA', ...palette },
+/** @deprecated Prefer CRITICAL_ACTIONS — kept for call sites using palette.* */
+export const palette = {
+  night: '#080F23',
+  purple: '#7856FF',
+  green: CRITICAL_ACTIONS.green,
+  red: CRITICAL_ACTIONS.red,
+  orange: CRITICAL_ACTIONS.orange,
+  white: '#FFFFFF',
+  amber: CRITICAL_ACTIONS.amber,
 };
-export type Theme = typeof themes.dark;
+
+export type Theme = ResolvedTheme;
+export { resolveThemeBase as resolveTheme };
+
+/** Legacy export — classic dark/light only (tests / older imports). */
+export const themes = {
+  dark: resolveThemeBase('classic', true),
+  light: resolveThemeBase('classic', false),
+};
+
 /** Donker/licht volgens gebruikersvoorkeur (instellingen) of systeem. */
 export function useIsDark() {
-  const system = useColorScheme(); const pref = useThemePref((s) => s.pref);
+  const system = useColorScheme();
+  const pref = useThemePref((s) => s.pref);
   return pref === 'system' ? system !== 'light' : pref === 'dark';
 }
-export const useTheme = (): Theme => (useIsDark() ? themes.dark : themes.light);
+
+export function useThemeSkinId(): ThemeSkinId {
+  const stored = useThemePref((s) => s.skin);
+  return getDevThemeSkinOverride() ?? normalizeThemeSkinId(stored);
+}
+
+export const useTheme = (): Theme => resolveThemeBase(useThemeSkinId(), useIsDark());
