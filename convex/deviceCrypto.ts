@@ -1,7 +1,7 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, fail, rateLimit, requireUser } from './lib';
+import { audit, displayName, fail, rateLimit, requireUser } from './lib';
 
 /** Registreer/roteer device X25519 public key (authenticated). Private key never uploaded. */
 export const registerPublicKey = mutation({
@@ -50,11 +50,11 @@ export const contactPublicKeys = query({
     if (!uid) return [];
     const contacts = await ctx.db.query('trustedContacts')
       .withIndex('by_owner', (q) => q.eq('ownerId', uid).eq('status', 'accepted')).collect();
-    const out: { userId: string; keyId: string; publicKeyX25519: string }[] = [];
+    const out: { userId: string; keyId: string; publicKeyX25519: string; displayName: string | null }[] = [];
     for (const c of contacts) {
       const keys = await ctx.db.query('deviceCryptoKeys').withIndex('by_user', (q) => q.eq('userId', c.contactId)).collect();
       const active = keys.filter((k) => !k.revokedAt).sort((a, b) => b.createdAt - a.createdAt)[0];
-      if (active) out.push({ userId: c.contactId, keyId: active.keyId, publicKeyX25519: active.publicKeyX25519 });
+      if (active) out.push({ userId: c.contactId, keyId: active.keyId, publicKeyX25519: active.publicKeyX25519, displayName: (await displayName(ctx, c.contactId)) ?? null });
     }
     return out;
   },

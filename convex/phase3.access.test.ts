@@ -100,20 +100,19 @@ describe('recordings ACL + delete', () => {
       // insert recording row with a storage id created via generateUploadUrl path simulation:
       return await ctx.storage.store(new Blob(['abc'], { type: 'audio/webm' }));
     });
-    const { id } = await a.as.mutation(api.recordings.finalize, {
-      storageId, mime: 'audio/webm', byteSize: 3,
-    });
-    const url = await a.as.mutation(api.recordings.getDownloadUrl, { id });
-    expect(url.temporary).toBe(true);
-    expect(url.url).toBeTruthy();
-    await expect(b.as.mutation(api.recordings.getDownloadUrl, { id })).rejects.toThrow(/FORBIDDEN|NOT_FOUND/);
+    // legacy (pre-E2E) row as it exists in older data
+    const id = await t.run((ctx) => ctx.db.insert('recordings', { userId: a.id, storageId, mime: 'audio/webm', byteSize: 3, createdAt: Date.now() }));
+    const url = await a.as.mutation(api.recordings.getAccess, { id });
+    expect(url.blobPath).toContain('/recordings/blob');
+    expect(JSON.stringify(url)).not.toMatch(/https?:/);
+    await expect(b.as.mutation(api.recordings.getAccess, { id })).rejects.toThrow(/FORBIDDEN|NOT_FOUND/);
     // trusted contact mag wel
     const token = await a.as.mutation(api.contacts.createInvitation, {});
     await b.as.mutation(api.contacts.respondInvitation, { token, accept: true });
-    const okB = await b.as.mutation(api.recordings.getDownloadUrl, { id });
-    expect(okB.url).toBeTruthy();
+    const okB = await b.as.mutation(api.recordings.getAccess, { id });
+    expect(okB.encryption).toBe('none');
     await a.as.mutation(api.recordings.remove, { id });
-    await expect(a.as.mutation(api.recordings.getDownloadUrl, { id })).rejects.toThrow();
+    await expect(a.as.mutation(api.recordings.getAccess, { id })).rejects.toThrow();
     const list = await a.as.query(api.recordings.listMine, {});
     expect(list.find((x) => x.id === id)).toBeUndefined();
   });
@@ -127,9 +126,7 @@ describe('recordings ACL + delete', () => {
       torchRequested: false, createTrackingLink: true, shareRecordingScope: true,
     });
     const storageId = await t.run(async (ctx) => ctx.storage.store(new Blob(['x'], { type: 'audio/webm' })));
-    const { id } = await a.as.mutation(api.recordings.finalize, {
-      storageId, mime: 'audio/webm', byteSize: 1, incidentId: started.incidentId!,
-    });
+    const id = await t.run((ctx) => ctx.db.insert('recordings', { userId: a.id, storageId, mime: 'audio/webm', byteSize: 1, incidentId: started.incidentId!, createdAt: Date.now() }));
     const before = await t.query(internal.tracking.resolveRecordingDownload, { token: started.shareToken!, recordingId: id });
     expect(before).toBeTruthy();
     const link = await t.run((ctx) => ctx.db.query('shareLinks').first());

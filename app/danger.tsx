@@ -10,7 +10,9 @@ import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
 import { PinPad } from '../src/components/PinPad';
 import { startAlarm } from '../src/lib/dangerAlarm';
 import { getConsentedLocation } from '../src/lib/locationOnce';
-import { encryptAndUpload, persistDekAfterFinalize, registerMyPublicKey, buildEnvelopesForContacts } from '../src/lib/recordingUpload';
+import { uploadEncryptedRecording } from '../src/lib/recordingUpload';
+import { deleteLocalOriginal } from '../src/lib/playbackFile';
+import { useAuthToken } from '@convex-dev/auth/react';
 import { errorNl } from '../src/lib/convex';
 import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { palette } from '../src/lib/theme';
@@ -28,10 +30,8 @@ export default function Danger() {
   const me = useQuery(api.profiles.me);
   const contactKeys = useQuery(api.deviceCrypto.contactPublicKeys) ?? [];
   const ping = useMutation(api.incidents.pingLocation);
-  const genUrl = useMutation(api.recordings.generateUploadUrl);
-  const finalize = useMutation(api.recordings.finalize);
+  const authToken = useAuthToken();
   const putEnvelopes = useMutation(api.recordings.putEnvelopes);
-  const registerKey = useMutation(api.deviceCrypto.registerPublicKey);
   const [perm, requestPerm] = useCameraPermissions();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [torch, setTorch] = useState(false);
@@ -121,23 +121,11 @@ export default function Danger() {
       const res = await fetch(uri);
       const blob = await res.blob();
       const mime = blob.type || 'audio/m4a';
-      await registerMyPublicKey(registerKey);
-      const uploadUrl = await genUrl({});
-      const up = await encryptAndUpload({ blob, mime, userId: me.userId, uploadUrl, preferE2e: true });
-      const fin = await finalize({
-        storageId: up.storageId as Id<'_storage'>,
-        mime: up.mimeStored, byteSize: up.byteSize, plaintextByteSize: up.plaintextByteSize,
-        durationMs: Math.round((recorder.currentTime || 0) * 1000),
-        incidentId: iid, encryption: up.encryption, clientUploadId: up.clientUploadId,
+      const up = await uploadEncryptedRecording({
+        blob, mime, userId: me.userId, authToken, contacts: contactKeys, putEnvelopes: putEnvelopes as never,
+        durationMs: Math.round((recorder.currentTime || 0) * 1000), incidentId: iid,
       });
-      if (up.dek && up.encryption === 'e2e-v1') {
-        await persistDekAfterFinalize(fin.id, up.dek);
-        if (contactKeys.length) {
-          const envs = await buildEnvelopesForContacts(up.dek, contactKeys);
-          await putEnvelopes({ recordingId: fin.id, envelopes: envs.map((e) => ({ ...e, recipientId: e.recipientId as Id<'users'> })) });
-        }
-        up.dek.fill(0);
-      }
+      deleteLocalOriginal(uri);
       setRecNote(up.note + ' (alarmgeluid kan in plaintext gezeten hebben vóór encryptie.)');
     } catch (e) {
       setRecNote('Upload mislukt: ' + errorNl(e));

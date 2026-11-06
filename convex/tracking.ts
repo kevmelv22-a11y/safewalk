@@ -216,8 +216,7 @@ export const resolveRecordingDownload = internalQuery({
     if (!(link.scopes ?? []).includes('recording')) return null;
     const row = await ctx.db.get(recordingId);
     if (!row || row.deletedAt || row.userId !== link.userId) return null;
-    if (link.incidentId && row.incidentId && row.incidentId !== link.incidentId) return null;
-    if (link.incidentId && !row.incidentId) return null;
+    if (!link.incidentId || row.incidentId !== link.incidentId) return null;
     return { storageId: row.storageId, mime: row.mime, byteSize: row.byteSize };
   },
 });
@@ -247,36 +246,27 @@ export const publicLocation = httpAction(async (ctx, req) => {
   }), { status: 200, headers: h });
 });
 
+/**
+ * GET /track/recording?token&id — streams stored bytes (ciphertext for e2e-v1) through a proxy.
+ * Token, revoke, expiry and incident scope are re-checked on EVERY request; no storage URL is ever exposed.
+ * Bytes already downloaded by a recipient cannot be revoked.
+ */
+export const MAX_PROXY_BYTES = 19 * 1024 * 1024 + 64;
 export const publicRecording = httpAction(async (ctx, req) => {
   const url = new URL(req.url);
   const token = url.searchParams.get('token') ?? '';
   const recordingId = url.searchParams.get('id') ?? '';
   const h = securityHeaders({ 'Content-Type': 'application/json' });
-  if (!recordingId) {
-    return new Response(JSON.stringify({ error: 'bad_request' }), { status: 400, headers: h });
-  }
-  // Id-validatie via runQuery (Convex Id)
+  if (!recordingId) return new Response(JSON.stringify({ error: 'bad_request' }), { status: 400, headers: h });
   let resolved: { storageId: string; mime: string; byteSize: number } | null = null;
   try {
-    resolved = await ctx.runQuery(internal.tracking.resolveRecordingDownload, {
-      token,
-      recordingId: recordingId as never,
-    });
-  } catch {
-    resolved = null;
-  }
-  if (!resolved) {
-    return new Response(JSON.stringify({ error: 'invalid_or_expired' }), { status: 404, headers: h });
-  }
-  const signed = await ctx.storage.getUrl(resolved.storageId as never);
-  if (!signed) {
-    return new Response(JSON.stringify({ error: 'gone' }), { status: 404, headers: h });
-  }
-  // Tijdelijke URL — geen permanente publieke storage-URL in onze DB
-  return new Response(JSON.stringify({
-    ok: true, url: signed, mime: resolved.mime, byteSize: resolved.byteSize,
-    note: 'URL is tijdelijk (platform). Link/token verlopen of intrekken blokkeert nieuwe uitgifte.',
-  }), { status: 200, headers: h });
+    resolved = await ctx.runQuery(internal.tracking.resolveRecordingDownload, { token, recordingId: recordingId as never });
+  } catch { resolved = null; }
+  if (!resolved) return new Response(JSON.stringify({ error: 'invalid_or_expired' }), { status: 404, headers: h });
+  if (resolved.byteSize > MAX_PROXY_BYTES) return new Response(JSON.stringify({ error: 'too_large' }), { status: 413, headers: h });
+  const blob = await ctx.storage.get(resolved.storageId as never);
+  if (!blob) return new Response(JSON.stringify({ error: 'gone' }), { status: 404, headers: h });
+  return new Response(blob, { status: 200, headers: securityHeaders({ 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store, private' }) });
 });
 
 const LEAFLET_JS_SRI = 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH';
@@ -422,18 +412,17 @@ export const publicRecordingPlayer = httpAction(async (ctx, req) => {
     return new Response('<!doctype html><meta charset=utf-8><meta name="referrer" content="no-referrer"/><p>Ongeldig.</p>', { status: 400, headers: h });
   }
   let meta: { encryption: string; clientUploadId: string | null; ownerId: string; mime: string } | null = null;
-  let signed: string | null = null;
   try {
     const resolved = await ctx.runQuery(internal.tracking.resolveRecordingMeta, { token, recordingId: recordingId as never });
     if (!resolved) {
       return new Response('<!doctype html><meta charset=utf-8><meta name="referrer" content="no-referrer"/><p>Link ongeldig, verlopen of zonder recording-scope.</p>', { status: 404, headers: h });
     }
     meta = resolved;
-    signed = await ctx.storage.getUrl(resolved.storageId as never);
   } catch {
     return new Response('<!doctype html><meta charset=utf-8><p>Fout.</p>', { status: 404, headers: h });
   }
-  if (!signed || !meta) {
+  const signed = `${site}/track/recording?token=${encodeURIComponent(token)}&id=${encodeURIComponent(recordingId)}`;
+  if (!meta) {
     return new Response('<!doctype html><meta charset=utf-8><p>Bestand weg.</p>', { status: 404, headers: h });
   }
   const html = `<!doctype html>
@@ -473,7 +462,7 @@ code{font-size:12px;word-break:break-all}
     return m?b64urlToBytes(m[1]):null;
   }
   async function playPlain(){
-    status.innerHTML='<div class="warn">LEGACY: opname is <strong>niet</strong> end-to-end versleuteld. Server/storage kon bytes zien bij ACL-toegang. Intrekken stopt nieuwe toegang; reeds gedownloade kopieën niet.</div>';
+    status.innerHTML='<div class="warn">LEGACY: opname is <strong>niet</strong> end-to-end versleuteld. Server/storage kon bytes zien bij ACL-toegang. Intrekken stopt nieuwe toegang; wat al gedownload is, kan niet worden ingetrokken.</div>';
     var a=document.createElement('audio'); a.controls=true; a.src=URL_CT; box.appendChild(a);
   }
   async function playE2e(){
@@ -484,6 +473,7 @@ code{font-size:12px;word-break:break-all}
     }
     status.textContent='Ciphertext ophalen en lokaal ontsleutelen…';
     var res=await fetch(URL_CT,{cache:'no-store',referrerPolicy:'no-referrer'});
+    if(!res.ok){ status.textContent='Opname niet (meer) beschikbaar: link verlopen of ingetrokken.'; return; }
     var buf=new Uint8Array(await res.arrayBuffer());
     if(buf.length<28){ status.textContent='Bestand te kort.'; return; }
     var iv=buf.slice(0,12); var ct=buf.slice(12);
@@ -494,7 +484,7 @@ code{font-size:12px;word-break:break-all}
       var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv,additionalData:aad,tagLength:128},key,ct);
       var blob=new Blob([pt],{type:MIME.indexOf('audio/')===0?MIME:'audio/webm'});
       var a=document.createElement('audio'); a.controls=true; a.src=URL.createObjectURL(blob); box.appendChild(a);
-      status.innerHTML='<div class="ok">E2E: lokaal ontsleuteld. Fragment-sleutel is niet naar SafeWalk gestuurd. Intrekken voorkomt nieuwe downloads; kopieën die je al hebt blijven.</div>';
+      status.innerHTML='<div class="ok">E2E: lokaal ontsleuteld. Fragment-sleutel is niet naar SafeWalk gestuurd. Intrekken voorkomt nieuwe downloads; wat al gedownload is, kan niet worden ingetrokken.</div>';
     }catch(e){
       status.innerHTML='<div class="warn">Ontsleutelen mislukt (verkeerde/ontbrekende sleutel of manipulatiedetectie).</div>';
     }

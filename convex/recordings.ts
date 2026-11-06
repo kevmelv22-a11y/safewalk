@@ -1,4 +1,6 @@
-import { mutation, query } from './_generated/server';
+import { httpAction, internalMutation, internalQuery, mutation, query } from './_generated/server';
+import { internal } from './_generated/api';
+import type { Id } from './_generated/dataModel';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { audit, fail, rateLimit, requireUser } from './lib';
@@ -9,62 +11,127 @@ import { audit, fail, rateLimit, requireUser } from './lib';
  * encryption 'e2e-v1' = AES-256-GCM ciphertext; DEK never stored on server.
  * Envelopes hold wrapped DEKs for trusted app users only.
  */
-export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const uid = await requireUser(ctx);
-    await rateLimit(ctx, `rec-upload:${uid}`, 10, 60 * 60_000);
-    return await ctx.storage.generateUploadUrl();
+export const MAX_CIPHERTEXT_BYTES = 19 * 1024 * 1024 + 64; // < Convex 20 MB HTTP body limit
+
+const corsHeaders = (extra: Record<string, string> = {}) => ({
+  'Access-Control-Allow-Origin': '*', // bearer-token auth, no cookies
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Cache-Control': 'no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'no-referrer',
+  ...extra,
+});
+const jsonRes = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: corsHeaders({ 'Content-Type': 'application/json' }) });
+
+export const corsPreflight = httpAction(async () => new Response(null, { status: 204, headers: corsHeaders() }));
+
+/** Validates + rate-limits an upload before any bytes are stored. */
+export const checkUpload = internalMutation({
+  args: { userId: v.id('users'), incidentId: v.optional(v.id('incidents')) },
+  handler: async (ctx, a) => {
+    await rateLimit(ctx, `rec-upload:${a.userId}`, 10, 60 * 60_000);
+    if (a.incidentId) {
+      const i = await ctx.db.get(a.incidentId);
+      if (!i || i.userId !== a.userId) fail('FORBIDDEN');
+    }
   },
 });
 
-export const finalize = mutation({
+/** Server-owned write: only callable from the upload proxy with a storageId it just created itself. */
+export const insertFromUpload = internalMutation({
   args: {
-    storageId: v.id('_storage'),
-    mime: v.string(),
-    byteSize: v.number(),
-    durationMs: v.optional(v.number()),
-    incidentId: v.optional(v.id('incidents')),
-    alertId: v.optional(v.id('alerts')),
-    encryption: v.optional(v.union(v.literal('none'), v.literal('e2e-v1'))),
-    clientUploadId: v.optional(v.string()),
-    plaintextByteSize: v.optional(v.number()),
+    userId: v.id('users'), storageId: v.id('_storage'), mime: v.string(), clientUploadId: v.string(),
+    plaintextByteSize: v.optional(v.number()), durationMs: v.optional(v.number()), incidentId: v.optional(v.id('incidents')),
   },
   handler: async (ctx, a) => {
-    const uid = await requireUser(ctx);
-    await rateLimit(ctx, `rec-fin:${uid}`, 10, 60 * 60_000);
-    if (a.byteSize <= 0 || a.byteSize > 25 * 1024 * 1024) fail('BAD_REQUEST');
-    const enc = a.encryption ?? 'none';
-    if (enc === 'none') {
-      if (!/^audio\//.test(a.mime) && a.mime !== 'application/octet-stream') fail('BAD_REQUEST');
-    } else {
-      // ciphertext mime
-      if (a.mime !== 'application/octet-stream' && !/^audio\//.test(a.mime)) fail('BAD_REQUEST');
-      if (!a.clientUploadId || a.clientUploadId.length < 8 || a.clientUploadId.length > 80) fail('BAD_REQUEST');
-    }
-    // Bind the stored object to this row: real size must match and it may not be claimed twice.
     const meta = await ctx.db.system.get(a.storageId);
-    if (!meta || meta.size !== a.byteSize) fail('BAD_REQUEST');
-    if (enc === 'e2e-v1' && a.byteSize < 12 + 16) fail('BAD_REQUEST');
-    const claimed = await ctx.db.query('recordings').withIndex('by_storage', (q) => q.eq('storageId', a.storageId)).first();
-    if (claimed) fail('FORBIDDEN');
+    if (!meta || meta.size < 28 || meta.size > MAX_CIPHERTEXT_BYTES) fail('BAD_REQUEST');
+    if (await ctx.db.query('recordings').withIndex('by_storage', (q) => q.eq('storageId', a.storageId)).first()) fail('FORBIDDEN');
     if (a.incidentId) {
       const i = await ctx.db.get(a.incidentId);
-      if (!i || i.userId !== uid) fail('FORBIDDEN');
-    }
-    if (a.alertId) {
-      const al = await ctx.db.get(a.alertId);
-      if (!al || al.userId !== uid) fail('FORBIDDEN');
+      if (!i || i.userId !== a.userId) fail('FORBIDDEN');
     }
     const id = await ctx.db.insert('recordings', {
-      userId: uid, storageId: a.storageId, mime: a.mime, byteSize: a.byteSize,
-      plaintextByteSize: a.plaintextByteSize, durationMs: a.durationMs,
-      incidentId: a.incidentId, alertId: a.alertId, createdAt: Date.now(),
-      encryption: enc, clientUploadId: a.clientUploadId,
+      userId: a.userId, storageId: a.storageId, mime: a.mime, byteSize: meta!.size,
+      plaintextByteSize: a.plaintextByteSize, durationMs: a.durationMs, incidentId: a.incidentId,
+      createdAt: Date.now(), encryption: 'e2e-v1', clientUploadId: a.clientUploadId,
     });
-    await audit(ctx, uid, 'recording.finalize', id, { bytes: a.byteSize, encryption: enc });
-    return { id, encryption: enc };
+    await audit(ctx, a.userId, 'recording.upload', id, { bytes: meta!.size, encryption: 'e2e-v1' });
+    return id;
   },
+});
+
+/** POST /recordings/upload — authenticated proxy (Bearer Convex auth token). e2e-v1 ciphertext only. */
+export const uploadProxy = httpAction(async (ctx, req) => {
+  const uid = await getAuthUserId(ctx);
+  if (!uid) return jsonRes(401, { error: 'NOT_AUTHENTICATED' });
+  const u = new URL(req.url);
+  const p = (k: string) => u.searchParams.get(k) ?? undefined;
+  const mime = p('mime') ?? '';
+  const clientUploadId = p('clientUploadId') ?? '';
+  if (p('encryption') !== 'e2e-v1') return jsonRes(400, { error: 'E2E_REQUIRED' });
+  if (!/^audio\/[\w.+-]{1,40}$/.test(mime)) return jsonRes(400, { error: 'BAD_REQUEST' });
+  if (!/^[A-Za-z0-9-]{8,80}$/.test(clientUploadId)) return jsonRes(400, { error: 'BAD_REQUEST' });
+  const num = (k: string) => { const x = p(k); if (x == null) return undefined; const n = Number(x); return Number.isFinite(n) && n >= 0 && n < 1e10 ? n : NaN; };
+  const plaintextByteSize = num('plaintextByteSize'); const durationMs = num('durationMs');
+  if (Number.isNaN(plaintextByteSize) || Number.isNaN(durationMs)) return jsonRes(400, { error: 'BAD_REQUEST' });
+  const declared = Number(req.headers.get('content-length') ?? '0');
+  if (declared > MAX_CIPHERTEXT_BYTES) return jsonRes(413, { error: 'RECORDING_TOO_LARGE' });
+  let incidentId: Id<'incidents'> | undefined;
+  try {
+    incidentId = p('incidentId') as Id<'incidents'> | undefined;
+    await ctx.runMutation(internal.recordings.checkUpload, { userId: uid, incidentId });
+  } catch (e) {
+    const code = String((e as { data?: unknown }).data ?? (e as Error).message);
+    return jsonRes(code.includes('RATE_LIMITED') ? 429 : 403, { error: code.includes('RATE_LIMITED') ? 'RATE_LIMITED' : 'FORBIDDEN' });
+  }
+  const body = await req.arrayBuffer();
+  if (body.byteLength < 28) return jsonRes(400, { error: 'BAD_REQUEST' });
+  if (body.byteLength > MAX_CIPHERTEXT_BYTES) return jsonRes(413, { error: 'RECORDING_TOO_LARGE' });
+  const storageId = await ctx.storage.store(new Blob([body], { type: 'application/octet-stream' }));
+  try {
+    const id = await ctx.runMutation(internal.recordings.insertFromUpload, {
+      userId: uid, storageId, mime, clientUploadId, plaintextByteSize, durationMs, incidentId,
+    });
+    return jsonRes(200, { id });
+  } catch {
+    await ctx.storage.delete(storageId); // no orphan on failed insert
+    return jsonRes(400, { error: 'BAD_REQUEST' });
+  }
+});
+
+/** ACL check shared by the app blob proxy and getAccess. */
+export const authorizeRead = internalQuery({
+  args: { userId: v.id('users'), id: v.id('recordings') },
+  handler: async (ctx, { userId, id }) => {
+    const r = await ctx.db.get(id);
+    if (!r || r.deletedAt) return null;
+    if (r.userId !== userId) {
+      const tc = await ctx.db.query('trustedContacts').withIndex('by_pair', (q) => q.eq('ownerId', r.userId).eq('contactId', userId)).first();
+      if (tc?.status !== 'accepted') return null;
+      if ((r.encryption ?? 'none') === 'e2e-v1') {
+        const env = await ctx.db.query('recordingKeyEnvelopes').withIndex('by_recording', (q) => q.eq('recordingId', id)).collect();
+        if (!env.some((e) => e.recipientId === userId)) return null;
+      }
+    }
+    return { storageId: r.storageId, byteSize: r.byteSize };
+  },
+});
+
+/** GET /recordings/blob?id= — re-authorizes on every request; streams ciphertext, never a storage URL. */
+export const blobProxy = httpAction(async (ctx, req) => {
+  const uid = await getAuthUserId(ctx);
+  if (!uid) return jsonRes(401, { error: 'NOT_AUTHENTICATED' });
+  const id = new URL(req.url).searchParams.get('id') ?? '';
+  let ok: { storageId: Id<'_storage'>; byteSize: number } | null = null;
+  try { ok = await ctx.runQuery(internal.recordings.authorizeRead, { userId: uid, id: id as Id<'recordings'> }); } catch { ok = null; }
+  if (!ok) return jsonRes(404, { error: 'NOT_FOUND' });
+  if (ok.byteSize > MAX_CIPHERTEXT_BYTES) return jsonRes(413, { error: 'TOO_LARGE' });
+  const blob = await ctx.storage.get(ok.storageId);
+  if (!blob) return jsonRes(404, { error: 'NOT_FOUND' });
+  return new Response(blob, { status: 200, headers: corsHeaders({ 'Content-Type': 'application/octet-stream' }) });
 });
 
 export const listMine = query({
@@ -99,8 +166,8 @@ export const remove = mutation({
   },
 });
 
-/** Tijdelijke download-URL + encryption metadata. Keys never returned by server. */
-export const getDownloadUrl = mutation({
+/** Access metadata (no storage URL; bytes via /recordings/blob). Keys never returned by server. */
+export const getAccess = mutation({
   args: { id: v.id('recordings') },
   handler: async (ctx, { id }) => {
     const uid = await requireUser(ctx);
@@ -117,7 +184,7 @@ export const getDownloadUrl = mutation({
     if (!allowed) fail('FORBIDDEN');
     const enc = (r.encryption ?? 'none') as 'none' | 'e2e-v1';
     // E2E: recipients need an envelope (except owner who uses local DEK)
-    let envelope: null | { ephemeralPubX25519: string; wrappedDek: string; recipientKeyId: string } = null;
+    let envelope: null | { ephemeralPubX25519: string; wrappedDek: string; recipientKeyId: string; version: number | null } = null;
     if (enc === 'e2e-v1' && r.userId !== uid) {
       const env = await ctx.db.query('recordingKeyEnvelopes')
         .withIndex('by_recording', (q) => q.eq('recordingId', id)).collect();
@@ -127,12 +194,11 @@ export const getDownloadUrl = mutation({
         ephemeralPubX25519: mine!.ephemeralPubX25519,
         wrappedDek: mine!.wrappedDek,
         recipientKeyId: mine!.recipientKeyId,
+        version: mine!.version ?? null,
       };
     }
-    const url = await ctx.storage.getUrl(r.storageId);
-    if (!url) fail('NOT_FOUND');
     return {
-      url, mime: r.mime, byteSize: r.byteSize, temporary: true as const,
+      blobPath: `/recordings/blob?id=${id}`, mime: r.mime, byteSize: r.byteSize,
       encryption: enc,
       clientUploadId: r.clientUploadId ?? null,
       ownerId: r.userId,
@@ -140,7 +206,7 @@ export const getDownloadUrl = mutation({
       envelope,
       warning: enc === 'none'
         ? 'LEGACY_PLAINTEXT: opname is niet end-to-end versleuteld; server/storage kan bytes lezen bij ACL-toegang.'
-        : 'E2E_V1: ciphertext op server; DEK niet op server. Intrekken stopt nieuwe downloads, niet reeds gedownloade kopieën.',
+        : 'E2E_V1: ciphertext op server; DEK niet op server. Intrekken stopt nieuwe downloads; wat al gedownload is, kan niet worden ingetrokken.',
     };
   },
 });
@@ -174,6 +240,7 @@ export const putEnvelopes = mutation({
       recipientKeyId: v.string(),
       ephemeralPubX25519: v.string(),
       wrappedDek: v.string(),
+      version: v.optional(v.number()),
     })),
   },
   handler: async (ctx, a) => {
@@ -189,6 +256,7 @@ export const putEnvelopes = mutation({
       if (!/^[0-9a-f]{64}$/.test(e.ephemeralPubX25519)) fail('BAD_REQUEST');
       if (!/^[0-9a-f]{16}$/.test(e.recipientKeyId)) fail('BAD_REQUEST');
       if (e.wrappedDek.length < 20 || e.wrappedDek.length > 2000) fail('BAD_REQUEST');
+      if (e.version !== undefined && e.version !== 2) fail('BAD_REQUEST');
       const tc = await ctx.db.query('trustedContacts')
         .withIndex('by_pair', (q) => q.eq('ownerId', uid).eq('contactId', e.recipientId)).first();
       if (!tc || tc.status !== 'accepted') fail('FORBIDDEN');
@@ -199,11 +267,58 @@ export const putEnvelopes = mutation({
       await ctx.db.insert('recordingKeyEnvelopes', {
         recordingId: a.recordingId, ownerId: uid, recipientId: e.recipientId,
         recipientKeyId: e.recipientKeyId, ephemeralPubX25519: e.ephemeralPubX25519,
-        wrappedDek: e.wrappedDek, createdAt: Date.now(),
+        wrappedDek: e.wrappedDek, createdAt: Date.now(), version: e.version === 2 ? 2 : undefined,
       });
       n++;
     }
     await audit(ctx, uid, 'recording.envelopes', a.recordingId, { count: n });
     return { saved: n };
+  },
+});
+
+/**
+ * Retention policy (docs/engineering.md §11): bounded, never touches live recordings.
+ * 1. Rows soft-deleted > 30 days ago are hard-deleted (their file was already deleted at soft-delete).
+ * 2. Envelopes whose recording is gone/deleted, or whose recipient is no longer an accepted contact, are deleted.
+ * 3. Orphan files: _storage objects older than 24 h that no recording row references (left by the
+ *    pre-proxy generateUploadUrl flow) are deleted. Recordings are the ONLY storage user in this app;
+ *    any new storage use must be referenced or excluded here first.
+ * Each run handles at most BATCH items per category.
+ */
+const BATCH = 100;
+export const SOFT_DELETE_GRACE_MS = 30 * 24 * 60 * 60_000;
+export const ORPHAN_MIN_AGE_MS = 24 * 60 * 60_000;
+export const retentionSweep = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    let rows = 0; let envs = 0; let orphans = 0;
+    const expired = await ctx.db.query('recordings')
+      .withIndex('by_deleted', (q) => q.gte('deletedAt', 0).lt('deletedAt', now - SOFT_DELETE_GRACE_MS)).take(BATCH);
+    for (const r of expired) {
+      if (await ctx.db.system.get(r.storageId)) await ctx.storage.delete(r.storageId);
+      for (const e of await ctx.db.query('recordingKeyEnvelopes').withIndex('by_recording', (q) => q.eq('recordingId', r._id)).collect()) await ctx.db.delete(e._id);
+      await ctx.db.delete(r._id); rows++;
+    }
+    for (const e of await ctx.db.query('recordingKeyEnvelopes').order('asc').take(BATCH * 5)) {
+      if (envs >= BATCH) break;
+      const r = await ctx.db.get(e.recordingId);
+      const tc = await ctx.db.query('trustedContacts').withIndex('by_pair', (q) => q.eq('ownerId', e.ownerId).eq('contactId', e.recipientId)).first();
+      if (!r || r.deletedAt || tc?.status !== 'accepted') { await ctx.db.delete(e._id); envs++; }
+    }
+    // Cursor-based walk over _storage so referenced files never block progress.
+    const state = await ctx.db.query('sweepState').withIndex('by_key', (q) => q.eq('key', 'storage-orphans')).first();
+    const page = await ctx.db.system.query('_storage').order('asc').paginate({ cursor: state?.cursor ?? null, numItems: BATCH });
+    let reachedYoung = false;
+    for (const f of page.page) {
+      if (f._creationTime > now - ORPHAN_MIN_AGE_MS) { reachedYoung = true; break; }
+      const ref = await ctx.db.query('recordings').withIndex('by_storage', (q) => q.eq('storageId', f._id)).first();
+      if (!ref) { await ctx.storage.delete(f._id); orphans++; }
+    }
+    // restart from the beginning when done or when we hit files that are still too young
+    const next = page.isDone || reachedYoung ? null : page.continueCursor;
+    if (state) await ctx.db.patch(state._id, { cursor: next ?? undefined });
+    else await ctx.db.insert('sweepState', { key: 'storage-orphans', cursor: next ?? undefined });
+    return { rows, envs, orphans };
   },
 });

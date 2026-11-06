@@ -3,7 +3,7 @@
  * Server never receives content DEKs. External keys only in URL fragment (#), never query.
  */
 import { gcm } from '@noble/ciphers/aes.js';
-import { randomBytes, bytesToHex, hexToBytes } from '@noble/ciphers/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/ciphers/utils.js';
 import { x25519 } from '@noble/curves/ed25519.js';
 import { hkdf } from '@noble/hashes/hkdf.js';
 import { sha256 } from '@noble/hashes/sha2.js';
@@ -19,13 +19,47 @@ export function aadBytes(clientUploadId: string, userId: string): Uint8Array {
   return new TextEncoder().encode(`${INFO_AAD_PREFIX}${userId}|${clientUploadId}`);
 }
 
-/** CSPRNG via noble (uses WebCrypto getRandomValues / node crypto). */
+/**
+ * CSPRNG source. Explicitly injected on React Native (expo-crypto, see recordingKeys.ts);
+ * falls back to WebCrypto getRandomValues (browser / Node). No global polyfill; throws if none.
+ */
+export type RandomSource = (n: number) => Uint8Array;
+let randomSource: RandomSource | null = null;
+export function setRandomSource(fn: RandomSource | null) { randomSource = fn; }
+
+export function secureRandom(n: number): Uint8Array {
+  if (randomSource) {
+    const b = randomSource(n);
+    if (!(b instanceof Uint8Array) || b.length !== n) throw new Error('CSPRNG_BAD_OUTPUT');
+    return b;
+  }
+  const c = (globalThis as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } }).crypto;
+  if (c?.getRandomValues) return c.getRandomValues(new Uint8Array(n));
+  throw new Error('NO_CSPRNG');
+}
+
 export function randomKey32(): Uint8Array {
-  return randomBytes(32);
+  return secureRandom(32);
 }
 
 export function randomNonce12(): Uint8Array {
-  return randomBytes(12);
+  return secureRandom(12);
+}
+
+/** Envelope v2 AAD: binds wrapped DEK to recording, upload, sender, recipient and recipient key. */
+export const ENVELOPE_V2 = 2 as const;
+export function envelopeAadV2(p: {
+  recordingId: string; clientUploadId: string; ownerId: string; recipientId: string; recipientKeyId: string;
+}): Uint8Array {
+  for (const v of Object.values(p)) if (!v || v.includes('|')) throw new Error('AAD_FIELD');
+  return new TextEncoder().encode(
+    `safewalk-env-v2|${p.recordingId}|${p.clientUploadId}|${p.ownerId}|${p.recipientId}|${p.recipientKeyId}`,
+  );
+}
+
+/** Human-comparable fingerprint of an X25519 public key (SHA-256, 32 hex chars in groups of 4). */
+export function keyFingerprint(publicKey: Uint8Array): string {
+  return bytesToHex(sha256(publicKey)).slice(0, 32).match(/.{4}/g)!.join(' ');
 }
 
 export function encryptAesGcm(
@@ -72,7 +106,7 @@ export function openCombined(combined: Uint8Array, key: Uint8Array, aad?: Uint8A
 export type IdentityKeypair = { secretKey: Uint8Array; publicKey: Uint8Array; keyId: string };
 
 export function generateIdentityKeypair(): IdentityKeypair {
-  const kp = x25519.keygen();
+  const kp = x25519.keygen(secureRandom(32));
   const keyId = bytesToHex(sha256(kp.publicKey)).slice(0, 16);
   return { secretKey: kp.secretKey, publicKey: kp.publicKey, keyId };
 }
@@ -80,11 +114,12 @@ export function generateIdentityKeypair(): IdentityKeypair {
 export function wrapDekForRecipient(
   dek: Uint8Array,
   recipientPublicKey: Uint8Array,
+  aad?: Uint8Array,
 ): { ephemeralPublicKey: Uint8Array; wrapped: Uint8Array } {
-  const eph = x25519.keygen();
+  const eph = x25519.keygen(secureRandom(32));
   const shared = x25519.getSharedSecret(eph.secretKey, recipientPublicKey);
   const wrapKey = hkdf(sha256, shared, undefined, INFO_WRAP, 32);
-  const { nonce, ciphertextWithTag } = encryptAesGcm(dek, wrapKey);
+  const { nonce, ciphertextWithTag } = encryptAesGcm(dek, wrapKey, aad);
   const wrapped = new Uint8Array(nonce.length + ciphertextWithTag.length);
   wrapped.set(nonce, 0);
   wrapped.set(ciphertextWithTag, nonce.length);
@@ -98,6 +133,7 @@ export function unwrapDek(
   wrapped: Uint8Array,
   ephemeralPublicKey: Uint8Array,
   recipientSecretKey: Uint8Array,
+  aad?: Uint8Array,
 ): Uint8Array {
   if (wrapped.length < 12 + 16) throw new Error('WRAP_SHORT');
   const shared = x25519.getSharedSecret(recipientSecretKey, ephemeralPublicKey);
@@ -105,7 +141,7 @@ export function unwrapDek(
   const nonce = wrapped.slice(0, 12);
   const ct = wrapped.slice(12);
   try {
-    return decryptAesGcm(ct, wrapKey, nonce);
+    return decryptAesGcm(ct, wrapKey, nonce, aad);
   } finally {
     shared.fill(0);
     wrapKey.fill(0);

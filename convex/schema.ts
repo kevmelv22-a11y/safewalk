@@ -143,7 +143,7 @@ export default defineSchema({
     deletedAt: v.optional(v.number()),
     encryption: v.optional(v.union(v.literal('none'), v.literal('e2e-v1'))),
     clientUploadId: v.optional(v.string()), // binds client AAD; not a secret
-  }).index('by_user', ['userId']).index('by_incident', ['incidentId']).index('by_storage', ['storageId']),
+  }).index('by_user', ['userId']).index('by_incident', ['incidentId']).index('by_storage', ['storageId']).index('by_deleted', ['deletedAt']),
   // Device X25519 public keys for envelope wrap (private keys stay on device SecureStore)
   deviceCryptoKeys: defineTable({
     userId: v.id('users'),
@@ -161,6 +161,9 @@ export default defineSchema({
     ephemeralPubX25519: v.string(),
     wrappedDek: v.string(), // base64url nonce||ct||tag
     createdAt: v.number(),
+    version: v.optional(v.literal(2)), // 2 = AAD-bound (recording|upload|owner|recipient|keyId); absent = legacy v1
   }).index('by_recording', ['recordingId']).index('by_recipient', ['recipientId']),
+  // Cursor for bounded maintenance sweeps (recording retention)
+  sweepState: defineTable({ key: v.string(), cursor: v.optional(v.string()) }).index('by_key', ['key']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

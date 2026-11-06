@@ -105,6 +105,9 @@ export function mapErrorNl(msg: string | undefined): string {
   if (!msg) return 'Er ging iets mis.';
   if (msg.includes('E2E_ENVELOPE_MISSING')) return 'Voor deze versleutelde opname is geen sleutel voor jou gedeeld. Vraag de eigenaar je opnieuw toe te voegen nadat je je publieke sleutel hebt geregistreerd.';
   if (msg.includes('E2E_KEY_MISMATCH')) return 'Deze opname is versleuteld voor een andere (oudere) sleutel van jou. Ontsleutelen kan niet op dit apparaat.';
+  if (msg.includes('E2E_NO_LOCAL_KEY')) return 'Er staat geen sleutel op dit apparaat. Maak er een aan bij Opnames; opnames die voor een eerdere sleutel waren gedeeld, kun je hier niet openen.';
+  if (msg.includes('NO_CSPRNG')) return 'Veilige willekeurige getallen zijn niet beschikbaar op dit apparaat; versleutelen is gestopt.';
+  if (msg.includes('E2E_REQUIRED')) return 'Alleen versleutelde opnames kunnen worden geüpload.';
   if (msg.includes('DEK_MISSING')) return 'De sleutel van deze opname staat niet op dit apparaat (alleen op het apparaat dat uploadde).';
   if (msg.includes('DECRYPT_FAILED')) return 'Ontsleutelen mislukt: verkeerde sleutel of het bestand is gewijzigd.';
   if (msg.includes('RECORDING_TOO_LARGE')) return 'Opname is te groot (max. 24 MB).';

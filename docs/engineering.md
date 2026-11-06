@@ -156,21 +156,25 @@ Web SPA: HTTP 200 op path + routes in `entry.bundle` (geen browser-automation in
 Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro dekt UI-routes; native modules: plugin/unit source checks only.
 
 
-## 11. Recording encryption — applied mode (bounded E2E)
+## 11. Recording encryption — applied mode (bounded, not proven E2E)
 
-**Applied mode:** `e2e-v1` = AES-256-GCM ( @noble/ciphers, audited ) before upload; DEK in device SecureStore (sessionStorage on web — labeled weaker). Server stores ciphertext only + optional wrapped DEK envelopes (X25519 + HKDF + AES-GCM via @noble/curves/@noble/hashes).
+**Mode `e2e-v1`:** AES-256-GCM (@noble/ciphers) on the device before upload; AAD = `safewalk-rec-aad-v1|ownerId|clientUploadId`. The DEK stays in SecureStore (native, this device only). On web it is in **localStorage**: it survives across tabs, but it is readable by scripts on the origin. The server stores ciphertext plus optional wrapped DEKs. The audited libraries do **not** make this system audited.
 
-| Scope | Status |
+| Topic | Status |
 |---|---|
-| Owner encrypt-before-upload | **Implemented** (`RecordingControls`, danger upload) |
-| Owner local DEK | SecureStore / web sessionStorage |
-| Trusted-app recipient envelopes | **Implemented** when contact registered public key |
-| External fragment-key player | **Implemented** `/track/recording-play` — no 3rd-party scripts; DEK only in `#k=v1…` |
-| Legacy `encryption: none` | Labeled; not silently called E2E |
-| Server never sees DEK | By design for e2e-v1 |
-| Revoke/delete | Stops new access; **downloaded copies acknowledged** |
-| Key rotation | New keyId + `revokePrevious`; old envelopes need re-wrap (documented in UI) |
-| Universal multi-device recovery | **Out of scope** this pass |
-| Web = hardware E2E | **Not claimed** |
+| Upload | Authenticated proxy `POST /recordings/upload` (Bearer Convex auth). The server stores the bytes itself and creates the row in the same request. No client-visible unclaimed storageId (the `generateUploadUrl`/`finalize` flow has been removed). Size is measured on the server; e2e-v1 only; max 19 MB (Convex HTTP limit 20 MB). If the insert fails, the stored file is deleted right away. |
+| Download (app) | `GET /recordings/blob?id=` with Bearer; ACL (owner, accepted contact + envelope) is re-checked on **every** request; `Cache-Control: no-store`. No `storage.getUrl` is ever handed out. |
+| Download (external link) | `/track/recording?token&id` streams bytes; token, revoke, expiry and incident scope re-checked on each request. The player HTML no longer contains a storage URL. **Bytes that were already downloaded cannot be revoked.** |
+| Envelopes | v2: X25519 + HKDF + AES-GCM with AAD `safewalk-env-v2|recordingId|clientUploadId|ownerId|recipientId|recipientKeyId`. v1 (without AAD) remains readable. |
+| Public-key authenticity | The server delivers contact keys and **could swap them** (no identity guarantee). Mitigation: fingerprints (SHA-256, 32 hex) in the Recordings screen + explicit local pin. If a contact's key changes after pinning, the app does not share with them. Unpinned contacts are still shared with (TOFU-less). |
+| Keys / rotation | No silent creation or rotation. "Create" and "Replace" are explicit buttons. Replacing revokes the old public key; envelopes for the old key become unreadable for you. Old sessionStorage keys on web are migrated once to localStorage. |
+| Key loss | Shown before use (Recordings + recording controls): no recovery, no multi-device. Out of scope. |
+| CSPRNG | Native: `expo-crypto.getRandomBytes` injected via `setRandomSource` (no global polyfill). Web/Node: `crypto.getRandomValues`. Missing → `NO_CSPRNG` error, never a weak fallback. |
+| Playback | Web: Blob object URL, revoked on close/unmount. Native: plaintext temp file in the cache dir, deleted on close/unmount (best effort; if the app is killed it can remain until the OS clears the cache). After a successful upload the recorder's original is deleted. |
+| Memory | The whole recording is held in memory (max 19 MB plaintext + ciphertext). No streaming encryption. |
 
-Libs: `@noble/ciphers`, `@noble/curves`, `@noble/hashes` (audited). No handmade AES/ECDH.
+### Retention policy (cron `recording-retention`, every 6 h, max 100 per category)
+1. Rows soft-deleted > 30 days ago: hard-delete (plus file and envelopes, if still present).
+2. Envelopes whose recording is gone/deleted, or whose recipient is no longer an accepted contact: delete.
+3. Orphan files: `_storage` objects > 24 h old that no recording references (leftovers from the old upload flow). Walked by cursor. **Recordings are the only storage user**; new storage uses must be excluded here first.
+4. **Live recordings are never deleted by age.** No age-based retention without a confirmed policy.
