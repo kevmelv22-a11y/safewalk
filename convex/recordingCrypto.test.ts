@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, test } from 'vitest';
 import {
   sealCombined, openCombined, wrapDekForRecipient, unwrapDek,
   generateIdentityKeypair, encodeFragmentKey, parseFragmentKey,
   aadBytes, randomKey32, E2E_MODE,
+  setRandomSource, secureRandom, keyFingerprint, envelopeAadV2,
 } from '../src/lib/recordingCrypto';
 
 describe('recordingCrypto e2e-v1', () => {
@@ -49,31 +50,29 @@ describe('recordingCrypto e2e-v1', () => {
   });
 });
 
-import { setRandomSource, secureRandom, keyFingerprint, envelopeAadV2 } from '../src/lib/recordingCrypto';
-import { describe as d2, test as t2, expect as e2, afterEach as ae } from 'vitest';
-d2('CSPRNG injection + fingerprints', () => {
-  ae(() => setRandomSource(null));
-  t2('uses injected source for keys, nonces and DEKs', () => {
+describe('CSPRNG injection + fingerprints', () => {
+  afterEach(() => setRandomSource(null));
+  test('uses injected source for keys, nonces and DEKs', () => {
     let calls = 0;
     setRandomSource((n) => { calls++; return new Uint8Array(n).fill(7); });
-    e2(secureRandom(12)).toEqual(new Uint8Array(12).fill(7));
+    expect(secureRandom(12)).toEqual(new Uint8Array(12).fill(7));
     generateIdentityKeypair();
-    e2(calls).toBe(2);
+    expect(calls).toBe(2);
   });
-  t2('rejects broken source output', () => {
+  test('rejects broken source output', () => {
     setRandomSource((n) => new Uint8Array(n - 1));
-    e2(() => secureRandom(32)).toThrow('CSPRNG_BAD_OUTPUT');
+    expect(() => secureRandom(32)).toThrow('CSPRNG_BAD_OUTPUT');
   });
-  t2('throws without any CSPRNG instead of weak fallback', () => {
+  test('throws without any CSPRNG instead of weak fallback', () => {
     const orig = globalThis.crypto;
     Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
-    try { e2(() => secureRandom(8)).toThrow('NO_CSPRNG'); }
+    try { expect(() => secureRandom(8)).toThrow('NO_CSPRNG'); }
     finally { Object.defineProperty(globalThis, 'crypto', { value: orig, configurable: true }); }
   });
-  t2('fingerprint stable and distinct; AAD rejects separator injection', () => {
+  test('fingerprint stable and distinct; AAD rejects separator injection', () => {
     const a = generateIdentityKeypair(); const b = generateIdentityKeypair();
-    e2(keyFingerprint(a.publicKey)).toMatch(/^([0-9a-f]{4} ){7}[0-9a-f]{4}$/);
-    e2(keyFingerprint(a.publicKey)).not.toBe(keyFingerprint(b.publicKey));
-    e2(() => envelopeAadV2({ recordingId: 'a|b', clientUploadId: 'c', ownerId: 'o', recipientId: 'r', recipientKeyId: 'k' })).toThrow('AAD_FIELD');
+    expect(keyFingerprint(a.publicKey)).toMatch(/^([0-9a-f]{4} ){7}[0-9a-f]{4}$/);
+    expect(keyFingerprint(a.publicKey)).not.toBe(keyFingerprint(b.publicKey));
+    expect(() => envelopeAadV2({ recordingId: 'a|b', clientUploadId: 'c', ownerId: 'o', recipientId: 'r', recipientKeyId: 'k' })).toThrow('AAD_FIELD');
   });
 });

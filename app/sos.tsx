@@ -9,11 +9,12 @@ import { DeliveryList } from '../src/components/DeliveryList';
 import { triggerSos, sosQueue } from '../src/lib/sos';
 import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { useProfile } from '../src/lib/queries';
-import { palette } from '../src/lib/theme';
+import { useTheme } from '../src/lib/theme';
 
 type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error';
 
 export default function Sos() {
+  const t = useTheme();
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const profile = useProfile();
   const cancelAlert = useMutation(api.sos.cancel);
@@ -57,7 +58,7 @@ export default function Sos() {
       {phase === 'countdown' && (
         <View style={{ alignItems: 'center', gap: 16, paddingTop: 30 }}>
           <H1>SOS wordt verstuurd over</H1>
-          <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: palette.red }}>{left ?? '…'}</Text>
+          <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: t.red }}>{left ?? '…'}</Text>
           <P muted>Je vertrouwde contacten krijgen een pushmelding met je laatst bekende locatie.</P>
           <View style={{ alignSelf: 'stretch', gap: 12 }}>
             <Button title="ANNULEREN" variant="secondary" onPress={() => { setPhase('cancelled'); router.back(); }} />

@@ -4,12 +4,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 import { ThemeBackdrop } from './ThemeBackdrop';
 
-export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
+export function Screen({
+  children, scroll = true, ambient = true, backgroundColor,
+}: {
+  children: React.ReactNode;
+  scroll?: boolean;
+  /** Soft theme decorations (off for danger chrome). */
+  ambient?: boolean;
+  backgroundColor?: string;
+}) {
   const t = useTheme();
+  const bg = backgroundColor ?? t.bg;
   const inner = <View style={{ padding: 20, gap: 14 }}>{children}</View>;
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
-      <ThemeBackdrop />
+    <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>
+      {ambient ? <ThemeBackdrop /> : null}
       {scroll ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>{inner}</ScrollView> : inner}
     </SafeAreaView>
   );

@@ -19,7 +19,8 @@ import { deleteLocalOriginal } from '../src/lib/playbackFile';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { errorNl } from '../src/lib/convex';
 import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
-import { palette } from '../src/lib/theme';
+import { useTheme } from '../src/lib/theme';
+import { CRITICAL_ACTIONS } from '../src/lib/themeCatalog';
 
 /**
  * Gevaarmodus: alarm + optionele strobe tot server-PIN.
@@ -27,6 +28,7 @@ import { palette } from '../src/lib/theme';
  * Locatie-pings voeden de tracking-link; zonder updater/consent geen “live”-claim.
  */
 export default function Danger() {
+  const t = useTheme();
   const { incidentId, sharePath } = useLocalSearchParams<{ incidentId?: string; sharePath?: string }>();
   const pinStatus = useQuery(api.security.pinStatus);
   const active = useQuery(api.incidents.active);
@@ -182,8 +184,8 @@ export default function Danger() {
   };
 
   return (
-    <Screen>
-      <View style={{ flex: 1, backgroundColor: '#1a0505', margin: -20, padding: 20, gap: 14 }}>
+    <Screen ambient={false} backgroundColor="#1a0505">
+      <View style={{ flex: 1, backgroundColor: '#1a0505', margin: -20, padding: 20, gap: 14, borderTopWidth: 3, borderTopColor: CRITICAL_ACTIONS.red }}>
         <H1>GEVAARMODUS ACTIEF</H1>
         <Notice kind="danger">Alarm speelt tot je het stopt met je veiligheids-PIN (server-check). SafeWalk belt 112 niet automatisch.</Notice>
         {recActive && <Notice kind="danger">🔴 OPNAME BEZIG — alarmgeluid kan in de opname zitten.</Notice>}
@@ -207,7 +209,7 @@ export default function Danger() {
           <Notice kind="info">Zaklamp-strobe staat uit (geen opt-in, web, of geen flash). Alarm blijft wel actief.</Notice>
         )}
         <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-          <Text style={{ color: palette.red, fontSize: 48, fontWeight: '900' }}>🚨</Text>
+          <Text style={{ color: t.red, fontSize: 48, fontWeight: '900' }}>🚨</Text>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 8 }}>Alarm actief</Text>
         </View>
         {!showPin ? (

@@ -1,10 +1,9 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- loads app.config / eas.json / prefs via require in Jest */
 import { runDangerUnlock } from '../src/lib/dangerUnlock';
 import { handleVolumeDoublePress, __resetVolumeCooldown, COOLDOWN_MS } from '../src/lib/volumeAction';
 import { smsUrl, whatsappUrl, locationMessage, e164Digits, MAX_SMS_RECIPIENTS } from '../src/lib/composer';
 import { mapsAvailable } from '../src/lib/mapsAvailability';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { buildConfig } = require('../app.config');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const appJson = require('../app.json');
 
 function unlockDeps(verify: () => Promise<{ ok: boolean }>) {
@@ -119,8 +118,7 @@ describe('app config', () => {
     expect(tile(def)[1].ios.delegateToAppleTargets).toBeUndefined();
   });
   test('every build profile has public Convex URLs, none localhost', () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const eas = require('../eas.json');
+        const eas = require('../eas.json');
     for (const [name, p] of Object.entries<{ env?: Record<string, string>; extends?: string }>(eas.build)) {
       const env = p.env ?? eas.build[p.extends!].env;
       expect([name, env.EXPO_PUBLIC_CONVEX_URL]).toEqual([name, expect.stringMatching(/^https:\/\/[a-z-]+-\d+\.convex\.cloud$/)]);
@@ -138,7 +136,6 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   return { getItem: async (k: string) => m.get(k) ?? null, setItem: async (k: string, v: string) => { m.set(k, v); } };
 });
 test('opt-ins default to off', async () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const p = require('../src/lib/recordingPrefs');
   expect(await p.getBackgroundRecordingOptIn()).toBe(false);
   expect(await p.getVolumeSendOptIn()).toBe(false);

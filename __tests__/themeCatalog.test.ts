@@ -5,10 +5,10 @@ import {
   THEME_SKINS,
   listThemeSkins,
   normalizeThemeSkinId,
+  resolveTheme,
   surfacesFor,
 } from '../src/lib/themeCatalog';
 import { contrastRatio, meetsWcagAa } from '../src/lib/themeContrast';
-import { resolveTheme } from '../src/lib/themeCatalog';
 import { parseThemeQueryParam } from '../src/lib/themeOverride';
 
 describe('theme catalog', () => {
@@ -70,7 +70,6 @@ describe('theme override helpers', () => {
 
 describe('theme store migration shape', () => {
   it('normalizeert legacy pref + ontbrekende skin', () => {
-    // Mirror merge logic without AsyncStorage
     const persisted = { pref: 'dark' } as { pref?: string; skin?: string };
     const skin = normalizeThemeSkinId(persisted.skin);
     const pref = persisted.pref === 'dark' || persisted.pref === 'light' || persisted.pref === 'system' ? persisted.pref : 'system';

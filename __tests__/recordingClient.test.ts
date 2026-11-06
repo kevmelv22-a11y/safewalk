@@ -1,3 +1,4 @@
+/* eslint-disable import/first -- jest.mock must run before imports */
 const mockStore = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
   WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'x',
@@ -5,7 +6,10 @@ jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async (k: string) => mockStore.get(k) ?? null),
   deleteItemAsync: jest.fn(async (k: string) => { mockStore.delete(k); }),
 }));
-const mockRandom = jest.fn((n: number) => require('crypto').randomBytes(n) as Uint8Array);
+const mockRandom = jest.fn((n: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('crypto').randomBytes(n) as Uint8Array;
+});
 let mockUuid = 0;
 jest.mock('expo-crypto', () => ({
   getRandomBytes: (n: number) => new Uint8Array(mockRandom(n)),

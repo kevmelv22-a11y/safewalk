@@ -17,4 +17,22 @@ module.exports = defineConfig([
   {
     ignores: ['dist/**', 'admin/**', 'convex/_generated/**', 'node_modules/**', '.expo/**', 'scripts/**', 'web-build/**'],
   },
+  {
+    files: ['__tests__/plugins/**/*.{js,cjs,mjs}', '__tests__/**/*.{js,cjs,mjs}'],
+    languageOptions: {
+      globals: {
+        jest: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+      },
+    },
+  },
 ]);
