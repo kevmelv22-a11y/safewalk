@@ -31,13 +31,16 @@
     "android": {
       "package": "nl.safewalk.app",
       "permissions": [
+        "ACCESS_BACKGROUND_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
         "POST_NOTIFICATIONS",
-        "VIBRATE"
+        "VIBRATE",
+        "android.permission.CAMERA",
+        "android.permission.FLASHLIGHT",
+        "android.permission.RECORD_AUDIO"
       ],
       "config": {
         "googleMaps": {
@@ -88,7 +91,17 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SafeWalk gebruikt de camera alleen voor de zaklamp (torch) tijdens een gevaar-alarm dat jij start.",
+          "microphonePermission": "SafeWalk neemt geluid op als jij \"Ik voel me niet veilig\" activeert, zodat vertrouwde contacten de opname kunnen beluisteren.",
+          "recordAudioAndroid": true,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": false

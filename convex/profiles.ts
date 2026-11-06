@@ -6,7 +6,9 @@ import { getAuthUserId } from '@convex-dev/auth/server';
 export const me = query({ args: {}, handler: async (ctx) => {
   const uid = await getAuthUserId(ctx); if (!uid) return null;
   const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
-  return p ? { ...p, premium: await isPremium(ctx, uid) } : null;
+  if (!p) return null;
+  const { pinHash: _h, pinSalt: _s, ...safe } = p;
+  return { ...safe, pinSet: Boolean(p.pinHash && p.pinSalt), premium: await isPremium(ctx, uid) };
 } });
 
 export const update = mutation({

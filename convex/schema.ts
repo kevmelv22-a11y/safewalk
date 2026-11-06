@@ -13,6 +13,11 @@ export default defineSchema({
     restricted: v.boolean(),
     motionDetection: v.optional(v.boolean()),
     themePreference: v.optional(v.union(v.literal('system'), v.literal('dark'), v.literal('light'))),
+    // Veiligheids-PIN (alleen hash+salt; nooit plaintext). Optioneel tot onboarding-stap.
+    pinHash: v.optional(v.string()),
+    pinSalt: v.optional(v.string()),
+    pinSetAt: v.optional(v.number()),
+    torchStrobeOptIn: v.optional(v.boolean()), // fotosensitiviteitswaarschuwing expliciet geaccepteerd
   }).index('by_user', ['userId']),
   admins: defineTable({ userId: v.id('users') }).index('by_user', ['userId']),
   subscriptions: defineTable({
@@ -49,14 +54,18 @@ export default defineSchema({
   }).index('by_session', ['sessionId']).index('by_status_due', ['status', 'dueAt']),
   alerts: defineTable({
     userId: v.id('users'), sessionId: v.optional(v.id('sessions')),
-    kind: v.union(v.literal('sos'), v.literal('missed_check_in')), clientRef: v.optional(v.string()),
+    kind: v.union(
+      v.literal('sos'), v.literal('missed_check_in'),
+      v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
+    ), clientRef: v.optional(v.string()),
     lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()),
     status: v.union(v.literal('open'), v.literal('cancelled'), v.literal('resolved')),
   }).index('by_client_ref', ['clientRef']).index('by_user', ['userId']),
   pushMessages: defineTable({
     recipientId: v.id('users'),
     kind: v.union(v.literal('sos'), v.literal('missed_check_in'), v.literal('trip_started'), v.literal('almost_arrived'),
-      v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check')),
+      v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check'),
+      v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin')),
     alertId: v.optional(v.id('alerts')), sessionId: v.optional(v.id('sessions')),
     title: v.string(), body: v.string(), data: v.optional(v.any()),
     // queued → sent (ticket ok) → delivered (receipt ok: overgedragen aan Apple/Google) | failed | no_token | unknown
@@ -78,5 +87,16 @@ export default defineSchema({
     reason: v.union(v.literal('stalking'), v.literal('harassment'), v.literal('spam'), v.literal('other')),
     details: v.optional(v.string()), status: v.union(v.literal('open'), v.literal('reviewing'), v.literal('closed')),
   }).index('by_reporter', ['reporterId']),
+  // Actieve gevaar-/incidentstatus (alarm mag client-side tot server unlock bevestigt)
+  incidents: defineTable({
+    userId: v.id('users'),
+    kind: v.union(v.literal('unsafe'), v.literal('come_quick')),
+    status: v.union(v.literal('active'), v.literal('resolved'), v.literal('cancelled')),
+    alertId: v.optional(v.id('alerts')),
+    sessionId: v.optional(v.id('sessions')),
+    startedAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    torchRequested: v.boolean(),
+  }).index('by_user_status', ['userId', 'status']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

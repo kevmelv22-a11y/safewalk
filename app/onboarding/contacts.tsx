@@ -8,7 +8,7 @@ export default function OnboardingContacts() {
       <H1>Vertrouwde contacten</H1>
       <P muted>Nodig iemand uit met een persoonlijke link. Pas als diegene accepteert, kun je hem of haar per reis laten meekijken. Gratis: maximaal 2 contacten.</P>
       <InvitePanel />
-      <Button title="Volgende" onPress={() => router.push('/onboarding/settings')} />
+      <Button title="Volgende" onPress={() => router.push('/onboarding/pin')} />
     </Screen>
   );
 }

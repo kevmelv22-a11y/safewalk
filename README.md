@@ -89,6 +89,9 @@ cd admin && cp .env.example .env   # VITE_CONVEX_URL
 npm run dev                        # of npm run build → dist/ (statisch hosten, bv. achter toegangsbeveiliging)
 ```
 
+## Engineering
+Zie [`docs/engineering.md`](docs/engineering.md) voor techstack, datamodel, feature-index en **platformbeperkingen** (torch, volume-knoppen, tracking-links, opname).
+
 ## Juridisch
 Privacybeleid en gebruiksvoorwaarden (`docs/`, in de app via `node scripts/sync-legal.mjs`) zijn ingevuld voor **Vonk Byte** (support@vonkbyte.nl, KvK volgt januari 2027, geen adres). **Juridische toetsing (AVG) staat nog open** – laat de teksten controleren vóór publicatie en vul daarna het KvK-nummer in.
 

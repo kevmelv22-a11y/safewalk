@@ -51,6 +51,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding/contacts" options={{ title: 'Contacten' }} />
           <Stack.Screen name="onboarding/location" options={{ title: 'Locatie' }} />
           <Stack.Screen name="onboarding/notifications" options={{ title: 'Meldingen' }} />
+          <Stack.Screen name="onboarding/pin" options={{ title: 'Veiligheids-PIN' }} />
           <Stack.Screen name="onboarding/settings" options={{ title: 'Veiligheid' }} />
           <Stack.Screen name="premium" options={{ title: 'Premium' }} />
           <Stack.Screen name="report" options={{ title: 'Misbruik melden' }} />
@@ -61,6 +62,7 @@ export default function RootLayout() {
           <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacybeleid' }} />
           <Stack.Screen name="terms" options={{ title: 'Gebruiksvoorwaarden' }} />
+          <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>
       </ConvexAuthProvider>

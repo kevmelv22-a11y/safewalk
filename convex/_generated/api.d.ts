@@ -18,6 +18,7 @@ import type * as contacts from "../contacts.js";
 import type * as crons from "../crons.js";
 import type * as geo from "../geo.js";
 import type * as http from "../http.js";
+import type * as incidents from "../incidents.js";
 import type * as lib from "../lib.js";
 import type * as monitor from "../monitor.js";
 import type * as motion from "../motion.js";
@@ -25,6 +26,7 @@ import type * as motionText from "../motionText.js";
 import type * as notify from "../notify.js";
 import type * as profiles from "../profiles.js";
 import type * as push from "../push.js";
+import type * as security from "../security.js";
 import type * as sessions from "../sessions.js";
 import type * as sos from "../sos.js";
 
@@ -45,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   geo: typeof geo;
   http: typeof http;
+  incidents: typeof incidents;
   lib: typeof lib;
   monitor: typeof monitor;
   motion: typeof motion;
@@ -52,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   notify: typeof notify;
   profiles: typeof profiles;
   push: typeof push;
+  security: typeof security;
   sessions: typeof sessions;
   sos: typeof sos;
 }>;
