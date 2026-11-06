@@ -49,4 +49,15 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   },
 });
 
-export const providers = query({ args: {}, handler: async () => ({ google: googleConfigured() }) });
+export const emailConfigured = () => Boolean(process.env.RESEND_API_KEY) || process.env.AUTH_EMAIL_DEV_LOG === 'true';
+
+/** Publieke auth-capaciteit (geen geheimen). */
+export const providers = query({
+  args: {},
+  handler: async () => ({
+    google: googleConfigured(),
+    email: emailConfigured(),
+    emailDelivery: Boolean(process.env.RESEND_API_KEY),
+    emailDevLog: process.env.AUTH_EMAIL_DEV_LOG === 'true',
+  }),
+});

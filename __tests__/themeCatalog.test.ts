@@ -23,8 +23,8 @@ describe('theme catalog', () => {
 
   it('valt terug op classic bij onbekende skin', () => {
     expect(normalizeThemeSkinId('nope')).toBe(DEFAULT_THEME_SKIN);
-    expect(normalizeThemeSkinId(undefined)).toBe('classic');
-    expect(normalizeThemeSkinId(null)).toBe('classic');
+    expect(normalizeThemeSkinId(undefined)).toBe('galaxy');
+    expect(normalizeThemeSkinId(null)).toBe('galaxy');
     expect(normalizeThemeSkinId('galaxy')).toBe('galaxy');
   });
 
@@ -74,6 +74,14 @@ describe('theme store migration shape', () => {
     const skin = normalizeThemeSkinId(persisted.skin);
     const pref = persisted.pref === 'dark' || persisted.pref === 'light' || persisted.pref === 'system' ? persisted.pref : 'system';
     expect(pref).toBe('dark');
-    expect(skin).toBe('classic');
+    expect(skin).toBe('galaxy');
+  });
+});
+
+describe('SnapShot X galaxy reference port', () => {
+  it('katalogus gebruikt SnapShot X nachtkleuren', () => {
+    const g = THEME_SKINS.galaxy.dark;
+    expect(g.bg).toBe('#08090E');
+    expect(THEME_SKINS.galaxy.swatches[0]).toBe('#08090E');
   });
 });

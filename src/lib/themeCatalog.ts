@@ -79,18 +79,19 @@ export const THEME_SKINS: Record<ThemeSkinId, ThemeSkinDef> = {
   galaxy: {
     id: 'galaxy',
     label: 'Galaxy',
-    description: 'Diepe ruimte met sterren en zachte nevel — kalm, niet knipperend.',
+    description: 'SnapShot X-stijl: diepe nacht, paarse nevel en sterrenveld (statisch).',
     decoration: 'galaxy',
-    swatches: ['#070B1A', '#7C3AED', '#38BDF8'],
+    swatches: ['#08090E', '#8446BC', '#2B6FA9'],
     dark: {
-      bg: '#070B1A', card: '#12172B', text: '#F8FAFC', muted: '#A5B4D4', border: '#2A3358',
-      purple: '#8B5CF6', accent: '#38BDF8',
-      blobA: 'rgba(124,58,237,0.22)', blobB: 'rgba(56,189,248,0.14)',
+      bg: '#08090E', card: '#1A1425', text: '#FAFAFF', muted: '#A6A9B7', border: '#30333D',
+      purple: '#AE16C7', accent: '#4298FF',
+      blobA: 'rgba(132,70,188,0.22)', blobB: 'rgba(43,111,169,0.14)',
     },
+    // Galaxy is immersive-dark; light mode still readable but keeps night character.
     light: {
-      bg: '#EEF2FF', card: '#FFFFFF', text: '#1E1B4B', muted: '#4C5180', border: '#C7D2FE',
-      purple: '#6D28D9', accent: '#0284C7',
-      blobA: 'rgba(124,58,237,0.12)', blobB: 'rgba(56,189,248,0.12)',
+      bg: '#12101C', card: '#1F1830', text: '#FAFAFF', muted: '#B7B3C9', border: '#3A3450',
+      purple: '#B713D5', accent: '#4298FF',
+      blobA: 'rgba(132,70,188,0.18)', blobB: 'rgba(43,111,169,0.12)',
     },
   },
   halloween: {
@@ -197,7 +198,7 @@ export const THEME_SKINS: Record<ThemeSkinId, ThemeSkinDef> = {
   },
 };
 
-export const DEFAULT_THEME_SKIN: ThemeSkinId = 'classic';
+export const DEFAULT_THEME_SKIN: ThemeSkinId = 'galaxy';
 
 export function isThemeSkinId(v: unknown): v is ThemeSkinId {
   return typeof v === 'string' && (THEME_SKIN_IDS as readonly string[]).includes(v);

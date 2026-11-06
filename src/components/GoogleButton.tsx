@@ -10,7 +10,6 @@ import { api } from '../../convex/_generated/api';
 import { useIsDark } from '../lib/theme';
 import { Notice } from './ui';
 
-/** Officiële Google "G" (meerkleurig, ongewijzigd volgens Google-huisstijl). */
 const GoogleG = () => (
   <Svg width={20} height={20} viewBox="0 0 48 48">
     <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -21,19 +20,26 @@ const GoogleG = () => (
 );
 
 /**
- * "Doorgaan met Google" volgens Google Sign-In branding: wit (licht) of #131314 (donker),
- * 1 px rand, G-logo links, tekst Roboto Medium-achtig 14–16 pt, niet hertekend of herkleurd.
- * OAuth-flow volgens Convex Auth (React Native): redirect via app-scheme en code-uitwisseling.
+ * Google Sign-In. Hidden (with clear NL note) when AUTH_GOOGLE_* is not configured.
+ * Never pretends OAuth works without server credentials.
  */
 export function GoogleButton() {
   const { signIn } = useAuthActions();
   const providers = useQuery(api.auth.providers);
   const dark = useIsDark();
   const [busy, setBusy] = useState(false); const [msg, setMsg] = useState<string | null>(null);
+
+  if (providers === undefined) return null;
+  if (!providers.google) {
+    return (
+      <Notice kind="info">
+        Inloggen met Google is hier nog niet geconfigureerd. Gebruik e-mail en wachtwoord.
+      </Notice>
+    );
+  }
+
   const press = async () => {
-    setMsg(null);
-    if (!providers?.google) return setMsg('Google-login is nog niet beschikbaar. Gebruik voorlopig e-mail en wachtwoord.');
-    setBusy(true);
+    setMsg(null); setBusy(true);
     try {
       const redirectTo = makeRedirectUri();
       const { redirect } = await signIn('google', { redirectTo });
@@ -48,6 +54,7 @@ export function GoogleButton() {
     } catch { setMsg('Inloggen met Google is mislukt. Probeer het opnieuw.'); }
     finally { setBusy(false); }
   };
+
   return (
     <View style={{ gap: 8 }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Doorgaan met Google" accessibilityState={{ busy }} disabled={busy} onPress={press}

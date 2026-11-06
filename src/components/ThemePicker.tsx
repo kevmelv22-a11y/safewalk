@@ -38,7 +38,7 @@ export function ThemePicker() {
 
       <Text style={[styles.section, { color: t.text }]}>Thema</Text>
       <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20 }}>
-        Kies een sfeer. Veiligheidsknoppen (rood / oranje / groen) blijven hetzelfde en duidelijk.
+        Kies een sfeer. Galaxy volgt SnapShot X (nacht + nevel + sterren). Veiligheidsknoppen blijven rood/oranje/groen.
       </Text>
       <View style={styles.grid}>
         {skins.map((s) => {

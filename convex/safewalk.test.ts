@@ -468,9 +468,12 @@ describe('Google OAuth', () => {
   });
   test('providers-query meldt of Google is geconfigureerd', async () => {
     const t = convexTest(schema, modules);
-    expect(await t.query(api.auth.providers, {})).toEqual({ google: false });
+    delete process.env.AUTH_GOOGLE_ID; delete process.env.AUTH_GOOGLE_SECRET;
+    delete process.env.RESEND_API_KEY; delete process.env.AUTH_EMAIL_DEV_LOG;
+    expect(await t.query(api.auth.providers, {})).toEqual({ google: false, email: false, emailDelivery: false, emailDevLog: false });
     process.env.AUTH_GOOGLE_ID = 'id'; process.env.AUTH_GOOGLE_SECRET = 'secret';
-    expect(await t.query(api.auth.providers, {})).toEqual({ google: true });
+    expect(await t.query(api.auth.providers, {})).toEqual({ google: true, email: false, emailDelivery: false, emailDevLog: false });
+    delete process.env.AUTH_GOOGLE_ID; delete process.env.AUTH_GOOGLE_SECRET;
   });
   test('OAuth-gebruiker krijgt profiel + gratis abonnement (idempotent)', async () => {
     const t = convexTest(schema, modules);
