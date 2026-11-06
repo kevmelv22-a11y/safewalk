@@ -119,5 +119,5 @@ const styles = StyleSheet.create({
   },
   copy: { flex: 1, gap: 4 },
   title: { color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
-  subtitle: { color: 'rgba(255,255,255,0.92)', fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  subtitle: { color: 'rgba(255,255,255,0.95)', fontSize: 14, lineHeight: 20, fontWeight: '600' },
 });

@@ -75,14 +75,22 @@ export function TripPanel({
             onPress={onStartTrip}
             style={({ pressed }) => [
               styles.cta,
-              {
-                backgroundColor: contactCount === 0 ? t.elevated : dash.green,
-                opacity: contactCount === 0 ? 0.55 : pressed ? 0.88 : 1,
-                minHeight: dash.touch,
-              },
+              contactCount === 0
+                ? {
+                    backgroundColor: dark ? '#1E2D44' : '#D9E2EC',
+                    borderWidth: 1,
+                    borderColor: dark ? 'rgba(148,163,184,0.45)' : 'rgba(15,28,49,0.22)',
+                    opacity: 1,
+                    minHeight: dash.touch,
+                  }
+                : {
+                    backgroundColor: dash.green,
+                    opacity: pressed ? 0.88 : 1,
+                    minHeight: dash.touch,
+                  },
             ]}
           >
-            <Text style={[styles.ctaText, { color: contactCount === 0 ? t.muted : '#fff' }]}>
+            <Text style={[styles.ctaText, { color: contactCount === 0 ? (dark ? '#E2E8F0' : '#334155') : '#fff' }]}>
               Veilig naar huis – start reis
             </Text>
           </Pressable>
@@ -109,9 +117,9 @@ export function TripPanel({
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: dash.radiusLg, padding: 16, gap: 8 },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
+  kicker: { fontSize: 13, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
   title: { fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
-  meta: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  meta: { fontSize: 15, lineHeight: 22, fontWeight: '500' },
   cta: { marginTop: 4, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
-  ctaText: { fontSize: 15, fontWeight: '800' },
+  ctaText: { fontSize: 16, fontWeight: '800' },
 });

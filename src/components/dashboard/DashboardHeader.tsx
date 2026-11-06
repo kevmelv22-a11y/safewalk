@@ -31,5 +31,5 @@ const styles = StyleSheet.create({
   logo: { width: 64, height: 82 },
   copy: { flex: 1, gap: 4 },
   title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.4 },
-  sub: { fontSize: 14, lineHeight: 20, fontWeight: '500' },
+  sub: { fontSize: 15, lineHeight: 22, fontWeight: '500' },
 });

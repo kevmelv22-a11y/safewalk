@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 15, fontWeight: '700' },
-  hint: { fontSize: 12, lineHeight: 16, marginTop: 2, fontWeight: '500' },
-  cellLabel: { fontSize: 14, fontWeight: '700' },
+  label: { fontSize: 16, fontWeight: '700' },
+  hint: { fontSize: 14, lineHeight: 20, marginTop: 2, fontWeight: '500' },
+  cellLabel: { fontSize: 15, fontWeight: '700' },
 });

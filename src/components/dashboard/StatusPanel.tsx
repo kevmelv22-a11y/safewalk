@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   copy: { flex: 1, gap: 3 },
-  title: { fontSize: 15, fontWeight: '700', lineHeight: 20 },
-  body: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
+  title: { fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: '500' },
   pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  pillText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
+  pillText: { fontSize: 13, fontWeight: '800', letterSpacing: 0.2 },
 });
