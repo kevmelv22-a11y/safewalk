@@ -152,7 +152,8 @@
       [
         "./modules/safewalk-native/plugin/withSafewalkNative.js",
         {}
-      ]
+      ],
+      "./plugins/withAndroidReleaseKeep.js"
     ],
     "experiments": {
       "typedRoutes": false
