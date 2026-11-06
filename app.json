@@ -15,7 +15,8 @@
         "NSLocationAlwaysUsageDescription": "Tijdens een reis die jij zelf start, deelt SafeWalk je locatie ook op de achtergrond. Delen stopt zodra je de reis beëindigt.",
         "UIBackgroundModes": [
           "location",
-          "remote-notification"
+          "remote-notification",
+          "audio"
         ],
         "CFBundleDevelopmentRegion": "nl",
         "CFBundleLocalizations": [
@@ -36,10 +37,12 @@
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "POST_NOTIFICATIONS",
         "VIBRATE",
         "android.permission.CAMERA",
         "android.permission.FLASHLIGHT",
+        "android.permission.READ_CONTACTS",
         "android.permission.RECORD_AUDIO"
       ],
       "config": {
@@ -52,11 +55,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#040B1A"
       },
-      "blockedPermissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_CONTACTS",
-        "android.permission.CAMERA"
-      ]
+      "blockedPermissions": []
     },
     "plugins": [
       "expo-router",
@@ -101,12 +100,63 @@
           "barcodeScannerEnabled": false
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false,
+          "microphonePermission": "SafeWalk neemt geluid op als jij \"Ik voel me niet veilig\" activeert. Opname stopt wanneer jij het alarm stopt of de opname beëindigt."
+        }
+      ],
       [
         "expo-contacts",
         {
           "contactsPermission": "SafeWalk toont je telefooncontacten zodat jij er kunt aanvinken wie een melding mag krijgen. We bewaren alleen wat jij selecteert."
         }
+      ],
+      [
+        "expo-quick-actions",
+        {
+          "iosActions": [
+            {
+              "id": "quick_ping",
+              "title": "Stuur live locatie",
+              "subtitle": "Deel nu met vertrouwde contacten",
+              "icon": "symbol:location.fill",
+              "params": {
+                "href": "/quick-ping"
+              }
+            },
+            {
+              "id": "open_dashboard",
+              "title": "Open SafeWalk",
+              "subtitle": "Hoofdscherm",
+              "icon": "symbol:shield.fill",
+              "params": {
+                "href": "/dashboard"
+              }
+            }
+          ]
+        }
+      ],
+      [
+        "react-native-quick-settings-tile",
+        {
+          "label": "SafeWalk locatie",
+          "url": "safewalk://quick-ping",
+          "android": {
+            "icon": "./assets/native/qs_location.xml",
+            "requireUnlock": true,
+            "appendTimestamp": true
+          },
+          "ios": {
+            "systemImage": "location.fill"
+          }
+        }
+      ],
+      [
+        "./modules/safewalk-native/plugin/withSafewalkNative.js",
+        {}
       ]
     ],
     "experiments": {
@@ -119,6 +169,19 @@
       "router": {
         "asyncRoutes": {
           "web": true
+        }
+      },
+      "safewalk": {
+        "quickPingPath": "/quick-ping",
+        "deepLinks": {
+          "quickPing": "safewalk://quick-ping"
+        },
+        "nativeStatus": {
+          "volumeDoublePress": "android-foreground-only-uncompiled-until-dev-client",
+          "qsTile": "source-configured-requires-dev-build",
+          "iosQuickActions": "source-configured-requires-dev-build",
+          "backgroundTorch": "not-supported",
+          "backgroundAlarmAudio": "attempt-via-expo-audio-background-playback-untested-native"
         }
       }
     },
