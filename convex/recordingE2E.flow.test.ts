@@ -2,6 +2,7 @@
 import { convexTest } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import schema from './schema';
+import type { Id } from './_generated/dataModel';
 import { api, internal } from './_generated/api';
 import {
   sealCombined, openCombined, aadBytes, generateIdentityKeypair, unwrapDek, b64urlDecode, fromHex, toHex,
@@ -58,7 +59,7 @@ describe('e2e-v1 recordings: full functional flow via HTTP proxies', () => {
     const res = await upload(a.as, sealed, cuid);
     expect(res.status).toBe(200);
     const { id } = await res.json();
-    const row = await t.run((ctx) => ctx.db.get(id));
+    const row = await t.run((ctx) => ctx.db.get(id as Id<'recordings'>));
     expect(row!.byteSize).toBe(sealed.length); // server-measured, not client-declared
     expect(row!.encryption).toBe('e2e-v1');
 
@@ -174,7 +175,7 @@ describe('e2e-v1 recordings: full functional flow via HTTP proxies', () => {
     expect((await t.fetch(`/track/recording-play?token=${tok}&id=${id}`)).status).toBe(404);
   });
 
-  test('retention: hard-deletes old soft-deleted rows, stale envelopes, old orphans; keeps live recordings', async () => {
+  test('retention: soft-deleted rows, stale envelopes, tracked abandoned uploads only; unrelated storage untouched', async () => {
     const t = convexTest(schema, modules);
     const { a, b, bk } = await setup(t);
     const dek = randomKey32();
@@ -186,10 +187,17 @@ describe('e2e-v1 recordings: full functional flow via HTTP proxies', () => {
     }] });
     await a.as.mutation(api.recordings.remove, { id: old });
     await t.run((ctx) => ctx.db.patch(old, { deletedAt: Date.now() - 31 * 24 * 3600_000 }));
-    const orphan = await t.run((ctx) => ctx.storage.store(new Blob(['orphan'])));
+    // successful uploads leave no intents behind
+    expect(await t.run((ctx) => ctx.db.query('recordingUploads').collect())).toHaveLength(0);
+    // abandoned tracked upload (proxy crashed after store) vs. unrelated untracked file
+    const abandoned = await t.run(async (ctx) => {
+      const sid = await ctx.storage.store(new Blob(['ct-abandoned']));
+      await ctx.db.insert('recordingUploads', { userId: a.id, storageId: sid, createdAt: Date.now() });
+      return sid;
+    });
+    const unrelated = await t.run((ctx) => ctx.storage.store(new Blob(['not a recording'])));
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(Date.now() + 25 * 3600_000);
-    // contact removed → envelope stale
     await t.run(async (ctx) => {
       const tc = await ctx.db.query('trustedContacts').withIndex('by_pair', (q) => q.eq('ownerId', a.id).eq('contactId', b.id)).first();
       await ctx.db.patch(tc!._id, { status: 'removed' });
@@ -198,9 +206,18 @@ describe('e2e-v1 recordings: full functional flow via HTTP proxies', () => {
     vi.useRealTimers();
     expect(r).toEqual({ rows: 1, envs: 1, orphans: 1 });
     expect(await t.run((ctx) => ctx.db.get(old))).toBeNull();
-    expect(await t.run((ctx) => ctx.db.system.get(orphan))).toBeNull();
-    const liveRow = await t.run((ctx) => ctx.db.get(live));
-    expect(liveRow).toBeTruthy();
+    expect(await t.run((ctx) => ctx.db.system.get(abandoned))).toBeNull();
+    expect(await t.run((ctx) => ctx.db.system.get(unrelated))).toBeTruthy();
+    expect(await t.run((ctx) => ctx.db.query('recordingUploads').collect())).toHaveLength(0);
+    const liveRow = await t.run((ctx) => ctx.db.get(live as Id<'recordings'>));
     expect(await t.run((ctx) => ctx.db.system.get(liveRow!.storageId))).toBeTruthy();
+  });
+
+  test('upload > 19 MB cap is denied with 413 and stores nothing', async () => {
+    const t = convexTest(schema, modules);
+    const a = await user(t, 'anna');
+    const res = await upload(a.as, new Uint8Array(19 * 1024 * 1024 + 65), 'upload-big00001');
+    expect(res.status).toBe(413);
+    expect(await t.run((ctx) => ctx.db.system.query('_storage').collect())).toHaveLength(0);
   });
 });

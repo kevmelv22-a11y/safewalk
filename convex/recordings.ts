@@ -90,16 +90,34 @@ export const uploadProxy = httpAction(async (ctx, req) => {
   const body = await req.arrayBuffer();
   if (body.byteLength < 28) return jsonRes(400, { error: 'BAD_REQUEST' });
   if (body.byteLength > MAX_CIPHERTEXT_BYTES) return jsonRes(413, { error: 'RECORDING_TOO_LARGE' });
+  // Upload intent BEFORE storing: the only provable record that a storage object is a recording upload.
+  const intentId = await ctx.runMutation(internal.recordings.createUploadIntent, { userId: uid });
   const storageId = await ctx.storage.store(new Blob([body], { type: 'application/octet-stream' }));
+  await ctx.runMutation(internal.recordings.attachUploadIntent, { intentId, storageId });
   try {
     const id = await ctx.runMutation(internal.recordings.insertFromUpload, {
       userId: uid, storageId, mime, clientUploadId, plaintextByteSize, durationMs, incidentId,
     });
+    await ctx.runMutation(internal.recordings.completeUploadIntent, { intentId });
     return jsonRes(200, { id });
   } catch {
     await ctx.storage.delete(storageId); // no orphan on failed insert
+    await ctx.runMutation(internal.recordings.completeUploadIntent, { intentId });
     return jsonRes(400, { error: 'BAD_REQUEST' });
   }
+});
+
+export const createUploadIntent = internalMutation({
+  args: { userId: v.id('users') },
+  handler: async (ctx, { userId }) => ctx.db.insert('recordingUploads', { userId, createdAt: Date.now() }),
+});
+export const attachUploadIntent = internalMutation({
+  args: { intentId: v.id('recordingUploads'), storageId: v.id('_storage') },
+  handler: async (ctx, { intentId, storageId }) => { await ctx.db.patch(intentId, { storageId }); },
+});
+export const completeUploadIntent = internalMutation({
+  args: { intentId: v.id('recordingUploads') },
+  handler: async (ctx, { intentId }) => { if (await ctx.db.get(intentId)) await ctx.db.delete(intentId); },
 });
 
 /** ACL check shared by the app blob proxy and getAccess. */
@@ -280,9 +298,8 @@ export const putEnvelopes = mutation({
  * Retention policy (docs/engineering.md §11): bounded, never touches live recordings.
  * 1. Rows soft-deleted > 30 days ago are hard-deleted (their file was already deleted at soft-delete).
  * 2. Envelopes whose recording is gone/deleted, or whose recipient is no longer an accepted contact, are deleted.
- * 3. Orphan files: _storage objects older than 24 h that no recording row references (left by the
- *    pre-proxy generateUploadUrl flow) are deleted. Recordings are the ONLY storage user in this app;
- *    any new storage use must be referenced or excluded here first.
+ * 3. Orphan files: ONLY files tracked by a recordingUploads intent (created by the upload proxy before
+ *    storing) that are > 24 h old and unclaimed. Untracked/pre-existing storage is never deleted.
  * Each run handles at most BATCH items per category.
  */
 const BATCH = 100;
@@ -306,19 +323,16 @@ export const retentionSweep = internalMutation({
       const tc = await ctx.db.query('trustedContacts').withIndex('by_pair', (q) => q.eq('ownerId', e.ownerId).eq('contactId', e.recipientId)).first();
       if (!r || r.deletedAt || tc?.status !== 'accepted') { await ctx.db.delete(e._id); envs++; }
     }
-    // Cursor-based walk over _storage so referenced files never block progress.
-    const state = await ctx.db.query('sweepState').withIndex('by_key', (q) => q.eq('key', 'storage-orphans')).first();
-    const page = await ctx.db.system.query('_storage').order('asc').paginate({ cursor: state?.cursor ?? null, numItems: BATCH });
-    let reachedYoung = false;
-    for (const f of page.page) {
-      if (f._creationTime > now - ORPHAN_MIN_AGE_MS) { reachedYoung = true; break; }
-      const ref = await ctx.db.query('recordings').withIndex('by_storage', (q) => q.eq('storageId', f._id)).first();
-      if (!ref) { await ctx.storage.delete(f._id); orphans++; }
+    // Only storage objects proven to be recording uploads (tracked intent) are ever deleted here.
+    // Intents left behind (proxy crashed mid-upload) older than 24 h: delete their file if no recording claims it.
+    const stale = await ctx.db.query('recordingUploads').withIndex('by_created', (q) => q.lt('createdAt', now - ORPHAN_MIN_AGE_MS)).take(BATCH);
+    for (const it of stale) {
+      if (it.storageId) {
+        const ref = await ctx.db.query('recordings').withIndex('by_storage', (q) => q.eq('storageId', it.storageId!)).first();
+        if (!ref && (await ctx.db.system.get(it.storageId))) { await ctx.storage.delete(it.storageId); orphans++; }
+      }
+      await ctx.db.delete(it._id);
     }
-    // restart from the beginning when done or when we hit files that are still too young
-    const next = page.isDone || reachedYoung ? null : page.continueCursor;
-    if (state) await ctx.db.patch(state._id, { cursor: next ?? undefined });
-    else await ctx.db.insert('sweepState', { key: 'storage-orphans', cursor: next ?? undefined });
     return { rows, envs, orphans };
   },
 });

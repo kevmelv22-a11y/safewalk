@@ -158,6 +158,8 @@ Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro 
 
 ## 11. Recording encryption — applied mode (bounded, not proven E2E)
 
+**Status (candid):** owner and recipient playback are implemented in source code and covered by unit/integration tests, but **not tested on a device** (no native build made). Key registration is not verified by any identity service: there is **no guarantee against a malicious server** (key substitution is only detected with a manual fingerprint check + pin). This is **not** a fully verified end-to-end system.
+
 **Mode `e2e-v1`:** AES-256-GCM (@noble/ciphers) on the device before upload; AAD = `safewalk-rec-aad-v1|ownerId|clientUploadId`. The DEK stays in SecureStore (native, this device only). On web it is in **localStorage**: it survives across tabs, but it is readable by scripts on the origin. The server stores ciphertext plus optional wrapped DEKs. The audited libraries do **not** make this system audited.
 
 | Topic | Status |
@@ -170,11 +172,11 @@ Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro 
 | Keys / rotation | No silent creation or rotation. "Create" and "Replace" are explicit buttons. Replacing revokes the old public key; envelopes for the old key become unreadable for you. Old sessionStorage keys on web are migrated once to localStorage. |
 | Key loss | Shown before use (Recordings + recording controls): no recovery, no multi-device. Out of scope. |
 | CSPRNG | Native: `expo-crypto.getRandomBytes` injected via `setRandomSource` (no global polyfill). Web/Node: `crypto.getRandomValues`. Missing → `NO_CSPRNG` error, never a weak fallback. |
-| Playback | Web: Blob object URL, revoked on close/unmount. Native: plaintext temp file in the cache dir, deleted on close/unmount (best effort; if the app is killed it can remain until the OS clears the cache). After a successful upload the recorder's original is deleted. |
+| Playback | Web: Blob object URL, revoked on close/unmount. Native: plaintext temp file in the app's own `cache/safewalk-playback/`, deleted on close/unmount. On the next app start only `sw-play-*` files in that directory are removed (no broad cache delete). Limitation: until the next start, a killed app leaves the file on the device (inside the app sandbox). After a successful upload the recorder's original is deleted. |
 | Memory | The whole recording is held in memory (max 19 MB plaintext + ciphertext). No streaming encryption. |
 
 ### Retention policy (cron `recording-retention`, every 6 h, max 100 per category)
 1. Rows soft-deleted > 30 days ago: hard-delete (plus file and envelopes, if still present).
 2. Envelopes whose recording is gone/deleted, or whose recipient is no longer an accepted contact: delete.
-3. Orphan files: `_storage` objects > 24 h old that no recording references (leftovers from the old upload flow). Walked by cursor. **Recordings are the only storage user**; new storage uses must be excluded here first.
+3. Orphan files: **only** files tracked by a `recordingUploads` intent (the upload proxy creates the intent *before* storing, links the storageId, and removes the intent after success/failure). Intents > 24 h old with an unclaimed file → file deleted. Untracked or pre-existing storage (including any orphans from the old `generateUploadUrl` flow) is **never** deleted, because ownership can't be proven. Limitation: a crash between store and linking the intent leaves an untracked file behind.
 4. **Live recordings are never deleted by age.** No age-based retention without a confirmed policy.

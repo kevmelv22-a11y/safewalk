@@ -13,7 +13,15 @@ jest.mock('expo-crypto', () => ({
 }));
 const mockFiles = new Map<string, Uint8Array>();
 jest.mock('expo-file-system', () => {
+  class Directory {
+    uri: string;
+    constructor(...p: unknown[]) { this.uri = p.map((x) => (typeof x === 'string' ? x : 'cache')).join('/'); }
+    get exists() { return true; }
+    create() {}
+    list() { return [...mockFiles.keys()].filter((k) => k.startsWith(this.uri + '/')).map((k) => new File(k)); }
+  }
   class File {
+    get name() { return this.uri.split('/').pop()!; }
     uri: string;
     constructor(...p: unknown[]) { this.uri = p.map((x) => (typeof x === 'string' ? x : 'cache')).join('/'); }
     create() { mockFiles.set(this.uri, new Uint8Array()); }
@@ -21,7 +29,7 @@ jest.mock('expo-file-system', () => {
     get exists() { return mockFiles.has(this.uri); }
     delete() { mockFiles.delete(this.uri); }
   }
-  return { File, Paths: { cache: 'cache' } };
+  return { File, Directory, Paths: { cache: 'cache' } };
 });
 
 import { Platform } from 'react-native';
@@ -30,7 +38,7 @@ import {
 } from '../src/lib/recordingUpload';
 import { storeLocalDek, getIdentityKeypair, pinContactKey } from '../src/lib/recordingKeys';
 import { generateIdentityKeypair, toHex } from '../src/lib/recordingCrypto';
-import { materializePlaintext, deleteLocalOriginal } from '../src/lib/playbackFile';
+import { materializePlaintext, deleteLocalOriginal, cleanupPlaybackLeftovers } from '../src/lib/playbackFile';
 
 const PLAIN = new TextEncoder().encode('hello audio');
 
@@ -115,4 +123,13 @@ test('native playback temp file is created and deleted on dispose; recorder orig
 
 test('size cap enforced before encryption', () => {
   expect(() => sealRecording(new Uint8Array(19 * 1024 * 1024 + 1), 'o')).toThrow('RECORDING_TOO_LARGE');
+});
+
+test('next-launch cleanup only removes sw-play-* in the app playback dir', () => {
+  mockFiles.set('cache/safewalk-playback/sw-play-abc-1.m4a', PLAIN);
+  mockFiles.set('cache/safewalk-playback/other.txt', PLAIN);
+  mockFiles.set('cache/sw-play-outside.m4a', PLAIN);
+  mockFiles.set('cache/unrelated.jpg', PLAIN);
+  expect(cleanupPlaybackLeftovers()).toBe(1);
+  expect([...mockFiles.keys()].sort()).toEqual(['cache/safewalk-playback/other.txt', 'cache/sw-play-outside.m4a', 'cache/unrelated.jpg']);
 });

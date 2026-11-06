@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import type { Id } from '../../convex/_generated/dataModel';
 import { Button, Notice } from './ui';
 import { startConsentedRecording } from '../lib/recording';
 import { uploadEncryptedRecording, KEY_LOSS_WARNING } from '../lib/recordingUpload';

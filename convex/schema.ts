@@ -163,7 +163,11 @@ export default defineSchema({
     createdAt: v.number(),
     version: v.optional(v.literal(2)), // 2 = AAD-bound (recording|upload|owner|recipient|keyId); absent = legacy v1
   }).index('by_recording', ['recordingId']).index('by_recipient', ['recipientId']),
-  // Cursor for bounded maintenance sweeps (recording retention)
-  sweepState: defineTable({ key: v.string(), cursor: v.optional(v.string()) }).index('by_key', ['key']),
+  // Upload intents: created by the upload proxy BEFORE storing bytes; proves a storage object is a recording upload
+  recordingUploads: defineTable({
+    userId: v.id('users'),
+    storageId: v.optional(v.id('_storage')),
+    createdAt: v.number(),
+  }).index('by_created', ['createdAt']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

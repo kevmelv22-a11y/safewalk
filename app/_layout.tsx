@@ -12,6 +12,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { configurePurchases } from '../src/lib/purchases';
 import { AlarmGuard } from '../src/lib/alarmGuard';
+import { cleanupPlaybackLeftovers } from '../src/lib/playbackFile';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
 
 function PurchasesBootstrap() {
@@ -24,6 +25,7 @@ export default function RootLayout() {
   const t = useTheme(); const isDark = useIsDark();
   useEffect(() => {
     const stopRetry = startSosRetry();
+    cleanupPlaybackLeftovers(); // only sw-play-* in the app's own playback cache dir
     initQuickActions().catch(() => undefined);
     const vol = initVolumeDoublePress(() => openQuickPing());
     void vol;

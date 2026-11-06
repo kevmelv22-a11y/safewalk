@@ -74,7 +74,7 @@ export default function RecordingsScreen() {
   return (
     <Screen>
       <H1>Audio-opnames</H1>
-      <P muted>Nieuwe opnames worden op dit apparaat versleuteld (AES-256-GCM) vóór upload; de server krijgt de sleutel niet. Oude opnames zonder versleuteling staan gelabeld als "niet versleuteld". Dit is geen volledig bewezen end-to-end-systeem: de server levert de publieke sleutels van contacten (zie vingerafdrukken hieronder).</P>
+      <P muted>Nieuwe opnames worden op dit apparaat versleuteld (AES-256-GCM) vóór upload; de server krijgt de sleutel niet. Oude opnames zonder versleuteling staan gelabeld als ‘niet versleuteld’. Dit is geen volledig bewezen end-to-end-systeem: de server levert de publieke sleutels van contacten (zie vingerafdrukken hieronder).</P>
       <Notice kind="warn">{KEY_LOSS_WARNING}</Notice>
       {webKeyStorageWarning() && <Notice kind="warn">{webKeyStorageWarning()}</Notice>}
 
