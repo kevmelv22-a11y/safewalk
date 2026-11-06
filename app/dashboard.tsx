@@ -25,6 +25,7 @@ export default function Dashboard() {
   const startUnsafe = useMutation(api.incidents.startUnsafe);
   const comeQuick = useMutation(api.incidents.comeQuick);
   const verifyPin = useMutation(api.security.verifyPin);
+  const sendLiveNow = useMutation(api.incidents.sendLiveLocationNow);
   const mine = sessions?.mine;
   const watching = sessions?.watching ?? [];
   const myContacts = contacts?.mine ?? [];
@@ -56,9 +57,17 @@ export default function Dashboard() {
         clientRef: clientRef('unsafe'),
         sessionId: mine?._id,
         torchRequested: !!pinStatus.torchStrobeOptIn,
+        createTrackingLink: !!loc.locationConsent,
+        shareRecordingScope: true, // scope alleen; opname start na mic-consent op /danger
         ...loc,
       });
-      router.push({ pathname: '/danger', params: { incidentId: r.incidentId ?? '' } });
+      router.push({
+        pathname: '/danger',
+        params: {
+          incidentId: r.incidentId ?? '',
+          ...(r.sharePath ? { sharePath: r.sharePath } : {}),
+        },
+      });
     } catch (e) {
       setErr(errorNl(e));
     } finally { setBusy(null); }
@@ -81,6 +90,19 @@ export default function Dashboard() {
     setSafeOpen(true); setErr(null);
   };
 
+  const onLiveNow = async () => {
+    setBusy('come'); setErr(null); setMsg(null);
+    try {
+      const loc = await withLoc();
+      if (!loc.locationConsent) { setErr('Locatietoestemming nodig om nu te delen.'); return; }
+      const r = await sendLiveNow({ ...loc, sessionId: mine?._id });
+      setMsg(r.recipients
+        ? `Live locatie naar ${r.recipients} contact(en) gestuurd (in-app push).`
+        : 'Locatie geregistreerd. Voeg vertrouwde contacten toe voor pushes.');
+    } catch (e) { setErr(errorNl(e)); }
+    finally { setBusy(null); }
+  };
+
   const submitSafe = async (pin: string) => {
     setBusy('safe'); setErr(null);
     try {
@@ -99,6 +121,7 @@ export default function Dashboard() {
       <H1>SafeWalk</H1>
       <P muted>Grote knoppen voor onderweg. SafeWalk is geen hulpdienst en belt 112 niet automatisch.</P>
       <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy} disabled={!!busy} />
+      <Button title="📍 Stuur live locatie nu" variant="secondary" hint="Foreground-alternatief voor volume×2 (geen native background volume-hook)" onPress={onLiveNow} disabled={!!busy} />
       {safeOpen && (
         <Card>
           <PinPad title="Bevestig: ik ben veilig" hint="Voer je veiligheids-PIN in" length={6} error={err} busy={busy === 'safe'}

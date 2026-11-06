@@ -5,8 +5,9 @@ import { audit, fail, rateLimit, requireUser } from './lib';
 
 /**
  * Opnames: Convex file storage + server ACL.
- * Transit: TLS. At-rest: platform storage (géén claim van client-side E2E-encryptie).
- * Alleen eigenaar + geaccepteerde trusted contacts mogen downloaden.
+ * Transit: TLS. At-rest: platform storage (géén client-side E2E-claim).
+ * Download: tijdelijke URL via getUrl — nooit permanente publieke link in onze DB.
+ * Extern: alleen via share-link met scope `recording` (zie tracking.publicRecording).
  */
 export const generateUploadUrl = mutation({
   args: {},
@@ -43,7 +44,7 @@ export const finalize = mutation({
       userId: uid, storageId: a.storageId, mime: a.mime, byteSize: a.byteSize,
       durationMs: a.durationMs, incidentId: a.incidentId, alertId: a.alertId, createdAt: Date.now(),
     });
-    await audit(ctx, uid, 'recording.finalize', id, { bytes: a.byteSize });
+    await audit(ctx, uid, 'recording.finalize', id, { bytes: a.byteSize, incident: !!a.incidentId });
     return { id };
   },
 });
@@ -61,6 +62,7 @@ export const listMine = query({
   },
 });
 
+/** Soft-delete + hard delete storage object. */
 export const remove = mutation({
   args: { id: v.id('recordings') },
   handler: async (ctx, { id }) => {
@@ -68,13 +70,14 @@ export const remove = mutation({
     const row = await ctx.db.get(id);
     if (!row || row.userId !== uid) fail('NOT_FOUND');
     const r = row!;
-    await ctx.storage.delete(r.storageId).catch(() => {});
+    try { await ctx.storage.delete(r.storageId); } catch { /* already gone */ }
     await ctx.db.patch(id, { deletedAt: Date.now() });
     await audit(ctx, uid, 'recording.delete', id);
+    return { deleted: true as const };
   },
 });
 
-/** Tijdelijke download-URL voor eigenaar of trusted contact. */
+/** Tijdelijke download-URL: eigenaar of geaccepteerd trusted contact. */
 export const getDownloadUrl = mutation({
   args: { id: v.id('recordings') },
   handler: async (ctx, { id }) => {
@@ -94,6 +97,6 @@ export const getDownloadUrl = mutation({
     if (!allowed) fail('FORBIDDEN');
     const url = await ctx.storage.getUrl(r.storageId);
     if (!url) fail('NOT_FOUND');
-    return { url, mime: r.mime, byteSize: r.byteSize };
+    return { url, mime: r.mime, byteSize: r.byteSize, temporary: true as const };
   },
 });

@@ -68,6 +68,7 @@ export default function RootLayout() {
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
           <Stack.Screen name="settings/pin" options={{ title: 'PIN wijzigen' }} />
+          <Stack.Screen name="quick-ping" options={{ title: "Live locatie" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>

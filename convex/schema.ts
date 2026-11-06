@@ -99,17 +99,29 @@ export default defineSchema({
     torchRequested: v.boolean(),
   }).index('by_user_status', ['userId', 'status']),
 
-  // Publieke tracking-links (alleen token-hash opgeslagen; raw token één keer naar client)
+  // Publieke tracking-links (alleen token-hash; raw token één keer naar client)
   shareLinks: defineTable({
     userId: v.id('users'),
     tokenHash: v.string(),
     sessionId: v.optional(v.id('sessions')),
     incidentId: v.optional(v.id('incidents')),
     label: v.optional(v.string()),
+    // Expliciete scopes: location en/of recording (geen impliciete toegang)
+    scopes: v.array(v.union(v.literal('location'), v.literal('recording'))),
+    locationConsent: v.boolean(), // gebruiker gaf locatie-toestemming bij aanmaak
     expiresAt: v.number(),
     revokedAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']),
+  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']).index('by_incident', ['incidentId']),
+  // Locatie-updates tijdens incident (aparte bron als er geen trip-sessie is)
+  incidentLocations: defineTable({
+    incidentId: v.id('incidents'),
+    userId: v.id('users'),
+    lat: v.number(),
+    lng: v.number(),
+    accuracyM: v.optional(v.number()),
+    recordedAt: v.number(),
+  }).index('by_incident', ['incidentId', 'recordedAt']),
   // Geselecteerde telefooncontacten (minimaal: naam + genormaliseerd telefoonnummer); geen volledige adresboek-dump
   deviceContacts: defineTable({
     userId: v.id('users'),

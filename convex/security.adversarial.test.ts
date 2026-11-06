@@ -80,7 +80,7 @@ describe('tracking links', () => {
   test('token niet in DB; revoke + expiry', async () => {
     const t = convexTest(schema, modules);
     const a = await user(t, 'anna');
-    const link = await a.as.mutation(api.tracking.createShareLink, { label: 'Test' });
+    const link = await a.as.mutation(api.tracking.createShareLink, { label: 'Test', locationConsent: true, scopes: ['location'] });
     expect(link.token).toMatch(/^[0-9a-f]{64}$/);
     const rows = await t.run((ctx) => ctx.db.query('shareLinks').collect());
     expect(rows.some((r) => (r as { token?: string }).token === link.token)).toBe(false);

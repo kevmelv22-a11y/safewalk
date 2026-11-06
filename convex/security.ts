@@ -1,4 +1,5 @@
 import { mutation, query } from './_generated/server';
+import { internal } from './_generated/api';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { audit, displayName, fail, rateLimit, requireUser, sha256Hex } from './lib';
@@ -152,6 +153,7 @@ export const verifyPin = mutation({
       const open = await ctx.db.query('incidents').withIndex('by_user_status', (q) => q.eq('userId', uid).eq('status', 'active')).collect();
       let lastAlert: typeof open[0]['alertId'] | undefined;
       let lastSession: typeof open[0]['sessionId'] | undefined;
+      const clearedIds = open.map((i) => i._id);
       for (const inc of open) {
         await ctx.db.patch(inc._id, { status: 'resolved', resolvedAt: Date.now() });
         if (inc.alertId) {
@@ -159,6 +161,9 @@ export const verifyPin = mutation({
           if (al && al.status === 'open') await ctx.db.patch(inc.alertId, { status: 'resolved' });
         }
         lastAlert = inc.alertId; lastSession = inc.sessionId;
+      }
+      if (clearedIds.length) {
+        await ctx.scheduler.runAfter(0, internal.tracking.revokeForIncidents, { userId: uid, incidentIds: clearedIds });
       }
       if (open.length) {
         const contacts = await ctx.db.query('trustedContacts').withIndex('by_owner', (q) => q.eq('ownerId', uid).eq('status', 'accepted')).collect();
@@ -184,7 +189,11 @@ export const verifyPin = mutation({
       });
       // Beëindig open incidenten
       const open = await ctx.db.query('incidents').withIndex('by_user_status', (q) => q.eq('userId', uid).eq('status', 'active')).collect();
+      const clearedIds = open.map((i) => i._id);
       for (const inc of open) await ctx.db.patch(inc._id, { status: 'resolved', resolvedAt: Date.now() });
+      if (clearedIds.length) {
+        await ctx.scheduler.runAfter(0, internal.tracking.revokeForIncidents, { userId: uid, incidentIds: clearedIds });
+      }
       if (a.sessionId) {
         const s = await ctx.db.get(a.sessionId);
         if (s && s.userId === uid && s.endedAt === undefined) {

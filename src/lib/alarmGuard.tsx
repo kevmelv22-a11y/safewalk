@@ -3,7 +3,6 @@ import { AppState, Platform, Text, View } from 'react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { startAlarm } from './dangerAlarm';
-import { useTheme } from './theme';
 
 /**
  * Houdt het alarm aan zolang de server een actief incident heeft.
@@ -14,7 +13,6 @@ import { useTheme } from './theme';
  */
 export function AlarmGuard() {
   const active = useQuery(api.incidents.active);
-  const t = useTheme();
   const player = useRef<{ stop: () => Promise<void> } | null>(null);
 
   useEffect(() => {

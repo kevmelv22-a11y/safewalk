@@ -23,7 +23,13 @@ export default function ShareLinkScreen() {
   const make = async () => {
     setBusy(true); setErr(null); setMsg(null);
     try {
-      const r = await create({ sessionId: sessions?.mine?._id, label: 'Live locatie' });
+      const locOk = true; // scherm vraagt niet opnieuw; link vereist dat gebruiker al locatie deelt via actieve reis of later pings
+      const r = await create({
+        sessionId: sessions?.mine?._id,
+        label: 'Live locatie',
+        locationConsent: locOk,
+        scopes: ['location'],
+      });
       const url = `${site}${r.path}`;
       const text = `Ik deel mijn live locatie via SafeWalk (tijdelijk, intrekbaar): ${url}\nSafeWalk belt niet 112.`;
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -40,7 +46,7 @@ export default function ShareLinkScreen() {
   return (
     <Screen>
       <H1>Tracking-link</H1>
-      <P muted>Maak een tijdelijke link (standaard 2 uur) met live kaart voor iemand zonder de app. De link bevat geen coördinaten in de URL. Intrekken kan hieronder.</P>
+      <P muted>Maak een tijdelijke link (standaard 2 uur) met OSM-kaart voor iemand zonder de app. “Live” alleen als er een actieve reis/incident-updater locatie blijft sturen. Geen coördinaten in de URL. Intrekken hieronder.</P>
       <Notice kind="info">Techniek: Convex HTTP + Leaflet + OpenStreetMap-tegels (© OSM-bijdragers). Poll elke 10s. Geen betaalde kaart-API.</Notice>
       <Button title="Nieuwe link maken en delen" onPress={make} loading={busy} />
       {msg && <Notice kind="ok">{msg}</Notice>}
