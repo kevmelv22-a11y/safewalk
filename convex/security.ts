@@ -2,7 +2,7 @@ import { mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, displayName, fail, rateLimit, requireUser, sha256Hex } from './lib';
+import { audit, displayName, fail, rateLimit, requireAdult, requireUser, sha256Hex } from './lib';
 import { queuePush, mapsLink } from './notify';
 import { isValidSafetyCode } from './safetyCode';
 
@@ -58,6 +58,7 @@ export const setPin = mutation({
   args: { pin: v.string(), confirmPin: v.string(), currentPin: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `pin-set:${uid}`, 5, 60 * 60_000);
     if (!isValidPin(a.pin) || a.pin !== a.confirmPin) fail('PIN_INVALID');
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
@@ -106,6 +107,7 @@ export const verifyPin = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `pin-verify:${uid}`, 12, 15 * 60_000);
     if (!isValidPin(a.pin)) return { ok: false as const, reason: 'invalid' as const };
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();

@@ -17,10 +17,14 @@ import { handleVolumeDoublePress } from '../src/lib/volumeAction';
 import { getVolumeSendOptIn } from '../src/lib/recordingPrefs';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
+import { useProfile } from '../src/lib/queries';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
-  useEffect(() => { if (status?.userId) configurePurchases(status.userId).catch(() => {}); }, [status?.userId]);
+  const profile = useProfile();
+  useEffect(() => {
+    if (status?.userId && profile?.ageStatus === 'adult') configurePurchases(status.userId).catch(() => {});
+  }, [status?.userId, profile?.ageStatus]);
   return null;
 }
 
@@ -59,6 +63,7 @@ export default function RootLayout() {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="age" options={{ title: 'Leeftijd', headerBackVisible: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard" options={{ title: 'SafeWalk', headerBackVisible: false }} />
           <Stack.Screen name="login" options={{ title: 'Inloggen' }} />

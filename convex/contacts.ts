@@ -1,6 +1,6 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
-import { acceptedContact, audit, displayName, fail, FREE_CONTACT_LIMIT, isBlockedBetween, isPremium, PREMIUM_CONTACT_LIMIT, randomToken, rateLimit, requireUser, revokeViewersFor, sha256Hex } from './lib';
+import { acceptedContact, audit, displayName, fail, FREE_CONTACT_LIMIT, isBlockedBetween, isPremium, PREMIUM_CONTACT_LIMIT, randomToken, rateLimit, requireAdult, requireUser, revokeViewersFor, sha256Hex } from './lib';
 import { getAuthUserId } from '@convex-dev/auth/server';
 
 export const list = query({ args: {}, handler: async (ctx) => {
@@ -17,6 +17,7 @@ export const list = query({ args: {}, handler: async (ctx) => {
 /** Geeft het token één keer terug; alleen de SHA-256-hash wordt opgeslagen. */
 export const createInvitation = mutation({ args: {}, handler: async (ctx) => {
   const uid = await requireUser(ctx);
+  await requireAdult(ctx, uid);
   await rateLimit(ctx, `invite:${uid}`, 20, 24 * 3600_000);
   if ((await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first())?.restricted) fail('RESTRICTED');
   const token = randomToken();

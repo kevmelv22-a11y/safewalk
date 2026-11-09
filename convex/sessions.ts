@@ -4,7 +4,7 @@ import { getAuthUserId } from '@convex-dev/auth/server';
 import type { Id } from './_generated/dataModel';
 import { queuePush } from './notify';
 import { haversineMeters, ALMOST_ARRIVED_M } from './geo';
-import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireUser, sessionOpen } from './lib';
+import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireAdult, requireUser, sessionOpen } from './lib';
 
 const H = 3600_000;
 
@@ -29,6 +29,7 @@ export const start = mutation({
   args: { destination: v.string(), destLat: v.optional(v.number()), destLng: v.optional(v.number()), expectedArrival: v.number(), viewerIds: v.array(v.id('users')), graceMinutes: v.optional(v.number()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `session:${uid}`, 30, H);
     const now = Date.now();
     const dest = a.destination.trim();
@@ -100,6 +101,7 @@ export const addLocation = mutation({
   args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number() },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     const s = await ctx.db.get(a.sessionId);
     if (!s || s.userId !== uid || !sessionOpen(s)) fail('SESSION_CLOSED');
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180 || (a.accuracyM ?? 0) < 0) fail('BAD_REQUEST');

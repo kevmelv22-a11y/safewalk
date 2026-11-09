@@ -1,7 +1,7 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, displayName, fail, randomToken, rateLimit, requireUser, sha256Hex } from './lib';
+import { audit, displayName, fail, randomToken, rateLimit, requireAdult, requireUser, sha256Hex } from './lib';
 import { queuePush, mapsLink } from './notify';
 
 const DEFAULT_SHARE_TTL = 2 * 60 * 60_000;
@@ -38,6 +38,7 @@ export const startUnsafe = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `incident:${uid}`, 10, 10 * 60_000);
     const existing = await ctx.db.query('alerts').withIndex('by_client_ref', (q) => q.eq('clientRef', a.clientRef)).first();
     if (existing) {
@@ -123,6 +124,7 @@ export const comeQuick = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `incident:${uid}`, 10, 10 * 60_000);
     const existing = await ctx.db.query('alerts').withIndex('by_client_ref', (q) => q.eq('clientRef', a.clientRef)).first();
     if (existing) { if (existing.userId !== uid) fail('FORBIDDEN'); return { alertId: existing._id }; }
@@ -167,6 +169,7 @@ export const pingLocation = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     if (!a.locationConsent) fail('LOCATION_CONSENT_REQUIRED');
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180) fail('BAD_REQUEST');
     await rateLimit(ctx, `inc-loc:${uid}`, 240, 60 * 60_000);
@@ -203,6 +206,7 @@ export const sendLiveLocationNow = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     if (!a.locationConsent) fail('LOCATION_CONSENT_REQUIRED');
     await rateLimit(ctx, `live-now:${uid}`, 20, 60 * 60_000);
     const fresh = Date.now() - a.locationAt < 5 * 60_000;

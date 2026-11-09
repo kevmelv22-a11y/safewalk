@@ -17,7 +17,7 @@ async function setup() {
   const mk = async (name: string) => {
     const id = await t.run(async (ctx) => {
       const userId = await ctx.db.insert('users', { name, email: `${name}@test.nl` });
-      await ctx.db.insert('profiles', { userId, displayName: name, defaultGraceMinutes: 5, sosCountdownSeconds: 5, onboardingDone: true, restricted: false });
+      await ctx.db.insert('profiles', { userId, displayName: name, defaultGraceMinutes: 5, sosCountdownSeconds: 5, onboardingDone: true, restricted: false, birthYear: 1990, birthMonth: 1 });
       await ctx.db.insert('subscriptions', { userId, tier: 'free' });
       return userId;
     });

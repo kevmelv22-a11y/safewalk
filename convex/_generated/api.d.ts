@@ -9,6 +9,7 @@
  */
 
 import type * as account from "../account.js";
+import type * as ageGate from "../ageGate.js";
 import type * as admin from "../admin.js";
 import type * as assistant from "../assistant.js";
 import type * as auth from "../auth.js";
@@ -42,6 +43,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   account: typeof account;
+  ageGate: typeof ageGate;
   admin: typeof admin;
   assistant: typeof assistant;
   auth: typeof auth;

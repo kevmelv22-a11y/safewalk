@@ -2,7 +2,7 @@ import { action, internalMutation, internalQuery, query } from './_generated/ser
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { internal } from './_generated/api';
-import { fail, isPremium, rateLimit } from './lib';
+import { fail, isPremium, rateLimit, requireAdult } from './lib';
 
 /**
  * Optionele AI-veiligheidsassistent (Premium). Volledig los van SOS en check-ins.
@@ -25,7 +25,10 @@ export const availability = query({ args: {}, handler: async (ctx) => {
   return { enabled: Boolean(process.env.OPENAI_API_KEY), premium: uid ? await isPremium(ctx, uid) : false };
 } });
 
-export const gate = internalQuery({ args: { userId: v.id('users') }, handler: async (ctx, { userId }) => isPremium(ctx, userId) });
+export const gate = internalQuery({ args: { userId: v.id('users') }, handler: async (ctx, { userId }) => {
+  await requireAdult(ctx, userId);
+  return isPremium(ctx, userId);
+} });
 export const hit = internalMutation({ args: { userId: v.id('users') }, handler: async (ctx, { userId }) => { await rateLimit(ctx, `ai:${userId}`, 30, 3600_000); } });
 
 const msgV = v.object({ role: v.union(v.literal('user'), v.literal('assistant')), content: v.string() });

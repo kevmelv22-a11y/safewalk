@@ -38,8 +38,12 @@ Inzage, correctie, verwijdering, beperking, overdraagbaarheid en bezwaar. In de 
 ## 6. Beveiliging
 Versleutelde verbindingen (TLS), tokens in de beveiligde opslag van je telefoon, toegangscontrole op de server bij elke aanvraag, rate limiting, auditlogging en beperkte bewaartermijnen.
 
-## 7. Kinderen
-SafeWalk is bedoeld voor gebruikers van 16 jaar en ouder.
+## 7. Leeftijd
+SafeWalk is bedoeld vanaf 13 jaar. Jonger dan 13 wordt geweigerd.
+Je geeft zelf een geboortejaar en geboortemaand op. Dat is geen identiteitscontrole en geen oudercontrole.
+Vanaf 16 jaar kun je de functies in dit beleid gebruiken, waaronder locatie delen, contacten, opnames, aankopen en de optionele AI-assistent.
+Van 13 tot en met 15 jaar zijn die functies dicht. In Nederland is voor toestemming onder de 16 ouderlijke machtiging nodig. Die machtiging zit niet in deze versie. Een vinkje, e-mail of code van het kind geldt niet als ouder. Tot die controle echt bestaat, blijven locatie delen, contacten uploaden, opnames, aankopen en de AI-assistent uit.
+Een bestaande rekening zonder opgegeven leeftijd blijft dicht voor die functies tot de leeftijd is ingevuld.
 
 ## 8. Contact
 Vragen over privacy of een verzoek over je gegevens? Mail naar support@vonkbyte.nl.

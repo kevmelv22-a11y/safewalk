@@ -3,7 +3,7 @@ import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, fail, rateLimit, requireUser } from './lib';
+import { audit, fail, rateLimit, requireAdult, requireUser } from './lib';
 
 /**
  * Opnames: Convex file storage + server ACL.
@@ -32,6 +32,7 @@ export const checkUpload = internalMutation({
   args: { userId: v.id('users'), incidentId: v.optional(v.id('incidents')) },
   handler: async (ctx, a) => {
     await rateLimit(ctx, `rec-upload:${a.userId}`, 10, 60 * 60_000);
+    await requireAdult(ctx, a.userId);
     if (a.incidentId) {
       const i = await ctx.db.get(a.incidentId);
       if (!i || i.userId !== a.userId) fail('FORBIDDEN');

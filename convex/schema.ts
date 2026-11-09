@@ -18,6 +18,9 @@ export default defineSchema({
     pinSalt: v.optional(v.string()),
     pinSetAt: v.optional(v.number()),
     torchStrobeOptIn: v.optional(v.boolean()), // fotosensitiviteitswaarschuwing expliciet geaccepteerd
+    // Eigen verklaring, geen volledige geboortedatum. Afwezig = leeftijd onbekend.
+    birthYear: v.optional(v.number()),
+    birthMonth: v.optional(v.number()),
   }).index('by_user', ['userId']),
   admins: defineTable({ userId: v.id('users') }).index('by_user', ['userId']),
   subscriptions: defineTable({
