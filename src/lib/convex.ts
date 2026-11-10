@@ -8,7 +8,7 @@ import { mapErrorNl } from './safety';
 const url = process.env.EXPO_PUBLIC_CONVEX_URL ?? '';
 export const isConfigured = Boolean(url);
 
-/** Eén gedeelde client: ook gebruikt door de achtergrond-locatietaak en de SOS-wachtrij. */
+/** Eén gedeelde client: ook gebruikt door de locatiewachtrij en de SOS-wachtrij. */
 export const convex = new ConvexReactClient(url || 'https://missing.convex.cloud', { unsavedChangesWarning: false });
 
 // Auth-tokens versleuteld in Keychain/Keystore (SecureStore); web valt terug op AsyncStorage.

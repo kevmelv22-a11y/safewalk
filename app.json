@@ -32,11 +32,9 @@
     "android": {
       "package": "nl.safewalk.app",
       "permissions": [
-        "ACCESS_BACKGROUND_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "POST_NOTIFICATIONS",
         "VIBRATE",
@@ -45,12 +43,15 @@
         "android.permission.READ_CONTACTS",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#040B1A"
       },
-      "blockedPermissions": []
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -58,11 +59,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Tijdens een reis die jij zelf start, deelt SafeWalk je locatie ook als de app op de achtergrond staat of je scherm uit is, zodat je gekozen contacten kunnen meekijken. Delen stopt zodra je de reis beëindigt.",
-          "isAndroidBackgroundLocationEnabled": true,
-          "isAndroidForegroundServiceEnabled": true,
-          "locationWhenInUsePermission": "SafeWalk gebruikt je locatie om je reis te delen met contacten die jij kiest, om een bestemming op de kaart te tonen en om je laatst bekende locatie mee te sturen bij SOS.",
-          "locationAlwaysPermission": "Tijdens een reis die jij zelf start, deelt SafeWalk je locatie ook op de achtergrond. Delen stopt zodra je de reis beëindigt."
+          "isAndroidBackgroundLocationEnabled": false,
+          "isAndroidForegroundServiceEnabled": false,
+          "locationWhenInUsePermission": "SafeWalk gebruikt je locatie om je reis te delen met contacten die jij kiest, om een bestemming op de kaart te tonen en om je laatst bekende locatie mee te sturen bij SOS."
         }
       ],
       [

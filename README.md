@@ -13,7 +13,7 @@ Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve quer
 | Onboarding: welkom, account, inloggen, locatie-/meldingentoestemming (met uitleg), contacten, veiligheidsinstellingen, dashboard | `app/` |
 | Toegangscontrole (vervangt RLS) | `convex/lib.ts` → `canViewSession` |
 | Uitnodigen via link (alleen SHA-256-hash opgeslagen, 7 dagen), accepteren/weigeren, verwijderen, blokkeren/deblokkeren, misbruik melden | `convex/contacts.ts`, `app/contacts.tsx`, `app/report.tsx` |
-| Reis: bestemming kiezen op kaart (zoeken via geocoding, tikken/slepen), sessiespecifieke kijkers, voor-/achtergrondlocatie met offline-buffer, stoppen, kijker intrekken | `app/session/*`, `src/lib/location.ts` |
+| Reis: bestemming kiezen op kaart (zoeken via geocoding, tikken/slepen), sessiespecifieke kijkers, voorgrondlocatie (alleen terwijl de app open is) met offline-buffer, stoppen, kijker intrekken | `app/session/*`, `src/lib/location.ts` |
 | Live kaart (donkere stijl): afgelegde route, hemelsbrede richting + ruwe ETA (bewust geen routeadvies), nauwkeurigheid, laatste update, waarschuwing verouderde data | `src/components/LiveMap.tsx`, `app/watch/[id].tsx` |
 | Meldingen: reis gestart, contact deelt locatie, bijna aangekomen (< 300 m), check-in vereist, check-in gemist, SOS (+ vals alarm), reis beëindigd | `convex/notify.ts`, `convex/push.ts` |
 | Afleverstatus per ontvanger met **Expo push receipts**: *verstuurd* / *mislukt* / *onbekend* | `push.deliver` → `push.checkReceipts` (na 15 min, retries) |
@@ -63,7 +63,7 @@ Extra omgevingsvariabelen (per deployment, `npx convex env set NAAM waarde`):
 Beheerder aanwijzen: `npx convex run admin:grantAdmin '{"email":"jij@…"}'` (met `--prod` voor productie).
 
 ## App (development build vereist)
-Achtergrondlocatie, TaskManager, push en aankopen werken **niet** in Expo Go.
+Achtergrondlocatie is in deze versie uitgeschakeld. Push en aankopen werken **niet** in Expo Go.
 ```bash
 npx eas build --profile development --platform android   # of ios
 npx expo start --dev-client
@@ -105,7 +105,7 @@ Privacybeleid en gebruiksvoorwaarden (`docs/`, in de app via `node scripts/sync-
 - `npm run test:convex` – convex-test + Vitest: ongeautoriseerde/anonieme/admin-toegang, niet-gekozen contact, intrekken, verwijderen, beëindigde/verlopen sessies, blokkeren/deblokkeren, beperkte accounts, contactlimiet, SOS (push, receipts verstuurd/mislukt/onbekend, retry, idempotentie, vals alarm, rate limit), alle reis-meldingen, check-in (herinnering, escalatie, respijt, verlengen), bewegingsdetectie, RevenueCat-webhook en feature gating, AI-assistent (uitgeschakeld/premium/112-tekst), adminpaneel zonder locatiedata, retentie, accountverwijdering. Externe diensten (Expo, OpenAI) worden gemockt.
 
 ## Beperkingen iOS/Android (belangrijk)
-- **Achtergrondlocatie is niet gegarandeerd.** iOS kan updates vertragen/pauzeren; gebruikers kunnen "Altijd" weigeren. Android-fabrikanten beëindigen achtergrondprocessen bij batterijbesparing. Android toont een permanente melding.
+- **Achtergrondlocatie is in deze versie uitgeschakeld.** Een reis deelt locatie alleen zolang de app open is. Updates zijn verder afhankelijk van GPS en internet en niet gegarandeerd realtime.
 - GPS kan onnauwkeurig zijn; de app toont nauwkeurigheid en waarschuwt bij verouderde (>2 min) of ontbrekende (>10 min) data.
 - **Push is niet gegarandeerd.** "Verstuurd – bevestigd door pushdienst" betekent overgedragen aan Apple/Google, niet gelezen. Niet storen, geen internet of uitgeschakelde meldingen kunnen aflevering verhinderen.
 - Puur tijdgebaseerd verlopen wordt binnen ±1 min door de cron gepusht; nieuwe verzoeken worden direct geweigerd.
