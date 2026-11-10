@@ -45,7 +45,6 @@ function withVolumeKeyDispatch(config) {
 function withAndroidPermissions(config) {
   return AndroidConfig.Permissions.withPermissions(config, [
     'android.permission.FOREGROUND_SERVICE',
-    'android.permission.FOREGROUND_SERVICE_LOCATION',
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.VIBRATE',

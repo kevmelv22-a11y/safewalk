@@ -1,4 +1,3 @@
-import '../src/lib/location'; // registreert de achtergrondtaak op top-level
 import React, { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

@@ -39,12 +39,10 @@ export default function NewSession() {
     let id: Id<'sessions'>;
     try { id = await startSession({ destination: dest.trim(), destLat: destination?.lat, destLng: destination?.lng, expectedArrival: arrival.getTime(), viewerIds: sel }); setDestination(null); }
     catch (e) { setBusy(false); return setErr(errorNl(e)); }
-    try {
-      const { background } = await startSharing(id);
-      if (!background) setErr('Let op: zonder “Altijd”-toestemming stopt het delen mogelijk als de app op de achtergrond staat.');
-    } catch (e) { setErr(String((e as Error).message)); }
+    try { await startSharing(id); }
+    catch (e) { setErr(String((e as Error).message)); }
     await scheduleCheckInReminder(arrival).catch(() => {});
-    await localNotify('Reis gestart', `Je locatie wordt gedeeld tot je aankomst bevestigt of stopt.`);
+    await localNotify('Reis gestart', `Je locatie wordt gedeeld zolang SafeWalk open is, tot je aankomst bevestigt of stopt.`);
     setBusy(false);
     router.replace(`/session/${id}`);
   };
@@ -64,7 +62,7 @@ export default function NewSession() {
         {contacts.map((c) => <Button key={c.userId} title={`${sel.includes(c.userId) ? '✓ ' : ''}${c.name}`} variant={sel.includes(c.userId) ? 'success' : 'secondary'} onPress={() => toggle(c.userId)} />)}
         <P muted>Alleen deze personen zien je locatie, en alleen tot de reis eindigt.</P>
       </Card>
-      <Notice kind="info">Je telefoon vraagt nu mogelijk om locatie “Altijd” toe te staan, zodat delen doorgaat als je scherm uit is.</Notice>
+      <Notice kind="info">Je locatie wordt alleen gedeeld zolang SafeWalk open is. Als je de app sluit of je scherm vergrendelt, stopt het delen tijdelijk.</Notice>
       {err && <Notice kind="warn">{err}</Notice>}
       <Button title="Start en deel locatie" variant="success" onPress={start} loading={busy} />
     </Screen>

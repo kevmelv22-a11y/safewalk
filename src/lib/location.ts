@@ -1,15 +1,15 @@
 import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { convex, errorCode } from './convex';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { PersistentQueue } from './queue';
 
-export const LOCATION_TASK = 'safewalk-location';
 const ACTIVE_KEY = 'safewalk.activeSession';
 type LocRow = { sessionId: Id<'sessions'>; lat: number; lng: number; accuracyM?: number; recordedAt: number };
 export const locationQueue = new PersistentQueue<LocRow>(AsyncStorage, 'safewalk.locationQueue', 20);
+
+let watchSub: Location.LocationSubscription | null = null;
 
 async function upload(locs: Location.LocationObject[]) {
   const sessionId = (await AsyncStorage.getItem(ACTIVE_KEY)) as Id<'sessions'> | null;
@@ -27,33 +27,31 @@ async function upload(locs: Location.LocationObject[]) {
   });
 }
 
-// Top-level: draait ook als de app op de achtergrond staat.
-TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
-  if (error) return;
-  const { locations } = (data ?? {}) as { locations?: Location.LocationObject[] };
-  if (locations?.length) await upload(locations);
-});
-
 export const foregroundPermission = async () => (await Location.requestForegroundPermissionsAsync()).status === 'granted';
 
-/** Achtergrondtoestemming wordt pas HIER gevraagd (bij sessiestart). */
-export async function startSharing(sessionId: Id<'sessions'>): Promise<{ background: boolean }> {
+/** Locatie delen werkt alleen terwijl de app open is (geen achtergrondtoestemming). */
+export async function startSharing(sessionId: Id<'sessions'>): Promise<void> {
   if (!(await foregroundPermission())) throw new Error('Locatietoestemming is nodig om je reis te delen.');
+  await stopWatch();
   await AsyncStorage.setItem(ACTIVE_KEY, sessionId);
-  const bg = (await Location.requestBackgroundPermissionsAsync()).status === 'granted';
   const now = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }).catch(() => null);
   if (now) await upload([now]);
-  await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-    accuracy: Location.Accuracy.High, distanceInterval: 25, timeInterval: 30_000, deferredUpdatesInterval: 30_000,
-    showsBackgroundLocationIndicator: true, pausesUpdatesAutomatically: false, activityType: Location.ActivityType.Fitness,
-    foregroundService: { notificationTitle: 'SafeWalk deelt je locatie', notificationBody: 'Je reis wordt gedeeld met je gekozen contacten. Stop via de app.', notificationColor: '#7856FF' },
-  });
-  return { background: bg };
+  watchSub = await Location.watchPositionAsync(
+    { accuracy: Location.Accuracy.High, distanceInterval: 25, timeInterval: 30_000 },
+    (l) => { void upload([l]); },
+  );
+}
+
+async function stopWatch() {
+  if (watchSub) {
+    watchSub.remove();
+    watchSub = null;
+  }
 }
 
 export async function stopSharing() {
   await AsyncStorage.removeItem(ACTIVE_KEY);
-  if (await TaskManager.isTaskRegisteredAsync(LOCATION_TASK)) await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+  await stopWatch();
 }
 
 export async function lastKnown() {
