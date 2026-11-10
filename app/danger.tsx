@@ -163,7 +163,7 @@ export default function Danger() {
       if (outcome === 'rate_limited') setErr('Te veel pogingen. Wacht even.');
       else if (outcome === 'offline') {
         setOfflineHint(true);
-        setErr('Geen verbinding met de server. Alarm en opname lopen door tot de PIN online is gecontroleerd.');
+        setErr('Geen verbinding met de server. Alarm en opname lopen door tot de code online is gecontroleerd.');
       } else setErr('Onjuiste code. Probeer opnieuw.');
     } finally { setBusy(false); }
   };
@@ -187,7 +187,7 @@ export default function Danger() {
     <Screen ambient={false} backgroundColor="#1a0505">
       <View style={{ flex: 1, backgroundColor: '#1a0505', margin: -20, padding: 20, gap: 14, borderTopWidth: 3, borderTopColor: CRITICAL_ACTIONS.red }}>
         <H1>GEVAARMODUS ACTIEF</H1>
-        <Notice kind="danger">Alarm speelt tot je het stopt met je veiligheids-PIN (server-check). SafeWalk belt 112 niet automatisch.</Notice>
+        <Notice kind="danger">Alarm speelt tot je het stopt met je veiligheidscode (server-check). SafeWalk belt 112 niet automatisch.</Notice>
         {recActive && <Notice kind="danger">🔴 OPNAME BEZIG — alarmgeluid kan in de opname zitten.</Notice>}
         {recNote && <Notice kind="info">{recNote}</Notice>}
         {sharePath && (
@@ -214,16 +214,15 @@ export default function Danger() {
         </View>
         {!showPin ? (
           <>
-            <Button title="Stop met veiligheids-PIN" onPress={() => setShowPin(true)} />
+            <Button title="Stop met veiligheidscode" onPress={() => setShowPin(true)} />
             {sharePath ? <Button title="Deel tracking-link (jij bevestigt Send)" variant="secondary" onPress={shareTrack} /> : null}
             {sharePath && trackMessage ? <ContactComposer message={trackMessage} /> : null}
             <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
           </>
         ) : (
           <PinPad
-            title="Voer veiligheids-PIN in"
-            hint="Alleen de juiste PIN (server) stopt het alarm. Bij een foute code zie je een gewone foutmelding."
-            length={6}
+            title="Voer je veiligheidscode in"
+            hint="Alleen de juiste code (server) stopt het alarm. Hoofdletters tellen mee. Bij een foute code zie je een gewone foutmelding."
             error={err}
             busy={busy}
             onSubmit={unlock}

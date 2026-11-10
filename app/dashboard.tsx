@@ -143,7 +143,7 @@ export default function Dashboard() {
 
       {safeOpen && (
         <Card>
-          <PinPad title="Bevestig: ik ben veilig" hint="Voer je veiligheids-PIN in" length={6} error={err} busy={busy === 'safe'}
+          <PinPad title="Bevestig: ik ben veilig" hint="Voer je veiligheidscode in. Hoofdletters tellen mee." error={err} busy={busy === 'safe'}
             onSubmit={submitSafe} onCancel={() => { setSafeOpen(false); setErr(null); }} />
         </Card>
       )}

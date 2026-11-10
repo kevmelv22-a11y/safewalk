@@ -122,8 +122,13 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('EXTENSION_NOT_ALLOWED')) return 'Verlengen is niet meer mogelijk.';
   if (msg.includes('EMAIL_NOT_CONFIGURED')) return 'E-mailverificatie is momenteel niet beschikbaar. Probeer het later opnieuw.';
   if (msg.includes('EMAIL_SEND_FAILED')) return 'De e-mail kon niet worden verstuurd. Probeer het later opnieuw.';
-  if (msg.includes('PIN_NOT_SET')) return 'Stel eerst een veiligheids-PIN in.';
-  if (msg.includes('PIN_INVALID')) return 'Gebruik 4–8 cijfers en bevestig hetzelfde.';
+  if (msg.includes('AGE_REQUIRED')) return 'Vul eerst je geboortejaar en -maand in. Zonder leeftijd blijven delen, opnames, contacten, aankopen en de assistent uit.';
+  if (msg.includes('AGE_UNDER_13')) return 'SafeWalk is niet bruikbaar onder 13 jaar.';
+  if (msg.includes('AGE_PARENT_REQUIRED')) return 'Van 13 tot en met 15 jaar blijven delen, opnames, contacten, aankopen en de assistent uit. Ouderlijke machtiging is nog niet ingebouwd.';
+  if (msg.includes('AGE_LOCKED')) return 'Een eerdere geboortedatum kun je niet later invullen.';
+  if (msg.includes('AGE_INVALID')) return 'Vul een geldig geboortejaar en een maand van 1 tot 12 in.';
+  if (msg.includes('PIN_NOT_SET')) return 'Stel eerst een veiligheidscode in.';
+  if (msg.includes('PIN_INVALID')) return 'Gebruik 4–8 tekens (cijfers en letters) en bevestig dezelfde code. Hoofdletters tellen mee.';
   if (msg.includes('PIN_WRONG') || msg.includes('PIN_REQUIRED')) return 'Onjuiste code. Probeer opnieuw.';
   if (msg.includes('WEAK_PASSWORD')) return 'Gebruik een wachtwoord van minstens 10 tekens.';
   if (/invalid code|could not verify|InvalidAccountId|InvalidSecret/i.test(msg)) return 'De code is onjuist of verlopen.';

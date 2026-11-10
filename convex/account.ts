@@ -40,11 +40,30 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   }
   await del(await q('recordingKeyEnvelopes').withIndex('by_recipient', (x) => x.eq('recipientId', uid)).collect());
   await del(await q('deviceCryptoKeys').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
-  await del(await q('shareLinks').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  for (const link of await q('shareLinks').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
+    if (!link.revokedAt) await ctx.db.patch(link._id, { revokedAt: Date.now() });
+    await ctx.db.delete(link._id);
+  }
   await del(await q('deviceContacts').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
-  for (const inc of await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'active')).collect()) await ctx.db.delete(inc._id);
-  for (const inc of await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'resolved')).collect()) await ctx.db.delete(inc._id);
-  for (const inc of await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'cancelled')).collect()) await ctx.db.delete(inc._id);
+  const incidentRows = [
+    ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'active')).collect(),
+    ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'resolved')).collect(),
+    ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'cancelled')).collect(),
+  ];
+  for (const inc of incidentRows) {
+    await del(await q('incidentLocations').withIndex('by_incident', (x) => x.eq('incidentId', inc._id)).collect());
+    await ctx.db.delete(inc._id);
+  }
+  for (const row of await q('billingEvents').collect()) if (row.userId === uid) await ctx.db.delete(row._id);
+  for (const row of await q('errorLogs').collect()) if (row.userId === uid) await ctx.db.delete(row._id);
+  for (const row of await q('auditLogs').collect()) if (row.actorId === uid) await ctx.db.delete(row._id);
+  for (const row of await q('recordingUploads').collect()) {
+    if (row.userId !== uid) continue;
+    if (row.storageId) { try { await ctx.storage.delete(row.storageId); } catch { /* */ } }
+    await ctx.db.delete(row._id);
+  }
+  await del(await q('blocks').withIndex('by_blocked', (x) => x.eq('blockedId', uid)).collect());
+  for (const row of await q('abuseReports').collect()) if (row.reportedId === uid) await ctx.db.delete(row._id);
 
   // Convex Auth-tabellen
   for (const s of await q('authSessions').withIndex('userId', (x) => x.eq('userId', uid)).collect()) {

@@ -17,7 +17,7 @@ export default function ChangePin() {
   const [busy, setBusy] = useState(false);
 
   if (status && !status.pinSet) {
-    return <Screen><H1>Geen PIN</H1><P muted>Stel eerst een PIN in via onboarding.</P></Screen>;
+    return <Screen><H1>Geen veiligheidscode</H1><P muted>Stel eerst een veiligheidscode in via onboarding. Cijfers en letters, 4–8 tekens.</P></Screen>;
   }
 
   const submit = async (confirm: string) => {
@@ -32,22 +32,22 @@ export default function ChangePin() {
     } finally { setBusy(false); }
   };
 
-  if (ok) return <Screen><H1>PIN gewijzigd</H1><Notice kind="ok">Je nieuwe veiligheids-PIN is actief.</Notice></Screen>;
+  if (ok) return <Screen><H1>Code gewijzigd</H1><Notice kind="ok">Je nieuwe veiligheidscode is actief. Hoofdletters tellen mee.</Notice></Screen>;
 
   return (
     <Screen>
-      <H1>PIN wijzigen</H1>
-      <P muted>Je huidige PIN is verplicht. De server weigert wijzigingen zonder geldige huidige code.</P>
+      <H1>Veiligheidscode wijzigen</H1>
+      <P muted>Je huidige code is verplicht. De server weigert wijzigingen zonder die code. 4–8 tekens, cijfers en letters. Hoofdletters tellen mee. Een oude cijfercode blijft geldig tot je hem wijzigt.</P>
       {step === 'current' && (
-        <PinPad title="Huidige PIN" length={6} error={err} busy={busy}
+        <PinPad title="Huidige code" error={err} busy={busy}
           onSubmit={(p) => { setCurrent(p); setErr(null); setStep('new'); }} />
       )}
       {step === 'new' && (
-        <PinPad title="Nieuwe PIN" length={6} error={err} busy={busy}
+        <PinPad title="Nieuwe code" error={err} busy={busy}
           onSubmit={(p) => { setNext(p); setStep('confirm'); }} onCancel={() => setStep('current')} />
       )}
       {step === 'confirm' && (
-        <PinPad title="Bevestig nieuwe PIN" length={next.length || 6} error={err} busy={busy}
+        <PinPad title="Bevestig nieuwe code" hint="Zelfde tekens, zelfde hoofdletters." error={err} busy={busy}
           onSubmit={submit} onCancel={() => setStep('new')} />
       )}
     </Screen>

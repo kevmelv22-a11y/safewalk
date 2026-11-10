@@ -3,7 +3,7 @@ import { Share, Platform } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
-import { useSessions } from '../src/lib/queries';
+import { useProfile, useSessions } from '../src/lib/queries';
 import { errorNl } from '../src/lib/convex';
 import * as Location from 'expo-location';
 import { ContactComposer } from '../src/components/ContactComposer';
@@ -23,10 +23,12 @@ export default function ShareLinkScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [composerText, setComposerText] = useState<string | null>(null);
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, '') ?? '';
+  const profile = useProfile();
 
   const make = async () => {
     setBusy(true); setErr(null); setMsg(null);
     try {
+      if (profile?.ageStatus !== 'adult') { setErr('Een locatielink kan pas vanaf 16 jaar. Onder 16 blijft dit dicht.'); return; }
       // Explicit consent: the user pressed this button AND granted location permission (asked here if needed).
       let perm = await Location.getForegroundPermissionsAsync();
       if (perm.status !== 'granted') perm = await Location.requestForegroundPermissionsAsync();

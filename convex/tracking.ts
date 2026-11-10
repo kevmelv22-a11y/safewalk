@@ -2,7 +2,7 @@ import { httpAction, internalMutation, internalQuery, mutation, query } from './
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { internal } from './_generated/api';
-import { audit, fail, randomToken, rateLimit, requireUser, sha256Hex } from './lib';
+import { audit, fail, randomToken, rateLimit, requireAdult, requireUser, sha256Hex } from './lib';
 
 const DEFAULT_TTL_MS = 2 * 60 * 60_000;
 const MAX_TTL_MS = 24 * 60 * 60_000;
@@ -34,6 +34,7 @@ export const createShareLink = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `share-create:${uid}`, 20, 60 * 60_000);
     if (a.sessionId) {
       const s = await ctx.db.get(a.sessionId);

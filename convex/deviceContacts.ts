@@ -1,7 +1,7 @@
 import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, fail, rateLimit, requireUser } from './lib';
+import { audit, fail, rateLimit, requireAdult, requireUser } from './lib';
 
 /** Normaliseer NL/internationaal telefoonnummer tot digits met optionele + (minimale opslag). */
 export function normalizePhone(raw: string): string | null {
@@ -29,6 +29,7 @@ export const replaceSelection = mutation({
   },
   handler: async (ctx, { contacts }) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `devcontacts:${uid}`, 20, 60 * 60_000);
     if (contacts.length > 30) fail('BAD_REQUEST');
     const existing = await ctx.db.query('deviceContacts').withIndex('by_user', (q) => q.eq('userId', uid)).collect();

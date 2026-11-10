@@ -11,7 +11,7 @@ async function user(t: ReturnType<typeof convexTest>, name: string) {
     const userId = await ctx.db.insert('users', { name, email: `${name}@test.nl` });
     await ctx.db.insert('profiles', {
       userId, displayName: name, defaultGraceMinutes: 5, sosCountdownSeconds: 5,
-      onboardingDone: true, restricted: false,
+      onboardingDone: true, restricted: false, birthYear: 1990, birthMonth: 1,
     });
     await ctx.db.insert('subscriptions', { userId, tier: 'free' });
     return userId;

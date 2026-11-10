@@ -17,10 +17,14 @@ import { handleVolumeDoublePress } from '../src/lib/volumeAction';
 import { getVolumeSendOptIn } from '../src/lib/recordingPrefs';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
+import { useProfile } from '../src/lib/queries';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
-  useEffect(() => { if (status?.userId) configurePurchases(status.userId).catch(() => {}); }, [status?.userId]);
+  const profile = useProfile();
+  useEffect(() => {
+    if (status?.userId && profile?.ageStatus === 'adult') configurePurchases(status.userId).catch(() => {});
+  }, [status?.userId, profile?.ageStatus]);
   return null;
 }
 
@@ -59,6 +63,7 @@ export default function RootLayout() {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="age" options={{ title: 'Leeftijd', headerBackVisible: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
           <Stack.Screen name="dashboard" options={{ title: 'SafeWalk', headerBackVisible: false }} />
           <Stack.Screen name="login" options={{ title: 'Inloggen' }} />
@@ -74,7 +79,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding/contacts" options={{ title: 'Contacten' }} />
           <Stack.Screen name="onboarding/location" options={{ title: 'Locatie' }} />
           <Stack.Screen name="onboarding/notifications" options={{ title: 'Meldingen' }} />
-          <Stack.Screen name="onboarding/pin" options={{ title: 'Veiligheids-PIN' }} />
+          <Stack.Screen name="onboarding/pin" options={{ title: 'Veiligheidscode' }} />
           <Stack.Screen name="onboarding/settings" options={{ title: 'Veiligheid' }} />
           <Stack.Screen name="premium" options={{ title: 'Premium' }} />
           <Stack.Screen name="report" options={{ title: 'Misbruik melden' }} />
@@ -88,7 +93,7 @@ export default function RootLayout() {
           <Stack.Screen name="share-link" options={{ title: 'Tracking-link' }} />
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
-          <Stack.Screen name="settings/pin" options={{ title: 'PIN wijzigen' }} />
+          <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
           <Stack.Screen name="quick-ping" options={{ title: "Live locatie" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />

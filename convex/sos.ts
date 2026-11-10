@@ -2,13 +2,14 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { queuePush, mapsLink } from './notify';
-import { audit, displayName, fail, rateLimit, requireUser } from './lib';
+import { audit, displayName, fail, rateLimit, requireAdult, requireUser } from './lib';
 
 /** Registreert SOS (idempotent via clientRef voor de offline-wachtrij) en plant push. Belt NOOIT 112. */
 export const trigger = mutation({
   args: { clientRef: v.string(), sessionId: v.optional(v.id('sessions')), lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     const existing = await ctx.db.query('alerts').withIndex('by_client_ref', (q) => q.eq('clientRef', a.clientRef)).first();
     if (existing) { if (existing.userId !== uid) fail('FORBIDDEN'); return existing._id; }
     await rateLimit(ctx, `sos:${uid}`, 5, 10 * 60_000);

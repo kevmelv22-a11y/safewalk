@@ -75,5 +75,13 @@ export const purge = internalMutation({ args: {}, handler: async (ctx) => {
     await ctx.db.delete(s._id);
   }
   for (const r of await ctx.db.query('rateLimits').collect()) if (r.windowStart < now - 24 * 3600_000) await ctx.db.delete(r._id);
+  // Incident-locatie: zelfde maximum als reispunten (RETENTION_MAX_MS). Geen aparte langere bewaartermijn.
+  for (const row of await ctx.db.query('incidentLocations').collect()) {
+    if (row.recordedAt < now - RETENTION_MAX_MS) { await ctx.db.delete(row._id); n++; }
+  }
+  // Fout- en auditregels: de privacytekst noemt max. 12 maanden. Geen langere bewaartermijn in code.
+  const yearAgo = now - 365 * 24 * 3600_000;
+  for (const row of await ctx.db.query('errorLogs').collect()) if (row._creationTime < yearAgo) await ctx.db.delete(row._id);
+  for (const row of await ctx.db.query('auditLogs').collect()) if (row._creationTime < yearAgo) await ctx.db.delete(row._id);
   return n;
 } });

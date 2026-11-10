@@ -2,6 +2,7 @@ import { getAuthUserId } from '@convex-dev/auth/server';
 import { ConvexError } from 'convex/values';
 import type { MutationCtx, QueryCtx } from './_generated/server';
 import type { Doc, Id } from './_generated/dataModel';
+import { ageStatus } from './age';
 
 export const FREE_CONTACT_LIMIT = 2;
 export const PREMIUM_CONTACT_LIMIT = 20;
@@ -14,6 +15,16 @@ export async function requireUser(ctx: QueryCtx): Promise<Id<'users'>> {
   const uid = await getAuthUserId(ctx);
   if (!uid) fail('NOT_AUTHENTICATED');
   return uid!;
+}
+
+/** 16+ self-declared birth year/month. Unknown, under 13, and 13–15 fail closed. Not a parent check. */
+export async function requireAdult(ctx: QueryCtx, uid: Id<'users'>) {
+  const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+  const status = ageStatus(p?.birthYear, p?.birthMonth);
+  if (status === 'adult') return;
+  if (status === 'unknown') fail('AGE_REQUIRED');
+  if (status === 'under13') fail('AGE_UNDER_13');
+  fail('AGE_PARENT_REQUIRED');
 }
 export async function isAdmin(ctx: QueryCtx, uid: Id<'users'>) {
   return !!(await ctx.db.query('admins').withIndex('by_user', (q) => q.eq('userId', uid)).first());

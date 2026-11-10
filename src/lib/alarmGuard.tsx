@@ -41,7 +41,7 @@ export function AlarmGuard() {
   return (
     <View accessibilityLiveRegion="assertive" style={{ backgroundColor: '#7f1d1d', padding: 8 }}>
       <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '800', fontSize: 13 }}>
-        Alarm actief — stop alleen met veiligheids-PIN (OS kan app alsnog beëindigen)
+        Alarm actief — stop alleen met veiligheidscode (OS kan app alsnog beëindigen)
       </Text>
     </View>
   );

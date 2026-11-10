@@ -2,15 +2,15 @@ import { mutation, query } from './_generated/server';
 import { internal } from './_generated/api';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, displayName, fail, rateLimit, requireUser, sha256Hex } from './lib';
+import { audit, displayName, fail, rateLimit, requireAdult, requireUser, sha256Hex } from './lib';
 import { queuePush, mapsLink } from './notify';
+import { isValidSafetyCode } from './safetyCode';
 
-const PIN_MIN = 4;
-const PIN_MAX = 8;
 const PBKDF2_ITERS = 210_000;
 
+/** Zelfde regels als de client. Geen trim of case-fold: de hash is van de exacte string. */
 function isValidPin(pin: string) {
-  return new RegExp(`^\\d{${PIN_MIN},${PIN_MAX}}$`).test(pin);
+  return isValidSafetyCode(pin);
 }
 
 function timingSafeEqualHex(a: string, b: string) {
@@ -51,13 +51,14 @@ export const pinStatus = query({
 });
 
 /**
- * Stelt of wijzigt de veiligheids-PIN. Alleen server-side hashing (PBKDF2-SHA256 + random salt).
- * De client stuurt de PIN één keer mee; die wordt niet gelogd en niet opgeslagen.
+ * Stelt of wijzigt de veiligheidscode. Alleen server-side hashing (PBKDF2-SHA256 + random salt).
+ * Cijfers en letters, 4–8, hoofdlettergevoelig. De code wordt niet gelogd en niet opgeslagen.
  */
 export const setPin = mutation({
   args: { pin: v.string(), confirmPin: v.string(), currentPin: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `pin-set:${uid}`, 5, 60 * 60_000);
     if (!isValidPin(a.pin) || a.pin !== a.confirmPin) fail('PIN_INVALID');
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
@@ -106,6 +107,7 @@ export const verifyPin = mutation({
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
     await rateLimit(ctx, `pin-verify:${uid}`, 12, 15 * 60_000);
     if (!isValidPin(a.pin)) return { ok: false as const, reason: 'invalid' as const };
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
@@ -172,7 +174,7 @@ export const verifyPin = mutation({
           await queuePush(ctx, {
             kind: 'arrived_safe', recipients: contacts.map((c) => c.contactId),
             title: `✅ ${name}: alarm gestopt`,
-            body: `${name} heeft het alarm met de veiligheids-PIN gestopt.`,
+            body: `${name} heeft het alarm met de veiligheidscode gestopt.`,
             alertId: lastAlert, sessionId: a.sessionId ?? lastSession,
           });
         }
