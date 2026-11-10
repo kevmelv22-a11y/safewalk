@@ -14,7 +14,7 @@ Bijgewerkt vanuit de code op deze tak. Dit is geen juridisch advies en geen verk
 
 ## Nog niet klaar voor publicatie
 
-- Geen openbare privacy-URL en geen externe account-verwijderpagina.
+- De HTML-pagina's staan in `public-pages/` maar zijn nog niet gehost. Er is dus nog geen openbare privacy-URL.
 - Geen ingebouwde ouderlijke machtiging. 13–15 kunnen de app openen maar niet de gevoelige functies gebruiken.
 - Live sleutels, winkelproducten en toestelgedrag zijn niet in deze pas gecontroleerd.
 - Er is nog geen Android-build gestart.
