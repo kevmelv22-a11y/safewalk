@@ -1,13 +1,17 @@
 import { Platform } from 'react-native';
 import { requireNativeModule } from 'expo';
 
-type Caps = { volumeDoublePress: boolean; backgroundTorch: boolean; notes: string };
+type Caps = { volumeDoublePress: boolean; backgroundTorch: boolean; alarmForegroundService?: boolean; notes: string };
 type NativeShape = {
   isVolumeDoublePressSupported(): boolean;
   setVolumeDoublePressEnabled(enabled: boolean): void;
   getCapabilities(): Caps;
   /** Android: Intent.ACTION_DIAL tel:112. iOS: not used (JS tel:). */
   openEmergencyDialer(): Promise<boolean>;
+  /** Android: start/stop de alarm-voorgronddienst (mediaPlayback) met vaste melding. */
+  startAlarmForegroundService?(): boolean;
+  stopAlarmForegroundService?(): boolean;
+  isAlarmForegroundServiceRunning?(): boolean;
   addListener?(event: string, cb: () => void): { remove: () => void };
 };
 
@@ -56,4 +60,24 @@ export function addVolumeDoublePressListener(handler: () => void) {
 export async function openEmergencyDialer(): Promise<boolean> {
   if (Platform.OS !== 'android' || !Native?.openEmergencyDialer) return false;
   return Native.openEmergencyDialer();
+}
+
+/**
+ * Android: start de voorgronddienst (type mediaPlayback) met vaste melding "SafeWalk-alarm actief",
+ * zodat het alarmgeluid doorgaat met scherm uit. Aanroepen terwijl de app op de voorgrond is.
+ * iOS/web/uncompiled: false (geen dienst).
+ */
+export function startAlarmForegroundService(): boolean {
+  if (Platform.OS !== 'android' || !Native?.startAlarmForegroundService) return false;
+  return Native.startAlarmForegroundService();
+}
+
+export function stopAlarmForegroundService(): boolean {
+  if (Platform.OS !== 'android' || !Native?.stopAlarmForegroundService) return false;
+  return Native.stopAlarmForegroundService();
+}
+
+export function isAlarmForegroundServiceRunning(): boolean {
+  if (Platform.OS !== 'android' || !Native?.isAlarmForegroundServiceRunning) return false;
+  return Native.isAlarmForegroundServiceRunning();
 }

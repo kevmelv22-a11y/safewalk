@@ -39,3 +39,32 @@ test('extension / app ids remain parameterized (base package nl.safewalk.app)', 
   assert.ok(tile, 'quick-settings-tile plugin configured');
   assert.equal(tile[1]?.ios?.appGroup, undefined);
 });
+
+test('alarm foreground service is declared with type mediaPlayback (idempotent)', () => {
+  const plugin = require('../withSafewalkNative.js');
+  const manifest = { manifest: { $: {}, application: [{ $: { 'android:name': '.MainApplication' }, activity: [] }] } };
+  plugin.addAlarmService(manifest);
+  plugin.addAlarmService(manifest);
+  const services = manifest.manifest.application[0].service;
+  assert.equal(services.length, 1);
+  assert.equal(services[0].$['android:name'], 'nl.safewalk.nativehelpers.AlarmForegroundService');
+  assert.equal(services[0].$['android:foregroundServiceType'], 'mediaPlayback');
+  assert.equal(services[0].$['android:exported'], 'false');
+});
+
+test('kotlin alarm service starts foreground as MEDIA_PLAYBACK with Dutch notification', () => {
+  const kt = readFileSync(
+    join(__dirname, '../../android/src/main/java/nl/safewalk/nativehelpers/AlarmForegroundService.kt'),
+    'utf8',
+  );
+  assert.match(kt, /FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK/);
+  assert.match(kt, /SafeWalk-alarm actief/);
+  assert.match(kt, /getLaunchIntentForPackage/);
+  assert.match(kt, /onTaskRemoved/);
+  const mod = readFileSync(
+    join(__dirname, '../../android/src/main/java/nl/safewalk/nativehelpers/SafewalkNativeModule.kt'),
+    'utf8',
+  );
+  assert.match(mod, /startAlarmForegroundService/);
+  assert.match(mod, /stopAlarmForegroundService/);
+});

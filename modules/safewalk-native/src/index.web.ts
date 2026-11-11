@@ -15,3 +15,7 @@ export function addVolumeDoublePressListener(_handler: () => void) {
 export async function openEmergencyDialer(): Promise<boolean> {
   return false;
 }
+/** Web: geen voorgronddienst. */
+export function startAlarmForegroundService(): boolean { return false; }
+export function stopAlarmForegroundService(): boolean { return false; }
+export function isAlarmForegroundServiceRunning(): boolean { return false; }

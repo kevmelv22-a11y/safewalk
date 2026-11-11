@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { alarmService } from './alarmService';
 
 type Player = { stop: () => Promise<void> };
 
@@ -36,9 +37,12 @@ export async function startAlarm(): Promise<Player> {
     player.loop = true;
     player.volume = 1;
     player.play();
+    // Android: echte voorgronddienst (mediaPlayback) + vaste melding zolang dit alarm klinkt.
+    const release = alarmService.acquire();
     return {
       stop: async () => {
         try { player.pause(); player.remove(); } catch { /* */ }
+        release();
       },
     };
   } catch {
