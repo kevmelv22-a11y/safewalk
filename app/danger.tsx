@@ -3,7 +3,8 @@ import { Platform, Share, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
+import { applyAudioMode } from '../src/lib/audioMode';
 import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
 import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
@@ -86,7 +87,7 @@ export default function Danger() {
           return;
         }
         const bg = await getBackgroundRecordingOptIn();
-        await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, allowsBackgroundRecording: bg });
+        await applyAudioMode({ allowsRecording: true, playsInSilentMode: true, allowsBackgroundRecording: bg });
         await recorder.prepareToRecordAsync();
         recorder.record();
         setRecActive(true);
