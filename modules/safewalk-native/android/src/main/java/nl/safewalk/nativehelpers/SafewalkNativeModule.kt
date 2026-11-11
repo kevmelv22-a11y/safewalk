@@ -66,10 +66,22 @@ class SafewalkNativeModule : Module() {
       true
     }
 
+    // Alarm-voorgronddienst (type mediaPlayback) met vaste melding "SafeWalk-alarm actief".
+    Function("startAlarmForegroundService") {
+      appContext.reactContext?.let { AlarmForegroundService.start(it.applicationContext) } ?: false
+    }
+
+    Function("stopAlarmForegroundService") {
+      appContext.reactContext?.let { AlarmForegroundService.stop(it.applicationContext) } ?: false
+    }
+
+    Function("isAlarmForegroundServiceRunning") { AlarmForegroundService.isRunning }
+
     Function("getCapabilities") {
       mapOf(
         "volumeDoublePress" to true,
         "backgroundTorch" to false,
+        "alarmForegroundService" to true,
         "notes" to "Volume×2 alleen terwijl SafeWalk Activity op voorgrond is. Torch vereist foreground CameraView; geen background torch."
       )
     }
