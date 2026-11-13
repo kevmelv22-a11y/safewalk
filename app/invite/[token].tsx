@@ -4,6 +4,7 @@ import { useConvexAuth, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Screen, H1, P, Button, Notice } from '../../src/components/ui';
 import { errorNl } from '../../src/lib/convex';
+import { referralResultCopy } from '../../src/lib/referralCopy';
 
 export default function Invite() {
   const { token } = useLocalSearchParams<{ token: string }>(); const { isAuthenticated } = useConvexAuth();
@@ -11,7 +12,11 @@ export default function Invite() {
   const [msg, setMsg] = useState<{ k: 'ok' | 'danger'; t: string } | null>(null);
   if (!isAuthenticated) return <Screen><H1>Uitnodiging</H1><P>Log eerst in of maak een account aan, en open de link daarna opnieuw.</P><Button title="Inloggen" onPress={() => router.push('/login')} /></Screen>;
   const respond = async (accept: boolean) => {
-    try { await respondInvitation({ token, accept }); setMsg({ k: 'ok', t: accept ? 'Geaccepteerd. Je kunt nu per reis worden uitgenodigd om mee te kijken.' : 'Uitnodiging geweigerd.' }); }
+    try {
+      const r = await respondInvitation({ token, accept });
+      const gift = accept ? referralResultCopy(r?.referral) : null;
+      setMsg({ k: 'ok', t: accept ? `Geaccepteerd. Je kunt nu per reis worden uitgenodigd om mee te kijken.${gift ? ` ${gift}` : ''}` : 'Uitnodiging geweigerd.' });
+    }
     catch (e) { setMsg({ k: 'danger', t: errorNl(e) }); }
   };
   return (

@@ -19,6 +19,8 @@ import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/l
 import { useProfile } from '../src/lib/queries';
 import { SharingKeeper } from '../src/lib/sharingKeeper';
 import { registerPush } from '../src/lib/notifications';
+import { paramsFromNotificationData } from '../src/lib/fakeCall';
+import { openRingOnce } from '../src/lib/fakeCallRunner';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
@@ -53,13 +55,20 @@ export default function RootLayout() {
       const d = r.notification.request.content.data as { type?: string; sessionId?: string; alertId?: string };
       const action = r.actionIdentifier;
       if (action === 'QUICK_PING') { openQuickPing(); return; }
+      const fake = paramsFromNotificationData(d);
+      if (fake) { openRingOnce(() => router.push({ pathname: '/fake-call-ring', params: fake })); return; }
       if ((d.type === 'sos' || d.type === 'missed_check_in') && d.alertId) router.push(`/alert/${d.alertId}`);
       else if (d.type === 'check_in' && d.sessionId) router.push(`/session/${d.sessionId}`);
       else if (d.type === 'unsafe' || d.type === 'wrong_pin' || d.type === 'come_quick') {
         if (d.alertId) router.push(`/alert/${d.alertId}`);
       }
     });
-    return () => { stopRetry(); sub.remove(); };
+    // Ingeplande nep-oproep terwijl de app open is: meteen het belscherm (de melding zelf wordt niet getoond).
+    const received = Notifications.addNotificationReceivedListener((n) => {
+      const fake = paramsFromNotificationData(n.request.content.data);
+      if (fake) openRingOnce(() => router.push({ pathname: '/fake-call-ring', params: fake }));
+    });
+    return () => { stopRetry(); sub.remove(); received.remove(); };
   }, []);
   return (
     <SafeAreaProvider>
@@ -104,6 +113,8 @@ export default function RootLayout() {
           <Stack.Screen name="quick-ping" options={{ title: "Locatie sturen" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
+          <Stack.Screen name="fake-call" options={{ title: 'Nep-oproep' }} />
+          <Stack.Screen name="fake-call-ring" options={{ title: 'Oproep', presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
         </Stack>
       </ConvexAuthProvider>
     </SafeAreaProvider>

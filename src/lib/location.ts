@@ -1,12 +1,13 @@
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Battery from 'expo-battery';
 import { convex, errorCode } from './convex';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { PersistentQueue } from './queue';
 
 const ACTIVE_KEY = 'safewalk.activeSession';
-type LocRow = { sessionId: Id<'sessions'>; lat: number; lng: number; accuracyM?: number; recordedAt: number };
+type LocRow = { sessionId: Id<'sessions'>; lat: number; lng: number; accuracyM?: number; recordedAt: number; batteryPct?: number };
 export const locationQueue = new PersistentQueue<LocRow>(AsyncStorage, 'safewalk.locationQueue', 20);
 
 let watchSub: Location.LocationSubscription | null = null;
@@ -20,13 +21,34 @@ const emit = () => { for (const l of listeners) l(watchSessionId); };
 export const sharingSessionId = () => watchSessionId;
 export function subscribeSharing(l: SharingListener) { listeners.add(l); return () => { listeners.delete(l); }; }
 
+/**
+ * Batterijpercentage (0–100) om mee te sturen tijdens een actieve reis, zodat contacten bij een gemiste check-in
+ * kunnen zien of de telefoon misschien leeg was. Onbekend (web/emulator: -1) → niet meesturen.
+ */
+export async function readBatteryPct(): Promise<number | undefined> {
+  try {
+    const level = await Battery.getBatteryLevelAsync();
+    return level >= 0 && level <= 1 ? Math.round(level * 100) : undefined;
+  } catch { return undefined; }
+}
+
 async function upload(locs: Location.LocationObject[]) {
   const sessionId = (await AsyncStorage.getItem(ACTIVE_KEY)) as Id<'sessions'> | null;
   if (!sessionId) return;
+  const batteryPct = await readBatteryPct();
   for (const l of locs) await locationQueue.push(`${sessionId}:${l.timestamp}`, {
-    sessionId, lat: l.coords.latitude, lng: l.coords.longitude, accuracyM: l.coords.accuracy ?? undefined, recordedAt: l.timestamp });
+    sessionId, lat: l.coords.latitude, lng: l.coords.longitude, accuracyM: l.coords.accuracy ?? undefined, recordedAt: l.timestamp,
+    ...(batteryPct !== undefined ? { batteryPct } : {}) });
   await locationQueue.flush(async (row) => {
-    try { await convex.mutation(api.sessions.addLocation, row); }
+    try {
+      try { await convex.mutation(api.sessions.addLocation, row); }
+      catch (e) {
+        // Oudere server zonder batterijveld: niet blijven hangen, punt zonder batterij opnieuw sturen.
+        if (row.batteryPct === undefined || !/ArgumentValidationError|extra field|batteryPct/i.test(String((e as Error)?.message ?? e))) throw e;
+        const { batteryPct: _drop, ...rest } = row; void _drop;
+        await convex.mutation(api.sessions.addLocation, rest);
+      }
+    }
     catch (e) {
       const code = errorCode(e);
       if (code === 'SESSION_CLOSED') { await AsyncStorage.removeItem(ACTIVE_KEY); return; } // server weigert: niet opnieuw

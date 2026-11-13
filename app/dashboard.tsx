@@ -179,6 +179,7 @@ export default function Dashboard() {
         onAssistant={() => router.push('/assistant')}
         onPremium={() => router.push('/premium')}
         onSettings={() => router.push('/settings')}
+        onFakeCall={() => router.push('/fake-call')}
       />
 
       <Disclaimer />

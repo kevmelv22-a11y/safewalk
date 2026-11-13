@@ -2,6 +2,7 @@ import { internalMutation } from './_generated/server';
 import { queuePush, mapsLink } from './notify';
 import { closeSession } from './sessions';
 import { detectSignals, signalText, COOLDOWN_MS } from './motion';
+import { deviceStatusLine } from './deviceStatus';
 import { audit, displayName, isPremium, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
 
 /** Elke minuut (cron): verlopen sessies sluiten en gemiste check-ins escaleren — onafhankelijk van de app. */
@@ -42,12 +43,15 @@ export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) 
     await ctx.db.patch(c._id, { status: 'missed', escalatedAt: now });
     await ctx.db.patch(s._id, { status: 'alert' });
     const last = await ctx.db.query('locations').withIndex('by_session', (q) => q.eq('sessionId', s._id)).order('desc').first();
+    const device = { batteryPct: s.batteryPct, batteryAt: s.batteryAt, lastSeenAt: s.lastSeenAt };
     const alertId = await ctx.db.insert('alerts', { userId: s.userId, sessionId: s._id, kind: 'missed_check_in', status: 'open',
-      lat: last?.lat, lng: last?.lng, accuracyM: last?.accuracyM, locationAt: last?.recordedAt });
+      lat: last?.lat, lng: last?.lng, accuracyM: last?.accuracyM, locationAt: last?.recordedAt, ...device });
+    const deviceLine = deviceStatusLine(device);
     const viewers = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
     const name = await displayName(ctx, s.userId); const link = mapsLink(last?.lat, last?.lng);
     await queuePush(ctx, { kind: 'missed_check_in', alertId, sessionId: s._id, recipients: viewers, title: `⚠️ ${name} heeft niet ingecheckt`,
-      body: `${name} heeft niet op tijd bevestigd veilig te zijn. ${link ? `Laatst bekende locatie: ${link}` : 'Geen recente locatie.'} Probeer contact op te nemen.` });
+      body: `${name} heeft niet op tijd bevestigd veilig te zijn. ${link ? `Laatst bekende locatie: ${link}` : 'Geen recente locatie.'}${deviceLine ? ` ${deviceLine}.` : ''} Probeer contact op te nemen.`,
+      data: { batteryPct: device.batteryPct ?? null, lastSeenAt: device.lastSeenAt ?? null } });
     await queuePush(ctx, { kind: 'check_in_required', sessionId: s._id, recipients: [s.userId], title: 'Check-in gemist',
       body: 'Je contacten zijn gewaarschuwd. Open SafeWalk om te bevestigen dat alles goed is.' });
     await audit(ctx, undefined, 'check_in.escalated', s._id);
@@ -65,7 +69,11 @@ export const purge = internalMutation({ args: {}, handler: async (ctx) => {
     for (const r of rows) if (old || r._creationTime < now - RETENTION_MAX_MS) { await ctx.db.delete(r._id); n++; }
   }
   for (const a of await ctx.db.query('alerts').collect())
-    if (a._creationTime < now - 30 * 24 * 3600_000 && a.lat !== undefined) await ctx.db.patch(a._id, { lat: undefined, lng: undefined, accuracyM: undefined });
+    if (a._creationTime < now - 30 * 24 * 3600_000 && (a.lat !== undefined || a.batteryPct !== undefined || a.lastSeenAt !== undefined))
+      await ctx.db.patch(a._id, { lat: undefined, lng: undefined, accuracyM: undefined, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined });
+  // Uitnodigingsbeloningen: na 365 dagen weg (dan telt de jaarlimiet ze niet meer); verlopen giften ook.
+  for (const r of await ctx.db.query('referrals').collect()) if (r.createdAt < now - 365 * 24 * 3600_000) await ctx.db.delete(r._id);
+  for (const g of await ctx.db.query('premiumGrants').collect()) if (g.expiresAt < now - 365 * 24 * 3600_000) await ctx.db.delete(g._id);
   // sessie-metadata maximaal 90 dagen bewaren
   for (const s of await ctx.db.query('sessions').collect()) {
     if (s.endedAt === undefined || s.endedAt > now - 90 * 24 * 3600_000) continue;

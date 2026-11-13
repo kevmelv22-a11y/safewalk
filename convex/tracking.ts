@@ -2,7 +2,8 @@ import { httpAction, internalMutation, internalQuery, mutation, query } from './
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { internal } from './_generated/api';
-import { audit, fail, randomToken, rateLimit, requireAdult, requireUser, sha256Hex } from './lib';
+import { audit, fail, randomToken, rateLimit, requireAdult, requireUser, sessionOpen, sha256Hex } from './lib';
+import { downloadUrl, liveTrackHtml, tripState, type PublicTrip } from './trackPage';
 
 const DEFAULT_TTL_MS = 2 * 60 * 60_000;
 const MAX_TTL_MS = 24 * 60 * 60_000;
@@ -59,6 +60,32 @@ export const createShareLink = mutation({
     // Audit zonder raw token (geen credential in logs)
     await audit(ctx, uid, 'share.create', id, { ttl, scopes, hasIncident: !!a.incidentId });
     return { id, token, expiresAt, path: `/track/live?token=${token}`, scopes };
+  },
+});
+
+/**
+ * Meekijklink voor de lopende reis (voor iemand zonder app). Geldig tot de reis verloopt, max. 24 uur.
+ * Locatie alleen zolang de reis actief is; daarna toont de link alleen nog "aangekomen" of "gestopt".
+ */
+export const createTripLink = mutation({
+  args: { sessionId: v.id('sessions'), locationConsent: v.boolean() },
+  handler: async (ctx, a) => {
+    const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
+    if (!a.locationConsent) fail('LOCATION_CONSENT_REQUIRED');
+    await rateLimit(ctx, `share-create:${uid}`, 20, 60 * 60_000);
+    const s = await ctx.db.get(a.sessionId);
+    if (!s || s.userId !== uid) fail('FORBIDDEN');
+    if (!sessionOpen(s!)) fail('SESSION_CLOSED');
+    const now = Date.now();
+    const expiresAt = Math.min(Math.max(s!.expiresAt, now + 5 * 60_000), now + MAX_TTL_MS);
+    const token = randomToken();
+    const id = await ctx.db.insert('shareLinks', {
+      userId: uid, tokenHash: await sha256Hex(token), sessionId: a.sessionId,
+      label: 'Meekijklink reis', scopes: ['location'], locationConsent: true, expiresAt, createdAt: now,
+    });
+    await audit(ctx, uid, 'share.create_trip', id, { ttl: expiresAt - now });
+    return { id, token, expiresAt, path: `/track/live?token=${token}` };
   },
 });
 
@@ -123,6 +150,9 @@ export const resolvePublic = internalQuery({
 
     let updaterActive = false;
     let updater: 'incident' | 'session' | null = null;
+    // Meekijklink voor een reis: bestemming, verwachte aankomst en check-in-status (geen naam, geen route).
+    let trip: PublicTrip | null = null;
+    let sessionLive = false;
     if (row.incidentId) {
       const inc = await ctx.db.get(row.incidentId);
       if (inc && inc.status === 'active' && inc.userId === row.userId) {
@@ -135,6 +165,18 @@ export const resolvePublic = internalQuery({
       if (s && s.userId === row.userId && s.endedAt === undefined && (s.status === 'active' || s.status === 'alert')) {
         updaterActive = true;
         if (!updater) updater = 'session';
+      }
+      if (s && s.userId === row.userId) {
+        sessionLive = sessionOpen(s, now);
+        const checkIns = await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect();
+        const ci = checkIns.filter((c) => c.status !== 'cancelled').pop() ?? checkIns.at(-1) ?? null;
+        const st = tripState(s, ci, now);
+        trip = {
+          destination: s.destinationLabel, expectedArrival: s.expectedArrival, state: st.state, graceEndsAt: st.graceEndsAt,
+          endedAt: s.endedAt ?? null,
+          // Toestelstatus alleen zolang de reis loopt (wordt bij einde reis ook op de server gewist).
+          batteryPct: sessionLive ? s.batteryPct ?? null : null, lastSeenAt: sessionLive ? s.lastSeenAt ?? null : null,
+        };
       }
     }
 
@@ -155,7 +197,8 @@ export const resolvePublic = internalQuery({
           };
         }
       }
-      if (!location && row.sessionId) {
+      // Reislocatie alleen zolang de reis actief is. Na aankomst/stoppen ziet de link alleen nog de status.
+      if (!location && row.sessionId && sessionLive) {
         const locs = await ctx.db.query('locations')
           .withIndex('by_session', (q) => q.eq('sessionId', row.sessionId!)).order('desc').take(1);
         if (locs[0]) {
@@ -202,6 +245,8 @@ export const resolvePublic = internalQuery({
       updater,
       freshnessMs: location ? now - location.recordedAt : null,
       recordings,
+      trip,
+      serverNow: now,
     };
   },
 });
@@ -241,6 +286,8 @@ export const publicLocation = httpAction(async (ctx, req) => {
     freshnessMs: data.freshnessMs,
     location: data.location,
     recordings: data.scopes.includes('recording') ? data.recordings : [],
+    trip: data.trip,
+    serverNow: data.serverNow,
     note: data.live
       ? 'Live locatie (updater actief, vers). SafeWalk is geen 112-hulpdienst.'
       : 'Geen live-claim: geen actieve updater of locatie verouderd/ontbreekt. SafeWalk is geen 112-hulpdienst.',
@@ -297,65 +344,14 @@ export const publicPage = httpAction(async (ctx, req) => {
       status: 404, headers: htmlHeaders,
     });
   }
-  const api = `${site}/track/location?token=${encodeURIComponent(token)}`;
-  const recApi = `${site}/track/recording`;
-  const html = `<!doctype html>
-<html lang="nl"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<meta name="robots" content="noindex,nofollow"/>
-<meta name="referrer" content="no-referrer"/>
-<title>SafeWalk locatie</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="${LEAFLET_CSS_SRI}" crossorigin="anonymous"/>
-<style>
-html,body,#map{height:100%;margin:0}
-.bar{position:fixed;z-index:1000;left:0;right:0;top:0;background:#0f172a;color:#fff;padding:10px 14px;font:15px/1.4 system-ui,sans-serif}
-.bar small{opacity:.85;display:block;margin-top:4px}
-.stale{color:#fbbf24;font-weight:700}
-.live{color:#4ade80;font-weight:700}
-.attr{position:fixed;bottom:8px;right:8px;z-index:1000;background:rgba(255,255,255,.92);padding:4px 8px;font:12px system-ui;border-radius:6px}
-#recs{position:fixed;bottom:40px;left:8px;z-index:1000;background:rgba(15,23,42,.92);color:#fff;padding:8px;font:13px system-ui;border-radius:8px;max-width:280px}
-#recs a{color:#93c5fd}
-</style></head><body>
-<div class="bar">SafeWalk locatie<small id="meta">Laden…</small></div>
-<div id="map"></div>
-<div id="recs" hidden></div>
-<div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors · ODbL</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="${LEAFLET_JS_SRI}" crossorigin="anonymous"></script>
-<script>
-const API=${JSON.stringify(api)};
-const REC=${JSON.stringify(recApi)};
-const PLAY=${JSON.stringify(site+'/track/recording-play')};
-const TOKEN=${JSON.stringify(token)};
-const map=L.map('map').setView([52.37,4.9],13);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
-let marker=null;
-async function tick(){
-  try{
-    const r=await fetch(API,{cache:'no-store',referrerPolicy:'no-referrer'});
-    const j=await r.json();
-    const m=document.getElementById('meta');
-    if(!j.ok){ m.textContent='Link ongeldig.'; return; }
-    const liveLabel=j.live?'<span class="live">LIVE</span>':'<span class="stale">Niet live</span>';
-    if(!j.location){
-      m.innerHTML=liveLabel+' · Geen locatie. Updater: '+(j.updaterActive?'actief':'geen')+' · tot '+new Date(j.expiresAt).toLocaleString('nl-NL');
-    } else {
-      const {lat,lng,recordedAt,stale,accuracyM}=j.location;
-      const when=new Date(recordedAt).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      m.innerHTML=liveLabel+(stale?' · <span class="stale">verouderd</span>':'')+' · '+when+(accuracyM!=null?' · ±'+Math.round(accuracyM)+' m':'')+' · tot '+new Date(j.expiresAt).toLocaleString('nl-NL');
-      if(!marker){ marker=L.marker([lat,lng]).addTo(map); map.setView([lat,lng],15); }
-      else marker.setLatLng([lat,lng]);
-    }
-    const box=document.getElementById('recs');
-    if(j.recordings && j.recordings.length){
-      box.hidden=false;
-      box.innerHTML='<strong>Opnames</strong> (E2E: fragment-sleutel nodig op aparte player; geen 3rd-party scripts)<br/>'+j.recordings.map(function(x){
-        return '<a href="'+PLAY+'?token='+encodeURIComponent(TOKEN)+'&id='+encodeURIComponent(x.id)+'" rel="noreferrer">Opname '+new Date(x.createdAt).toLocaleString('nl-NL')+' ('+Math.round(x.byteSize/1024)+' KB)</a>';
-      }).join('<br/>');
-    } else { box.hidden=true; }
-  }catch(e){ document.getElementById('meta').textContent='Kon locatie niet laden.'; }
-}
-tick(); setInterval(tick,10000);
-</script></body></html>`;
+  const html = liveTrackHtml({
+    api: `${site}/track/location?token=${encodeURIComponent(token)}`,
+    player: `${site}/track/recording-play`,
+    token,
+    downloadUrl: downloadUrl(),
+    leafletJsSri: LEAFLET_JS_SRI,
+    leafletCssSri: LEAFLET_CSS_SRI,
+  });
   return new Response(html, { status: 200, headers: htmlHeaders });
 });
 

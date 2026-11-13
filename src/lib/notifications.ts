@@ -6,9 +6,11 @@ import { convex } from './convex';
 import { api } from '../../convex/_generated/api';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false,
-  }),
+  // Nep-oproep terwijl de app open is: geen banner, het belscherm opent zelf (zie _layout).
+  handleNotification: async (n) => {
+    const fake = (n.request.content.data as { type?: string } | null)?.type === 'fake_call';
+    return { shouldShowBanner: !fake, shouldShowList: !fake, shouldPlaySound: !fake, shouldSetBadge: false };
+  },
 });
 
 export type PushRegistrationResult =
@@ -78,11 +80,23 @@ export async function registerPush(opts: { prompt?: boolean } = {}): Promise<Pus
 }
 
 /** Lokale herinnering vlak voor de check-in-deadline (aanvulling; server bewaakt de echte deadline). */
+const CHECK_IN_REMINDER_ID = 'safewalk-check-in-reminder';
+
+/** Alleen check-in-herinneringen annuleren (niet bv. een ingeplande nep-oproep). */
+export async function cancelReminders() {
+  const all = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  for (const n of all) {
+    const type = (n.content.data as { type?: string } | null)?.type;
+    if (n.identifier === CHECK_IN_REMINDER_ID || type === 'check_in') await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => undefined);
+  }
+}
+
 export async function scheduleCheckInReminder(dueAt: Date) {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await cancelReminders();
   const at = new Date(dueAt.getTime() - 60_000);
   if (at.getTime() <= Date.now()) return;
   await Notifications.scheduleNotificationAsync({
+    identifier: CHECK_IN_REMINDER_ID,
     content: {
       title: 'Alles goed?',
       body: 'Je verwachte aankomsttijd is bijna. Bevestig in SafeWalk of verleng.',
@@ -92,7 +106,6 @@ export async function scheduleCheckInReminder(dueAt: Date) {
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
   });
 }
-export const cancelReminders = () => Notifications.cancelAllScheduledNotificationsAsync();
 
 export const localNotify = (title: string, body: string) =>
   Notifications.scheduleNotificationAsync({

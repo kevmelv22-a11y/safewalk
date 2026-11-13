@@ -1,7 +1,7 @@
 # Privacybeleid SafeWalk
 
 **Verwerkingsverantwoordelijke:** Vonk Byte · KvK-nummer volgt (inschrijving januari 2027) · support@vonkbyte.nl
-**Laatst bijgewerkt:** 10 november 2026
+**Laatst bijgewerkt:** 13 november 2026
 
 ## 1. Wat SafeWalk is
 SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt met vertrouwde contacten. SafeWalk is **geen hulpdienst**, belt nooit automatisch 112 en kan niet garanderen dat meldingen aankomen.
@@ -14,6 +14,8 @@ SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt m
 | Locatie tijdens een reis of SOS | Delen met door jou gekozen contacten | Uitdrukkelijke toestemming | Reispunten: uiterlijk 24 uur na einde reis, nooit langer dan 3 dagen. Incidentlocaties: uiterlijk 3 dagen |
 | Laatst bekende locatie in een SOS- of check-in-melding | Waarschuwen van je contacten | Toestemming | Coördinaten gewist na 30 dagen |
 | Reisgegevens (bestemmingsnaam, tijden, status) | Check-in, geschiedenis | Overeenkomst | Maximaal 90 dagen |
+| Batterijpercentage en laatst-online-tijd van je telefoon tijdens een reis | Bij een gemiste check-in kunnen je contacten zien of je telefoon misschien leeg of offline was | Toestemming (je start de reis zelf) | Gewist zodra de reis eindigt. In een melding over een gemiste check-in: gewist na 30 dagen, samen met de locatie |
+| Uitnodigingsbeloning (wie wie uitnodigde, datum, einddatum van de gratis Premium) | 1 maand gratis Premium voor allebei, en misbruik beperken (maximaal 3 per jaar) | Overeenkomst | 365 dagen. Bij accountverwijdering gewist. Was jij de genodigde, dan blijft alleen een losse id zonder naam of e-mail staan tot die 365 dagen om zijn, zodat de jaarlimiet van de ander klopt |
 | Vertrouwde contacten in de app, uitnodigingen, blokkades | Contactbeheer | Overeenkomst | Tot verwijdering |
 | Telefooncontacten die jij zelf aanvinkt (naam en nummer) | Alleen zodat jij een sms of WhatsApp kunt openen. De app verstuurt die berichten niet | Toestemming, pas na adresboektoestemming | Tot je ze verwijdert of je account verwijdert |
 | Geluidsopname bij "Ik voel me niet veilig" | Versleuteld opgeslagen zodat gekozen contacten kunnen luisteren | Toestemming | Tot jij de opname of je account verwijdert. Een kopie die iemand al downloadde, kunnen wij niet terughalen |
@@ -25,8 +27,10 @@ SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt m
 
 We verkopen geen gegevens en tonen geen advertenties. Locatie wordt niet verzameld buiten een reis, SOS of incident dat jij zelf start.
 
+De nep-oproep werkt helemaal op je telefoon. Er gaan daarbij geen gegevens naar SafeWalk of naar anderen. Na je derde veilige aankomst kan de app één keer het beoordelingsvenster van Google Play of de App Store tonen. Dat venster is van Google of Apple. SafeWalk ziet niet of en wat je beoordeelt; de app telt alleen op je telefoon hoe vaak je veilig bent aangekomen.
+
 ## 3. Wie je locatie kan zien
-Alleen personen die jouw uitnodiging hebben geaccepteerd en die jij voor een specifieke reis kiest, zolang die reis actief is. Een tijdelijke trackinglink werkt alleen met een geheim token, verloopt, en kun je intrekken. **Beheerders van SafeWalk kunnen je locatie niet inzien.**
+Alleen personen die jouw uitnodiging hebben geaccepteerd en die jij voor een specifieke reis kiest, zolang die reis actief is. Een tijdelijke trackinglink werkt alleen met een geheim token, verloopt, en kun je intrekken. Een meekijklink voor een reis toont aan iedereen die de link heeft: de bestemmingsnaam die jij invulde, de verwachte aankomsttijd, de check-in-status, je batterijpercentage en laatst-online-tijd, en je locatie zolang de reis loopt. Na aankomst of stoppen toont de link alleen nog dat de reis klaar is, tot hij verloopt (uiterlijk 24 uur). **Beheerders van SafeWalk kunnen je locatie niet inzien.**
 
 ## 4. Verwerkers
 - Convex, Inc. (database en serverfuncties; servers in de Verenigde Staten)

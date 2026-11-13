@@ -43,6 +43,8 @@ export default defineSchema({
     expectedArrival: v.number(),
     status: v.union(v.literal('active'), v.literal('ended'), v.literal('expired'), v.literal('alert')),
     endedAt: v.optional(v.number()), expiresAt: v.number(), almostNotifiedAt: v.optional(v.number()), startDistanceM: v.optional(v.number()),
+    // Toestelstatus tijdens een actieve reis (gewist bij einde reis): batterij 0–100 en laatste contact met de server.
+    batteryPct: v.optional(v.number()), batteryAt: v.optional(v.number()), lastSeenAt: v.optional(v.number()),
   }).index('by_user', ['userId']).index('by_open', ['endedAt']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
@@ -62,6 +64,8 @@ export default defineSchema({
       v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
     ), clientRef: v.optional(v.string()),
     lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()),
+    // Alleen bij gemiste check-in: batterij en laatst-online op het moment van escaleren (na 30 dagen gewist, net als de locatie).
+    batteryPct: v.optional(v.number()), batteryAt: v.optional(v.number()), lastSeenAt: v.optional(v.number()),
     status: v.union(v.literal('open'), v.literal('cancelled'), v.literal('resolved')),
   }).index('by_client_ref', ['clientRef']).index('by_user', ['userId']),
   pushMessages: defineTable({
@@ -80,6 +84,17 @@ export default defineSchema({
     kind: v.union(v.literal('stationary'), v.literal('deviation'), v.literal('no_data')),
     status: v.union(v.literal('open'), v.literal('acknowledged')),
   }).index('by_session', ['sessionId']),
+  // Vrienden uitnodigen: één regel per beloonde (of afgewezen) nieuwe vertrouwde-contactrelatie.
+  referrals: defineTable({
+    inviterId: v.id('users'), inviteeId: v.id('users'), invitationId: v.id('invitations'),
+    status: v.union(v.literal('rewarded'), v.literal('not_eligible')),
+    reason: v.optional(v.string()), createdAt: v.number(),
+  }).index('by_inviter', ['inviterId', 'createdAt']).index('by_invitee', ['inviteeId']),
+  // Premium buiten de winkel om (nu alleen: beloning voor uitnodigen). Geen betaling, geen RevenueCat.
+  premiumGrants: defineTable({
+    userId: v.id('users'), source: v.literal('referral'), referralId: v.id('referrals'),
+    startsAt: v.number(), expiresAt: v.number(),
+  }).index('by_user', ['userId', 'expiresAt']),
   billingEvents: defineTable({ eventId: v.string(), type: v.string(), userId: v.optional(v.id('users')) }).index('by_event', ['eventId']),
   errorLogs: defineTable({ source: v.string(), message: v.string(), userId: v.optional(v.id('users')) }),
   pushTokens: defineTable({ userId: v.id('users'), token: v.string(), platform: v.optional(v.string()) })
