@@ -39,10 +39,13 @@ export default function NewSession() {
     let id: Id<'sessions'>;
     try { id = await startSession({ destination: dest.trim(), destLat: destination?.lat, destLng: destination?.lng, expectedArrival: arrival.getTime(), viewerIds: sel }); setDestination(null); }
     catch (e) { setBusy(false); return setErr(errorNl(e)); }
+    let shared = true;
     try { await startSharing(id); }
-    catch (e) { setErr(String((e as Error).message)); }
+    catch { shared = false; } // reisscherm toont dan "niet gedeeld" + knop om te hervatten
     await scheduleCheckInReminder(arrival).catch(() => {});
-    await localNotify('Reis gestart', `Je locatie wordt gedeeld zolang SafeWalk open is, tot je aankomst bevestigt of stopt.`);
+    await localNotify('Reis gestart', shared
+      ? 'Je locatie wordt gedeeld zolang SafeWalk open is, tot je aankomst bevestigt of stopt.'
+      : 'Let op: je locatie wordt nog niet gedeeld (geen toestemming). De check-in loopt wel.').catch(() => {});
     setBusy(false);
     router.replace(`/session/${id}`);
   };

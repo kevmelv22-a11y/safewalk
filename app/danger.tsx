@@ -165,7 +165,8 @@ export default function Danger() {
       else if (outcome === 'offline') {
         setOfflineHint(true);
         setErr('Geen verbinding met de server. Alarm en opname lopen door tot de code online is gecontroleerd.');
-      } else setErr('Onjuiste code. Probeer opnieuw.');
+      } else if (outcome === 'wrong') setErr('Onjuiste code. Probeer opnieuw.');
+      else setErr('Code controleren lukte niet. Alarm en opname lopen door; probeer het opnieuw.');
     } finally { setBusy(false); }
   };
 

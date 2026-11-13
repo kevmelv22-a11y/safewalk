@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
@@ -13,8 +13,8 @@ export default function Watch() {
   const trail = useLiveLocations(id);
   const data = useQuery(api.sessions.get, { sessionId: id });
   // Server geeft null na intrekken/einde/verlopen/blokkeren — reactief, dus direct
-  if (data === null) return <Screen><H1>Geen toegang</H1><P muted>Deze reis is beëindigd, verlopen of je toegang is ingetrokken.</P></Screen>;
-  if (!data) return <Screen><P>Laden…</P></Screen>;
+  if (data === null) return <Screen><H1>Geen toegang</H1><P muted>Deze reis is beëindigd, verlopen of je toegang is ingetrokken.</P><Button title="Naar het startscherm" variant="secondary" onPress={() => router.replace('/dashboard')} /></Screen>;
+  if (!data) return <Screen><P muted>Reis laden…</P></Screen>;
   const s = data.session;
   return (
     <Screen>

@@ -14,7 +14,7 @@ export default function History() {
       {h?.sessions.length === 0 && <P muted>Nog geen reizen. Start een reis vanaf het startscherm.</P>}
       {h?.sessions.map((s) => (
         <Card key={s.id}><P>{s.destination}</P>
-          <P muted>{new Date(s.startedAt).toLocaleString('nl-NL')} · {statusNl[s.status]}{s.endedAt ? ` · tot ${new Date(s.endedAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}</P></Card>
+          <P muted>{new Date(s.startedAt).toLocaleString('nl-NL')} · {statusNl[s.status] ?? s.status}{s.endedAt ? ` · tot ${new Date(s.endedAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}</P></Card>
       ))}
       {h && !h.premium && <Button title="90 dagen geschiedenis met Premium" variant="secondary" onPress={() => router.push('/premium')} />}
     </Screen>
