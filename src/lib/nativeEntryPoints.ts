@@ -28,8 +28,8 @@ export async function initQuickActions(): Promise<{ ok: boolean; detail: string 
     await QA.setItems([
       {
         id: 'quick_ping',
-        title: 'Stuur live locatie',
-        subtitle: 'Naar vertrouwde contacten',
+        title: 'Stuur mijn locatie',
+        subtitle: 'Jij bevestigt in de app',
         icon: Platform.OS === 'ios' ? 'symbol:location.fill' : undefined,
         params: { href: ENTRY.quickPing },
       },

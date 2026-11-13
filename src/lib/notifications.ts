@@ -27,7 +27,12 @@ export async function ensureNotificationCategories() {
   ]);
 }
 
-export async function registerPush(): Promise<PushRegistrationResult> {
+/**
+ * Registreert het pushtoken van dit toestel bij de server.
+ * prompt=false: vraagt nooit om toestemming (stil verversen bij app-start, bv. na inloggen op een nieuw toestel).
+ */
+export async function registerPush(opts: { prompt?: boolean } = {}): Promise<PushRegistrationResult> {
+  const prompt = opts.prompt ?? true;
   if (Platform.OS === 'web') return { ok: false, reason: 'web', detail: 'Web heeft geen Expo push tokens' };
   await ensureNotificationCategories();
   if (Platform.OS === 'android') {
@@ -46,7 +51,7 @@ export async function registerPush(): Promise<PushRegistrationResult> {
   if (!Device.isDevice) {
     return { ok: false, reason: 'simulator', detail: 'Push vereist fysiek toestel; simulator/emulator geeft geen betrouwbare APNs/FCM token' };
   }
-  const perm = await Notifications.requestPermissionsAsync();
+  const perm = prompt ? await Notifications.requestPermissionsAsync() : await Notifications.getPermissionsAsync();
   if (perm.status !== 'granted') {
     return { ok: false, reason: 'permission_denied', detail: 'Notificatietoestemming geweigerd' };
   }

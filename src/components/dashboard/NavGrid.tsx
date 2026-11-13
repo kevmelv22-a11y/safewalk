@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { IconChat, IconClock, IconGear, IconPeople, IconPin, IconSos, IconStar } from './icons';
 import { dash } from './tokens';
+import { QUICK_LOCATION } from '../../content/quickLocation';
 
 type Item = {
   key: string;
@@ -32,7 +33,7 @@ export function NavGrid({
   const icon = t.text;
 
   const items: Item[] = [
-    { key: 'live', label: 'Stuur live locatie nu', hint: 'Foreground-alternatief voor volume×2', onPress: onLiveNow, icon: <IconPin size={20} color={t.accent} />, wide: true },
+    { key: 'live', label: QUICK_LOCATION.title, hint: QUICK_LOCATION.hint, onPress: onLiveNow, icon: <IconPin size={20} color={t.accent} />, wide: true },
     { key: '112', label: 'Open 112 in de telefoon-app', hint: 'Je bevestigt zelf; SafeWalk belt niet automatisch', onPress: onCall112, icon: <IconSos size={20} color={t.red} />, wide: true },
     { key: 'contacts', label: 'Contacten', onPress: onContacts, icon: <IconPeople size={20} color={icon} /> },
     { key: 'history', label: 'Geschiedenis', onPress: onHistory, icon: <IconClock size={20} color={icon} /> },

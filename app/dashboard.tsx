@@ -12,10 +12,10 @@ import { StatusPanel } from '../src/components/dashboard/StatusPanel';
 import { TripPanel } from '../src/components/dashboard/TripPanel';
 import { NavGrid } from '../src/components/dashboard/NavGrid';
 import { useContacts, useSessions } from '../src/lib/queries';
-import { formatCountdown } from '../src/lib/safety';
+import { formatCountdown, pinErrorNl } from '../src/lib/safety';
 import { useNow } from '../src/lib/useLiveLocations';
 import { getConsentedLocation } from '../src/lib/locationOnce';
-import { errorNl } from '../src/lib/convex';
+import { errorCode, errorNl } from '../src/lib/convex';
 import { onPressOpen112 } from '../src/lib/dial112';
 
 function clientRef(prefix: string) {
@@ -35,7 +35,7 @@ export default function Dashboard() {
   const mine = sessions?.mine;
   const watching = sessions?.watching ?? [];
   const myContacts = contacts?.mine ?? [];
-  const [busy, setBusy] = useState<'unsafe' | 'come' | 'safe' | null>(null);
+  const [busy, setBusy] = useState<'unsafe' | 'come' | 'safe' | 'live' | null>(null);
   const [safeOpen, setSafeOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -97,14 +97,14 @@ export default function Dashboard() {
   };
 
   const onLiveNow = async () => {
-    setBusy('come'); setErr(null); setMsg(null);
+    setBusy('live'); setErr(null); setMsg(null);
     try {
       const loc = await withLoc();
       if (!loc.locationConsent) { setErr('Locatietoestemming nodig om nu te delen.'); return; }
       const r = await sendLiveNow({ ...loc, sessionId: mine?._id });
       setMsg(r.recipients
-        ? `Live locatie naar ${r.recipients} contact(en) gestuurd (in-app push).`
-        : 'Locatie geregistreerd. Voeg vertrouwde contacten toe voor pushes.');
+        ? `Je locatie is als pushmelding naar ${r.recipients} ${r.recipients === 1 ? 'contact' : 'contacten'} gestuurd. Aflevering is niet gegarandeerd.`
+        : 'Niemand heeft iets gekregen: je hebt nog geen vertrouwde contacten. Voeg ze toe bij Contacten.');
     } catch (e) { setErr(errorNl(e)); }
     finally { setBusy(null); }
   };
@@ -118,7 +118,7 @@ export default function Dashboard() {
       setSafeOpen(false);
       setMsg('Veilig aangekomen bevestigd. Eventueel alarm is gestopt.');
     } catch (e) {
-      setErr(errorNl(e).includes('RATE') ? 'Te veel pogingen. Wacht even.' : 'Onjuiste code. Probeer opnieuw.');
+      setErr(pinErrorNl(errorCode(e)));
     } finally { setBusy(null); }
   };
 
@@ -138,7 +138,7 @@ export default function Dashboard() {
       />
 
       <View style={{ gap: 8 }}>
-        <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy} disabled={!!busy} />
+        <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy === 'live' ? null : busy} disabled={!!busy} />
       </View>
 
       {safeOpen && (

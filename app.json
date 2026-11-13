@@ -114,7 +114,7 @@
           "iosActions": [
             {
               "id": "quick_ping",
-              "title": "Stuur live locatie",
+              "title": "Stuur mijn locatie",
               "subtitle": "Deel nu met vertrouwde contacten",
               "icon": "symbol:location.fill",
               "params": {

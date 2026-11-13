@@ -17,6 +17,8 @@ import { getVolumeSendOptIn } from '../src/lib/recordingPrefs';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
 import { useProfile } from '../src/lib/queries';
+import { SharingKeeper } from '../src/lib/sharingKeeper';
+import { registerPush } from '../src/lib/notifications';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
@@ -24,6 +26,11 @@ function PurchasesBootstrap() {
   useEffect(() => {
     if (status?.userId && profile?.ageStatus === 'adult') configurePurchases(status.userId).catch(() => {});
   }, [status?.userId, profile?.ageStatus]);
+  // Pushtoken stil verversen (zonder toestemmingsvraag): wie inlogt op een nieuw toestel slaat de
+  // onboarding over en zou anders nooit meldingen van contacten krijgen.
+  useEffect(() => {
+    if (status?.userId && profile?.ageStatus === 'adult' && profile.onboardingDone) void registerPush({ prompt: false }).catch(() => {});
+  }, [status?.userId, profile?.ageStatus, profile?.onboardingDone]);
   return null;
 }
 
@@ -59,6 +66,7 @@ export default function RootLayout() {
       <ConvexAuthProvider client={convex} storage={tokenStorage}>
         <PurchasesBootstrap />
         <AlarmGuard />
+        <SharingKeeper />
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -93,7 +101,7 @@ export default function RootLayout() {
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
           <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
-          <Stack.Screen name="quick-ping" options={{ title: "Live locatie" }} />
+          <Stack.Screen name="quick-ping" options={{ title: "Locatie sturen" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
         </Stack>

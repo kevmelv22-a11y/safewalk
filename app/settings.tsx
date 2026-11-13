@@ -12,7 +12,9 @@ import { stopSharing } from '../src/lib/location';
 import { resetPurchases } from '../src/lib/purchases';
 import { ThemePicker } from '../src/components/ThemePicker';
 import { applyThemeSkinFromQuery } from '../src/store/theme';
-import { maybePromptQsTile, getNativeCapabilitiesSafe } from '../src/lib/nativeEntryPoints';
+import { maybePromptQsTile } from '../src/lib/nativeEntryPoints';
+import { QUICK_LOCATION } from '../src/content/quickLocation';
+import { pushResultNl, tileResultNl } from '../src/lib/settingsCopy';
 import { registerPush } from '../src/lib/notifications';
 
 export default function Settings() {
@@ -46,17 +48,18 @@ export default function Settings() {
       <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
         <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
       <Card>
-        <P>Snelkoppelingen (native)</P>
-        <P muted>Android Quick Settings-tegel en iOS Home Screen Quick Actions openen “Stuur live locatie”. Volume×2 alleen Android-foreground na development build. Geen background torch. Power-off/force-stop stopt alles.</P>
-        <Button title="Open live-locatie scherm" variant="secondary" onPress={() => router.push('/quick-ping')} />
+        <P>Snelkoppelingen</P>
+        <P muted>{QUICK_LOCATION.shortcuts}</P>
+        {Platform.OS === 'android' && <P muted>{QUICK_LOCATION.volumeAndroid}</P>}
+        <P muted>Zaklamp-strobe werkt alleen met SafeWalk open. Telefoon uit of de app geforceerd stoppen stopt alarm en delen.</P>
+        <Button title={`Open “${QUICK_LOCATION.title}”`} variant="secondary" onPress={() => router.push('/quick-ping')} />
         {Platform.OS === 'android' && (
-          <Button title="Android: tegel toevoegen (prompt)" variant="secondary" onPress={async () => setMsg('Tegel: ' + await maybePromptQsTile())} />
+          <Button title="Snelinstellingentegel toevoegen" variant="secondary" onPress={async () => setMsg(tileResultNl(await maybePromptQsTile()))} />
         )}
-        <Button title="Push opnieuw registreren" variant="secondary" onPress={async () => {
+        <Button title="Meldingen opnieuw aanzetten" variant="secondary" onPress={async () => {
           const r = await registerPush();
-          setMsg(r.ok ? 'Push-token opgeslagen.' : `Push niet gereed: ${r.reason}${r.detail ? ' — ' + r.detail : ''}`);
+          setMsg(r.ok ? 'Meldingen staan aan op dit toestel.' : pushResultNl(r.reason, r.detail));
         }} />
-        <P muted style={{ fontSize: 12 }}>{getNativeCapabilitiesSafe()}</P>
       </Card>
       <Card>
         <P>Geblokkeerde personen</P>

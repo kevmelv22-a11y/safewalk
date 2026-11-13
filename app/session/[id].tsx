@@ -8,9 +8,10 @@ import { LiveMap } from '../../src/components/LiveMap';
 import { SosButton } from '../../src/components/SosButton';
 import { errorNl } from '../../src/lib/convex';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
-import { checkInPhase, deliveryIcon, deliveryLabel, formatCountdown, notificationKindLabel } from '../../src/lib/safety';
+import { checkInPhase, deliveryIcon, deliveryLabel, formatCountdown, notificationKindLabel, sharingStatus, timeAgo } from '../../src/lib/safety';
 import { signalText } from '../../convex/motionText';
-import { stopSharing } from '../../src/lib/location';
+import { startSharing, stopSharing } from '../../src/lib/location';
+import { useSharingSessionId } from '../../src/lib/sharingKeeper';
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 
 export default function MySession() {
@@ -22,11 +23,20 @@ export default function MySession() {
   const revokeViewer = useMutation(api.sessions.revokeViewer);
   const acknowledge = useMutation(api.motion.acknowledge);
   const [err, setErr] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const sharingId = useSharingSessionId();
   const s = data?.session; const ci = data?.checkIn;
   const ended = !!s && s.endedAt !== undefined;
   useEffect(() => { if (ended) stopSharing(); }, [ended]);
-  if (data === null) return <Screen><P>Sessie niet gevonden.</P></Screen>;
-  if (!s) return <Screen><P>Laden…</P></Screen>;
+  if (data === null) return (
+    <Screen>
+      <Notice kind="info">Deze reis bestaat niet meer of je hebt er geen toegang toe.</Notice>
+      <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />
+    </Screen>
+  );
+  if (!s) return <Screen><P muted>Reis laden…</P></Screen>;
+  const share = data.isOwner && !ended ? sharingStatus(sharingId === id, trail.at(-1)?.recordedAt ?? null, now) : null;
   const phase = ci && ci.status !== 'confirmed' && ci.status !== 'cancelled' ? checkInPhase(ci.dueAt, ci.graceMinutes, now) : null;
   const respond = async (extend: number) => {
     try {
@@ -36,13 +46,32 @@ export default function MySession() {
     } catch (e) { setErr(errorNl(e)); }
   };
   const stop = async () => {
-    try { await endSession({ sessionId: id }); } catch (e) { setErr(errorNl(e)); }
+    setStopping(true); setErr(null);
+    try { await endSession({ sessionId: id }); }
+    catch (e) {
+      // Niet lokaal stoppen: de reis loopt op de server nog door (check-in kan je contacten waarschuwen).
+      setErr(`Reis beëindigen lukte niet: ${errorNl(e)} Je reis en het delen lopen nog. Probeer het opnieuw als je verbinding hebt.`);
+      setStopping(false);
+      return;
+    }
     await stopSharing(); await cancelReminders(); router.replace('/dashboard');
+  };
+  const resume = async () => {
+    setResuming(true); setErr(null);
+    try { await startSharing(id); }
+    catch (e) { setErr(String((e as Error).message) + ' Geef toestemming in de instellingen van je telefoon.'); }
+    finally { setResuming(false); }
   };
   return (
     <Screen>
       <H1>{s.destinationLabel}</H1>
       {ended && <Notice kind="info">Deze reis is beëindigd. Locatie wordt niet meer gedeeld.</Notice>}
+      {share && (
+        <Notice kind={share.kind}>{share.text}{share.lastAt ? ` Laatste punt: ${timeAgo(share.lastAt, now)}.` : ''}</Notice>
+      )}
+      {share && !share.live && (
+        <Button title="Locatie delen hervatten" variant="success" loading={resuming} onPress={resume} />
+      )}
       {s.status === 'alert' && !ended && <Notice kind="danger">Je check-in is gemist. Je contacten zijn gewaarschuwd. Bevestig hieronder als alles goed is.</Notice>}
       {!ended && data.signals.map((sg) => (
         <Card key={sg._id} style={{ borderColor: '#F59E0B', borderWidth: 2 }}>
@@ -76,7 +105,7 @@ export default function MySession() {
       )}
       {err && <Notice kind="danger">{err}</Notice>}
       {!ended && <SosButton sessionId={id} />}
-      {!ended && <Button title="Stop delen en beëindig reis" variant="danger" onPress={stop} />}
+      {!ended && <Button title="Stop delen en beëindig reis" variant="danger" loading={stopping} onPress={stop} />}
     </Screen>
   );
 }

@@ -5,14 +5,15 @@
 - **Versleuteld tijdens overdracht:** Ja. **Gebruiker kan verwijdering aanvragen:** Ja (in-app accountverwijdering of per e-mail via support@vonkbyte.nl).
 | Categorie | Type | Verzameld | Verplicht/optioneel | Doel |
 |---|---|---|---|---|
-| Locatie | Precieze locatie | Ja (ook op achtergrond tijdens reis) | Optioneel (vereist voor delen) | App-functionaliteit |
+| Locatie | Precieze locatie | Ja (alleen terwijl de app open is, tijdens een reis, SOS of incident) | Optioneel (vereist voor delen) | App-functionaliteit |
 | Persoonlijke info | Naam, e-mailadres | Ja | Verplicht | Accountbeheer |
 | Financiële info | Aankoopgeschiedenis | Ja (via store/RevenueCat) | Optioneel | App-functionaliteit |
 | Berichten | Overige in-app berichten (AI-vragen) | Ja, niet opgeslagen | Optioneel | App-functionaliteit |
 | App-activiteit | Overige acties (misbruikmeldingen) | Ja | Optioneel | Fraude/misbruikpreventie |
 | App-info en prestaties | Crashlogs/diagnose (foutmeldingen) | Ja | Verplicht | Analyse (stabiliteit) |
 | Apparaat-ID's | Pushtoken | Ja | Optioneel | App-functionaliteit |
-- **Achtergrondlocatie-verklaring (Play Console):** "SafeWalk deelt tijdens een door de gebruiker gestarte reis de locatie met door de gebruiker gekozen vertrouwde contacten, ook als het scherm uit is, zodat zij kunnen meekijken en bij een gemiste check-in de laatste locatie ontvangen. Delen stopt wanneer de gebruiker de reis beëindigt." Video van de flow toevoegen.
+- **Achtergrondlocatie (Play Console):** niet van toepassing. Sinds versionCode 3 vraagt de Android-app geen `ACCESS_BACKGROUND_LOCATION` meer (geblokkeerd in `app.json`); locatie wordt alleen gedeeld terwijl SafeWalk open is. Er is dus geen achtergrondlocatie-verklaring of video nodig.
+- **Let op iOS (nog open):** `app.json` heeft voor iOS nog `UIBackgroundModes: location` en "Always"-teksten. De code vraagt nooit "Altijd"-toestemming. Vóór een iOS-release die teksten en de achtergrondmodus gelijktrekken met het echte gedrag (alleen terwijl de app open is).
 
 ## Apple – App Privacy ("Data Linked to You")
 | Data type | Gebruik | Gekoppeld aan gebruiker | Tracking |

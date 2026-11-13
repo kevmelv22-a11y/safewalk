@@ -10,6 +10,7 @@ import { triggerSos, sosQueue } from '../src/lib/sos';
 import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { useProfile } from '../src/lib/queries';
 import { useTheme } from '../src/lib/theme';
+import { errorNl } from '../src/lib/convex';
 
 type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error';
 
@@ -31,7 +32,7 @@ export default function Sos() {
       const r = await triggerSos((sessionId as Id<'sessions'>) ?? null);
       clientRef.current = r.clientRef;
       if (r.alertId) { setAlertId(r.alertId); setPhase('sent'); } else setPhase('queued');
-    } catch (e) { setErr(String((e as Error).message)); setPhase('error'); }
+    } catch (e) { setErr(errorNl(e)); setPhase('error'); }
   };
   // Aftelling start ook als het profiel (offline) niet laadt: standaard 5 s
   useEffect(() => { if (left === null) { const t = setTimeout(() => setLeft((l) => l ?? 5), 1500); return () => clearTimeout(t); } }, [left]);
@@ -61,7 +62,7 @@ export default function Sos() {
           <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: t.red }}>{left ?? '…'}</Text>
           <P muted>Je vertrouwde contacten krijgen een pushmelding met je laatst bekende locatie.</P>
           <View style={{ alignSelf: 'stretch', gap: 12 }}>
-            <Button title="ANNULEREN" variant="secondary" onPress={() => { setPhase('cancelled'); router.back(); }} />
+            <Button title="ANNULEREN" variant="secondary" onPress={() => { setPhase('cancelled'); if (router.canGoBack()) router.back(); else router.replace('/dashboard'); }} />
             <Button title="Nu versturen" variant="danger" onPress={() => setLeft(0)} />
           </View>
         </View>
@@ -73,7 +74,7 @@ export default function Sos() {
         <DeliveryList deliveries={alert?.deliveries ?? []} />
       </>)}
       {phase === 'queued' && <Notice kind="danger">Geen verbinding: je SOS is opgeslagen en wordt automatisch opnieuw verstuurd zodra er internet is. Er is nog NIEMAND gewaarschuwd. Bel bij direct gevaar zelf 112.</Notice>}
-      {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err}. Bel bij direct gevaar zelf 112.</Notice>}
+      {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err} Bel bij direct gevaar zelf 112.</Notice>}
       {phase === 'cancelled' && <Notice kind="ok">SOS geannuleerd.</Notice>}
       {phase !== 'countdown' && (<>
         <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
