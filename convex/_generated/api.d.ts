@@ -9,8 +9,9 @@
  */
 
 import type * as account from "../account.js";
-import type * as ageGate from "../ageGate.js";
 import type * as admin from "../admin.js";
+import type * as age from "../age.js";
+import type * as ageGate from "../ageGate.js";
 import type * as assistant from "../assistant.js";
 import type * as auth from "../auth.js";
 import type * as authEmail from "../authEmail.js";
@@ -32,6 +33,7 @@ import type * as profiles from "../profiles.js";
 import type * as push from "../push.js";
 import type * as recordings from "../recordings.js";
 import type * as referrals from "../referrals.js";
+import type * as safetyCode from "../safetyCode.js";
 import type * as security from "../security.js";
 import type * as sessions from "../sessions.js";
 import type * as sos from "../sos.js";
@@ -46,8 +48,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   account: typeof account;
-  ageGate: typeof ageGate;
   admin: typeof admin;
+  age: typeof age;
+  ageGate: typeof ageGate;
   assistant: typeof assistant;
   auth: typeof auth;
   authEmail: typeof authEmail;
@@ -69,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   push: typeof push;
   recordings: typeof recordings;
   referrals: typeof referrals;
+  safetyCode: typeof safetyCode;
   security: typeof security;
   sessions: typeof sessions;
   sos: typeof sos;
