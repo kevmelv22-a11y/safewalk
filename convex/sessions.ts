@@ -4,6 +4,7 @@ import { getAuthUserId } from '@convex-dev/auth/server';
 import type { Id } from './_generated/dataModel';
 import { queuePush } from './notify';
 import { haversineMeters, ALMOST_ARRIVED_M } from './geo';
+import { normalizeBatteryPct } from './deviceStatus';
 import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireAdult, requireUser, sessionOpen } from './lib';
 
 const H = 3600_000;
@@ -17,7 +18,8 @@ async function closeSession(ctx: MutationCtx, id: Id<'sessions'>, status: 'ended
     const body = { arrived: `${name} heeft bevestigd veilig te zijn aangekomen.`, stopped: `${name} heeft het delen van de reis gestopt.`, expired: `De reis van ${name} is verlopen; locatie wordt niet meer gedeeld.` }[reason];
     await queuePush(ctx, { kind: 'trip_ended', sessionId: id, recipients: active, title: 'Reis beëindigd', body });
   }
-  await ctx.db.patch(id, { status, endedAt: now });
+  // Toestelstatus is alleen nodig tijdens de reis: direct wissen.
+  await ctx.db.patch(id, { status, endedAt: now, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined });
   for (const c of await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
     if (c.status === 'pending') await ctx.db.patch(c._id, { status: 'cancelled' });
   for (const vw of await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
@@ -98,15 +100,19 @@ export const respondCheckIn = mutation({ args: { sessionId: v.id('sessions'), ex
 } });
 
 export const addLocation = mutation({
-  args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number() },
-  handler: async (ctx, a) => {
+  args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number(), batteryPct: v.optional(v.number()) },
+  handler: async (ctx, { batteryPct, ...a }) => {
     const uid = await requireUser(ctx);
     await requireAdult(ctx, uid);
     const s = await ctx.db.get(a.sessionId);
     if (!s || s.userId !== uid || !sessionOpen(s)) fail('SESSION_CLOSED');
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180 || (a.accuracyM ?? 0) < 0) fail('BAD_REQUEST');
     await rateLimit(ctx, `loc:${uid}`, 240, H);
-    await ctx.db.insert('locations', { ...a, userId: uid, recordedAt: Math.min(a.recordedAt, Date.now()) });
+    const recordedAt = Math.min(a.recordedAt, Date.now());
+    await ctx.db.insert('locations', { ...a, userId: uid, recordedAt });
+    // Laatst online = wanneer de server dit punt ontving. Batterij alleen als het toestel hem meegeeft (0–100).
+    const pct = normalizeBatteryPct(batteryPct);
+    await ctx.db.patch(s!._id, { lastSeenAt: Date.now(), ...(pct !== undefined ? { batteryPct: pct, batteryAt: recordedAt } : {}) });
     if (s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.startDistanceM === undefined)
       await ctx.db.patch(s!._id, { startDistanceM: haversineMeters(a, { lat: s!.destinationLat, lng: s!.destinationLng }) });
     // Bijna aangekomen (eenmalig per sessie)

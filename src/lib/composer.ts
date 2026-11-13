@@ -15,6 +15,12 @@ export function locationMessage(url: string): string {
   return `Ik deel mijn live locatie via SafeWalk (tijdelijk, intrekbaar): ${url}\nSafeWalk belt niet 112.`;
 }
 
+/** Meekijklink voor een reis: wie de link heeft ziet de reis tot aankomst, zonder app. */
+export function tripLinkMessage(url: string): string {
+  if (!/^https:\/\/[^\s]+\/track\/live\?token=[0-9a-f]{64}$/.test(url)) throw new Error('BAD_LINK');
+  return `Ik ben onderweg. Via deze link kun je tot ik er ben zien waar ik ben en of ik veilig ben aangekomen (geen app nodig, tijdelijk): ${url}\nSafeWalk belt niet 112.`;
+}
+
 /** One composer for all chosen recipients (user still presses Send once). */
 export function smsUrl(os: string, phones: string[], body: string): string {
   if (phones.length === 0) throw new Error('NO_RECIPIENTS');

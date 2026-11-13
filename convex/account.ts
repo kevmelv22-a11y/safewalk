@@ -31,6 +31,10 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   await del(await q('pushTokens').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   await del(await q('profiles').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   await del(await q('subscriptions').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  await del(await q('premiumGrants').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  // Uitnodigingsbeloningen die jij gaf: weg. Waar jij de genodigde was, blijft alleen een losse (niet meer herleidbare) id
+  // tot 365 dagen staan, zodat de jaarlimiet van de ander niet te omzeilen is door accounts te verwijderen.
+  await del(await q('referrals').withIndex('by_inviter', (x) => x.eq('inviterId', uid)).collect());
   await del(await q('abuseReports').withIndex('by_reporter', (x) => x.eq('reporterId', uid)).collect());
   // Recordings + E2E envelopes/keys (storage blobs)
   for (const rec of await q('recordings').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {

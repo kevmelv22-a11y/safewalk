@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Screen, H1, P, Button, Field, Notice } from '../src/components/ui';
@@ -32,6 +32,10 @@ export default function AgeGate() {
       <Notice kind="info">Dit is een eigen opgave, geen controle. Van 13 tot en met 15 jaar blijven locatie delen, contacten, opnames, aankopen en de AI-assistent uit. Ouderlijke machtiging is nog niet ingebouwd. Een vinkje of e-mail telt niet als ouder.</Notice>
       {profile?.ageStatus === 'under13' && <Notice kind="danger">Onder 13 jaar kun je SafeWalk niet gebruiken. Je kunt het account verwijderen via Instellingen.</Notice>}
       {profile?.ageStatus === 'minor' && <Notice kind="warn">Je bent 13 tot en met 15. Delen van locatie, contacten, opnames, aankopen en de assistent blijven dicht tot er een echte oudercontrole is. Die is er nu niet.</Notice>}
+      {profile?.ageStatus === 'minor' && (
+        <Button title="📞 Nep-oproep (werkt ook onder 16)" variant="success" onPress={() => router.push('/fake-call')}
+          hint="Laat je telefoon overgaan om weg te komen uit een vervelende situatie. Er gaan geen gegevens naar anderen." />
+      )}
       {profile?.ageStatus !== 'under13' && (
         <>
           <Field label="Geboortejaar" value={year} onChangeText={setYear} keyboardType="number-pad" maxLength={4} />

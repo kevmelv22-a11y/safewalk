@@ -2,6 +2,7 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { acceptedContact, audit, displayName, fail, FREE_CONTACT_LIMIT, isBlockedBetween, isPremium, PREMIUM_CONTACT_LIMIT, randomToken, rateLimit, requireAdult, requireUser, revokeViewersFor, sha256Hex } from './lib';
 import { getAuthUserId } from '@convex-dev/auth/server';
+import { rewardReferral, type ReferralOutcome } from './referrals';
 
 export const list = query({ args: {}, handler: async (ctx) => {
   const uid = await getAuthUserId(ctx); if (!uid) return { mine: [], theirs: [], limit: FREE_CONTACT_LIMIT };
@@ -34,19 +35,23 @@ export const respondInvitation = mutation({ args: { token: v.string(), accept: v
   if (!i || i.status !== 'pending' || i.expiresAt < Date.now()) fail('INVITATION_INVALID');
   if (i!.inviterId === uid) fail('INVITATION_SELF');
   if (await isBlockedBetween(ctx, i!.inviterId, uid)) fail('INVITATION_INVALID');
+  let referral: ReferralOutcome | 'not_new' | null = null;
   if (accept) {
     if (!(await acceptedContact(ctx, i!.inviterId, uid))) {
       const count = (await ctx.db.query('trustedContacts').withIndex('by_owner', (q) => q.eq('ownerId', i!.inviterId).eq('status', 'accepted')).collect()).length;
       const max = (await isPremium(ctx, i!.inviterId)) ? PREMIUM_CONTACT_LIMIT : FREE_CONTACT_LIMIT;
       if (count >= max) fail('CONTACT_LIMIT');
       const ex = await ctx.db.query('trustedContacts').withIndex('by_pair', (q) => q.eq('ownerId', i!.inviterId).eq('contactId', uid)).first();
+      const reverse = await ctx.db.query('trustedContacts').withIndex('by_pair', (q) => q.eq('ownerId', uid).eq('contactId', i!.inviterId)).first();
       if (ex) await ctx.db.patch(ex._id, { status: 'accepted' });
       else await ctx.db.insert('trustedContacts', { ownerId: i!.inviterId, contactId: uid, status: 'accepted' });
-    }
+      // Beloning alleen voor een écht nieuwe relatie (nooit eerder contact, in geen van beide richtingen).
+      referral = ex || reverse ? 'not_new' : await rewardReferral(ctx, i!.inviterId, uid, i!._id);
+    } else referral = 'not_new';
   }
   await ctx.db.patch(i!._id, { status: accept ? 'accepted' : 'declined', respondedBy: uid });
   await audit(ctx, uid, accept ? 'invitation.accepted' : 'invitation.declined', i!.inviterId);
-  return i!.inviterId;
+  return { inviterId: i!.inviterId, referral };
 } });
 
 /** Beide kanten kunnen de relatie beëindigen; lopende toegang wordt direct ingetrokken. */

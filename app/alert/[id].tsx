@@ -7,6 +7,7 @@ import { Screen, H1, P, Notice, Button, Card } from '../../src/components/ui';
 import { DeliveryList } from '../../src/components/DeliveryList';
 import { accuracyLabel, alertTitle, timeAgo } from '../../src/lib/safety';
 import { COPY as DialCopy, onPressOpen112 } from '../../src/lib/dial112';
+import { deviceStatusHint, deviceStatusLine } from '../../convex/deviceStatus';
 
 export default function AlertDetail() {
   const id = useLocalSearchParams<{ id: string }>().id as Id<'alerts'>;
@@ -31,6 +32,8 @@ export default function AlertDetail() {
           <P muted>Laatst bekende locatie ({timeAgo(a.locationAt)}) · {accuracyLabel(a.accuracyM)}</P>
           <Button title="Open in kaarten" variant="secondary" onPress={() => Linking.openURL(`https://maps.google.com/?q=${a.lat},${a.lng}`)} />
         </> : <P muted>Geen locatie beschikbaar.</P>}
+        {a.kind === 'missed_check_in' && deviceStatusLine(a) ? <P muted>📱 {deviceStatusLine(a)}</P> : null}
+        {a.kind === 'missed_check_in' && deviceStatusHint(a, a._creationTime) ? <P muted>{deviceStatusHint(a, a._creationTime)}</P> : null}
       </Card>
       {data.isOwner && <DeliveryList deliveries={data.deliveries} />}
       {a.sessionId && !data.isOwner && <Button title="Live kaart (indien nog gedeeld)" variant="secondary" onPress={() => router.push(`/watch/${a.sessionId}`)} />}

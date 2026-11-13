@@ -29,9 +29,21 @@ export async function requireAdult(ctx: QueryCtx, uid: Id<'users'>) {
 export async function isAdmin(ctx: QueryCtx, uid: Id<'users'>) {
   return !!(await ctx.db.query('admins').withIndex('by_user', (q) => q.eq('userId', uid)).first());
 }
-export async function isPremium(ctx: QueryCtx, uid: Id<'users'>) {
+/**
+ * Nog lopende Premium-gift met de laatste einddatum (bv. uitnodigingsbeloning); null als er geen is.
+ * Giften worden aaneengesloten gestapeld, dus "een gift loopt nog" = Premium tot de laatste einddatum.
+ */
+export async function activeGrant(ctx: QueryCtx, uid: Id<'users'>, now = Date.now()) {
+  return await ctx.db.query('premiumGrants').withIndex('by_user', (q) => q.eq('userId', uid).gt('expiresAt', now)).order('desc').first();
+}
+export async function isStorePremium(ctx: QueryCtx, uid: Id<'users'>) {
   const s = await ctx.db.query('subscriptions').withIndex('by_user', (q) => q.eq('userId', uid)).first();
   return !!s && s.tier === 'premium' && (s.expiresAt === undefined || s.expiresAt > Date.now());
+}
+/** Premium = actief winkelabonnement (RevenueCat-webhook) óf een lopende gift. */
+export async function isPremium(ctx: QueryCtx, uid: Id<'users'>) {
+  if (await isStorePremium(ctx, uid)) return true;
+  return !!(await activeGrant(ctx, uid));
 }
 export async function isBlockedBetween(ctx: QueryCtx, a: Id<'users'>, b: Id<'users'>) {
   const x = await ctx.db.query('blocks').withIndex('by_pair', (q) => q.eq('blockerId', a).eq('blockedId', b)).first();

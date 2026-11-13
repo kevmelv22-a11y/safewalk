@@ -19,6 +19,7 @@ import type * as contacts from "../contacts.js";
 import type * as crons from "../crons.js";
 import type * as deviceContacts from "../deviceContacts.js";
 import type * as deviceCrypto from "../deviceCrypto.js";
+import type * as deviceStatus from "../deviceStatus.js";
 import type * as geo from "../geo.js";
 import type * as http from "../http.js";
 import type * as incidents from "../incidents.js";
@@ -30,9 +31,11 @@ import type * as notify from "../notify.js";
 import type * as profiles from "../profiles.js";
 import type * as push from "../push.js";
 import type * as recordings from "../recordings.js";
+import type * as referrals from "../referrals.js";
 import type * as security from "../security.js";
 import type * as sessions from "../sessions.js";
 import type * as sos from "../sos.js";
+import type * as trackPage from "../trackPage.js";
 import type * as tracking from "../tracking.js";
 
 import type {
@@ -53,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   deviceContacts: typeof deviceContacts;
   deviceCrypto: typeof deviceCrypto;
+  deviceStatus: typeof deviceStatus;
   geo: typeof geo;
   http: typeof http;
   incidents: typeof incidents;
@@ -64,9 +68,11 @@ declare const fullApi: ApiFromModules<{
   profiles: typeof profiles;
   push: typeof push;
   recordings: typeof recordings;
+  referrals: typeof referrals;
   security: typeof security;
   sessions: typeof sessions;
   sos: typeof sos;
+  trackPage: typeof trackPage;
   tracking: typeof tracking;
 }>;
 

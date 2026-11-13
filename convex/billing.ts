@@ -2,7 +2,7 @@ import { httpAction, internalMutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { audit, isPremium } from './lib';
+import { activeGrant, audit, isPremium, isStorePremium } from './lib';
 
 export const ENTITLEMENT = 'premium';
 const GRANT = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'PRODUCT_CHANGE', 'NON_RENEWING_PURCHASE', 'SUBSCRIPTION_EXTENDED', 'TEMPORARY_ENTITLEMENT_GRANT', 'CANCELLATION', 'BILLING_ISSUE']);
@@ -45,5 +45,10 @@ export const webhook = httpAction(async (ctx, req) => {
 export const status = query({ args: {}, handler: async (ctx) => {
   const uid = await getAuthUserId(ctx); if (!uid) return null;
   const s = await ctx.db.query('subscriptions').withIndex('by_user', (q) => q.eq('userId', uid)).first();
-  return { userId: uid, premium: await isPremium(ctx, uid), expiresAt: s?.expiresAt ?? null, tier: s?.tier ?? 'free' };
+  const grant = await activeGrant(ctx, uid);
+  return {
+    userId: uid, premium: await isPremium(ctx, uid), expiresAt: s?.expiresAt ?? null, tier: s?.tier ?? 'free',
+    // storePremium: betaald via App Store/Google Play. grantUntil: gratis Premium (uitnodigingsbeloning) tot deze datum.
+    storePremium: await isStorePremium(ctx, uid), grantUntil: grant?.expiresAt ?? null,
+  };
 } });
