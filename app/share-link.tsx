@@ -8,6 +8,10 @@ import { errorNl } from '../src/lib/convex';
 import * as Location from 'expo-location';
 import { ContactComposer } from '../src/components/ContactComposer';
 import { locationMessage } from '../src/lib/composer';
+import { Choice, Toggle } from '../src/components/Choice';
+import { useLinkCodes } from '../src/store/linkCodes';
+import { CODE_HINT, LINK_KEY_WARNING } from '../src/content/liveSharing';
+import { LINK_DURATIONS, LINK_DURATION_LABEL, type LinkDuration } from '../convex/liveShare';
 
 /**
  * Externe tracking-link voor contacten zonder app.
@@ -24,6 +28,10 @@ export default function ShareLinkScreen() {
   const [composerText, setComposerText] = useState<string | null>(null);
   const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, '') ?? '';
   const profile = useProfile();
+  const [duration, setDuration] = useState<LinkDuration>('1h');
+  const [withCode, setWithCode] = useState(false);
+  const codes = useLinkCodes((x) => x.codes); const putCode = useLinkCodes((x) => x.put);
+  const hasTrip = !!sessions?.mine?._id;
 
   const make = async () => {
     setBusy(true); setErr(null); setMsg(null);
@@ -39,7 +47,11 @@ export default function ShareLinkScreen() {
         label: 'Live locatie',
         locationConsent: locOk,
         scopes: ['location'],
+        // "Tot aankomst" alleen met een lopende reis; anders valt de server terug op 2 uur.
+        duration: duration === 'arrival' && !hasTrip ? '1h' : duration,
+        withCode,
       });
+      if (r.accessCode) putCode(r.id, r.accessCode);
       const url = `${site}${r.path}`;
       const text = locationMessage(url);
       setComposerText(text);
@@ -56,9 +68,12 @@ export default function ShareLinkScreen() {
 
   return (
     <Screen>
-      <H1>Tracking-link</H1>
-      <P muted>Maak een tijdelijke link (standaard 2 uur) met OSM-kaart voor iemand zonder de app. “Live” alleen als er een actieve reis/incident-updater locatie blijft sturen. Geen coördinaten in de URL. Intrekken hieronder.</P>
-      <Notice kind="info">Techniek: Convex HTTP + Leaflet + OpenStreetMap-tegels (© OSM-bijdragers). Poll elke 10s. Geen betaalde kaart-API.</Notice>
+      <H1>Meekijklink</H1>
+      <P muted>Een tijdelijke link met kaart voor iemand zonder de app. De ontvanger ziet alleen live locatie zolang jij een reis of noodsituatie hebt lopen; anders staat er “niet live”. Er staan geen coördinaten in de link zelf. Je kunt hem hieronder altijd intrekken.</P>
+      <P muted>Hoe lang werkt de link?</P>
+      <Choice label="Duur van de link" value={duration} onChange={setDuration} options={LINK_DURATIONS.filter((d) => d !== 'arrival' || hasTrip).map((d) => ({ value: d, label: LINK_DURATION_LABEL[d] }))} />
+      <Toggle value={withCode} onChange={setWithCode} title="Toegangscode toevoegen" hint={CODE_HINT} />
+      <Notice kind="warn">{LINK_KEY_WARNING}</Notice>
       <Button title="Nieuwe link maken en delen" onPress={make} loading={busy} />
       {msg && <Notice kind="ok">{msg}</Notice>}
       {composerText && <ContactComposer message={composerText} />}
@@ -67,8 +82,10 @@ export default function ShareLinkScreen() {
       {links.length === 0 && <P muted>Geen links.</P>}
       {links.map((l) => (
         <Card key={l.id}>
-          <P>{l.label ?? 'Link'} · {l.expired ? 'verlopen' : `tot ${new Date(l.expiresAt).toLocaleString('nl-NL')}`}</P>
-          {!l.expired && <Button title="Intrekken" variant="danger" onPress={() => revoke({ id: l.id })} />}
+          <P>{l.label ?? 'Link'} · {l.expired ? 'verlopen' : `tot ${new Date(l.expiresAt).toLocaleString('nl-NL', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`}</P>
+          {l.hasCode && <P muted>{codes[l.id] ? `Toegangscode: ${codes[l.id].slice(0, 3)} ${codes[l.id].slice(3)}` : 'Met toegangscode'}{l.codeLocked ? ' · geblokkeerd na te veel foute codes' : ''}</P>}
+          {l.emailSubscribers > 0 && <P muted>{l.emailSubscribers} {l.emailSubscribers === 1 ? 'kijker krijgt' : 'kijkers krijgen'} e-mailmeldingen.</P>}
+          {!l.expired && <Button title="Link intrekken" variant="danger" onPress={() => revoke({ id: l.id }).catch((e) => setErr(errorNl(e)))} />}
         </Card>
       ))}
     </Screen>

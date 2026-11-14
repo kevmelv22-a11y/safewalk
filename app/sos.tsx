@@ -11,12 +11,15 @@ import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { useProfile } from '../src/lib/queries';
 import { useTheme } from '../src/lib/theme';
 import { errorNl } from '../src/lib/convex';
+import { SHAKE } from '../src/content/liveSharing';
 
 type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error';
 
 export default function Sos() {
   const t = useTheme();
-  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
+  const { sessionId, trigger } = useLocalSearchParams<{ sessionId?: string; trigger?: string }>();
+  // Via schudden altijd minstens 5 s om te annuleren (ook als het profiel korter is ingesteld).
+  const minCountdown = trigger === 'shake' ? 5 : 0;
   const profile = useProfile();
   const cancelAlert = useMutation(api.sos.cancel);
   const [left, setLeft] = useState<number | null>(null);
@@ -37,7 +40,7 @@ export default function Sos() {
   // Aftelling start ook als het profiel (offline) niet laadt: standaard 5 s
   useEffect(() => { if (left === null) { const t = setTimeout(() => setLeft((l) => l ?? 5), 1500); return () => clearTimeout(t); } }, [left]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- eenmalig de aftelduur uit het (later geladen) profiel overnemen
-  useEffect(() => { if (left === null && profile) setLeft(profile.sosCountdownSeconds); }, [profile, left]);
+  useEffect(() => { if (left === null && profile) setLeft(Math.max(minCountdown, profile.sosCountdownSeconds)); }, [profile, left, minCountdown]);
   useEffect(() => {
     if (phase !== 'countdown' || left === null) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- teller op 0: SOS versturen
@@ -58,6 +61,7 @@ export default function Sos() {
     <Screen>
       {phase === 'countdown' && (
         <View style={{ alignItems: 'center', gap: 16, paddingTop: 30 }}>
+          {trigger === 'shake' && <Notice kind="warn">{SHAKE.detected}. Per ongeluk? Tik op ANNULEREN.</Notice>}
           <H1>SOS wordt verstuurd over</H1>
           <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: t.red }}>{left ?? '…'}</Text>
           <P muted>Je vertrouwde contacten krijgen een pushmelding met je laatst bekende locatie.</P>

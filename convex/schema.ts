@@ -45,6 +45,13 @@ export default defineSchema({
     endedAt: v.optional(v.number()), expiresAt: v.number(), almostNotifiedAt: v.optional(v.number()), startDistanceM: v.optional(v.number()),
     // Toestelstatus tijdens een actieve reis (gewist bij einde reis): batterij 0–100 en laatste contact met de server.
     batteryPct: v.optional(v.number()), batteryAt: v.optional(v.number()), lastSeenAt: v.optional(v.number()),
+    // 'timer' = sessie zonder bestemming (bv. date, "30 min lopen"). Afwezig = reis.
+    kind: v.optional(v.union(v.literal('trip'), v.literal('timer'))),
+    // Privacy-check-in: kijkers zien alleen de status; locatie/batterij/route pas bij gemiste check-in of SOS.
+    privacyMode: v.optional(v.boolean()),
+    // Signalen naar kijkers (elk hooguit beperkt per reis): batterij bijna leeg, niet meer live, SOS tijdens de reis.
+    lowBatteryAt: v.optional(v.number()), notLiveAt: v.optional(v.number()), notLiveCount: v.optional(v.number()),
+    sosAt: v.optional(v.number()),
   }).index('by_user', ['userId']).index('by_open', ['endedAt']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
@@ -72,7 +79,8 @@ export default defineSchema({
     recipientId: v.id('users'),
     kind: v.union(v.literal('sos'), v.literal('missed_check_in'), v.literal('trip_started'), v.literal('almost_arrived'),
       v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check'),
-      v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin')),
+      v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
+      v.literal('low_battery'), v.literal('not_live')),
     alertId: v.optional(v.id('alerts')), sessionId: v.optional(v.id('sessions')),
     title: v.string(), body: v.string(), data: v.optional(v.any()),
     // queued → sent (ticket ok) → delivered (receipt ok: overgedragen aan Apple/Google) | failed | no_token | unknown
@@ -130,7 +138,26 @@ export default defineSchema({
     expiresAt: v.number(),
     revokedAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']).index('by_incident', ['incidentId']),
+    // Gekozen duur in de app ('arrival' = tot de reis eindigt/verloopt, max. 24 u).
+    duration: v.optional(v.union(v.literal('15m'), v.literal('1h'), v.literal('arrival'), v.literal('8h'))),
+    // Optionele toegangscode (PBKDF2-hash + salt; de code zelf nooit opgeslagen). Na te veel foute pogingen geblokkeerd.
+    codeHash: v.optional(v.string()), codeSalt: v.optional(v.string()),
+    codeFailures: v.optional(v.number()), codeLockedAt: v.optional(v.number()),
+  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']).index('by_incident', ['incidentId']).index('by_session', ['sessionId']),
+  // Ontgrendeling van een link met toegangscode: kortlevende kijkerssleutel (alleen hash), geldig tot de link verloopt.
+  linkGrants: defineTable({ linkId: v.id('shareLinks'), grantHash: v.string(), expiresAt: v.number() })
+    .index('by_hash', ['grantHash']).index('by_link', ['linkId']),
+  // E-mailmeldingen voor kijkers zonder app (dubbele opt-in). Adres alleen zolang de link bestaat; daarna gewist.
+  viewerSubscriptions: defineTable({
+    linkId: v.id('shareLinks'), ownerId: v.id('users'), sessionId: v.optional(v.id('sessions')),
+    email: v.string(), emailHash: v.string(),
+    status: v.union(v.literal('pending'), v.literal('active'), v.literal('unsubscribed'), v.literal('ended')),
+    confirmHash: v.string(), unsubToken: v.string(),
+    createdAt: v.number(), confirmedAt: v.optional(v.number()), expiresAt: v.number(),
+    sent: v.array(v.string()), // dedupe-sleutels van verstuurde meldingen
+    lastError: v.optional(v.string()),
+  }).index('by_link', ['linkId']).index('by_confirm', ['confirmHash']).index('by_unsub', ['unsubToken'])
+    .index('by_session', ['sessionId']).index('by_owner', ['ownerId']).index('by_expires', ['expiresAt']),
   // Locatie-updates tijdens incident (aparte bron als er geen trip-sessie is)
   incidentLocations: defineTable({
     incidentId: v.id('incidents'),

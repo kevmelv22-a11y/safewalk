@@ -64,6 +64,16 @@ export function validateSessionInput(i: { destination: string; arrival: Date; vi
   return null;
 }
 
+/** Zoals validateSessionInput, maar zonder app-contact mag ook, mits er een meekijklink bij komt. */
+export function validateStartInput(i: { destination: string; arrival: Date; viewerIds: string[]; withLink: boolean }, now = Date.now()): string | null {
+  if (i.withLink && i.viewerIds.length === 0) {
+    const r = validateSessionInput({ ...i, viewerIds: ['link'] }, now);
+    return r;
+  }
+  if (!i.withLink && i.viewerIds.length === 0) return 'Kies minstens één vertrouwd contact, of zet de meekijklink aan.';
+  return validateSessionInput(i, now);
+}
+
 /** Haalt het uitnodigingstoken uit een link (safewalk://invite/<token> of https://.../invite/<token>) of los token. */
 export function parseInviteToken(input: string): string | null {
   const m = input.trim().match(/(?:invite\/|token=)?([a-f0-9]{64})\b/i);
@@ -99,6 +109,7 @@ export const deliveryIcon = (s: string) => (s === 'delivered' || s === 'sent' ? 
 export const notificationKindLabel: Record<string, string> = {
   sos: 'SOS', missed_check_in: 'Check-in gemist', trip_started: 'Reis gestart', almost_arrived: 'Bijna aangekomen',
   check_in_required: 'Check-in vereist', trip_ended: 'Reis beëindigd', motion_check: 'Extra check-in',
+  low_battery: 'Batterij bijna leeg', not_live: 'Niet meer live',
 };
 
 export function mapErrorNl(msg: string | undefined): string {
@@ -114,6 +125,9 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('CONTACT_LIMIT')) return 'Gratis account: maximaal 2 vertrouwde contacten.';
   if (msg.includes('INVITATION_INVALID')) return 'Deze uitnodiging is ongeldig of verlopen.';
   if (msg.includes('INVITATION_SELF')) return 'Je kunt je eigen uitnodiging niet accepteren.';
+  if (msg.includes('NO_VIEWERS')) return 'Kies minstens één vertrouwd contact, of zet de meekijklink aan.';
+  if (msg.includes('LOCATION_CONSENT_REQUIRED')) return 'Zonder toestemming voor je locatie maakt SafeWalk geen meekijklink.';
+  if (msg.includes('SESSION_CLOSED')) return 'Deze reis is al beëindigd.';
   if (msg.includes('VIEWER_NOT_TRUSTED')) return 'Alleen geaccepteerde vertrouwde contacten kunnen meekijken.';
   if (msg.includes('PREMIUM_REQUIRED')) return 'Deze functie is onderdeel van Premium.';
   if (msg.includes('RESTRICTED')) return 'Je account is beperkt. Neem contact op met support@vonkbyte.nl. SOS blijft werken.';
@@ -166,15 +180,20 @@ export type SharingStatus = { live: boolean; kind: 'ok' | 'warn' | 'danger'; tex
  * Eerlijke deelstatus voor de eigenaar van een reis: draait er op deze telefoon echt een
  * locatiewatcher, en hoe vers is het laatste punt dat de server heeft?
  */
-export function sharingStatus(watching: boolean, lastAt: number | null, now = Date.now()): SharingStatus {
+export function sharingStatus(watching: boolean, lastAt: number | null, now = Date.now(), mode: 'background' | 'foreground' | null = 'foreground'): SharingStatus {
   if (!watching) {
     return { live: false, kind: 'danger', lastAt,
       text: 'Je locatie wordt op dit moment NIET gedeeld. Je meekijkers zien alleen het laatste punt.' };
   }
+  const bg = mode === 'background';
   const f = locationFreshness(lastAt, now);
-  if (f === 'fresh') return { live: true, kind: 'ok', lastAt, text: 'Je locatie wordt gedeeld zolang SafeWalk open is.' };
+  if (f === 'fresh') return { live: true, kind: 'ok', lastAt, text: bg
+    ? 'Je locatie wordt gedeeld, ook met scherm uit of SafeWalk op de achtergrond. Veeg SafeWalk niet weg.'
+    : 'Je locatie wordt gedeeld zolang SafeWalk open is.' };
   if (f === 'none') return { live: true, kind: 'warn', lastAt, text: 'Delen staat aan, maar er is nog geen locatie bij de server aangekomen (wacht op GPS of internet).' };
-  return { live: true, kind: 'warn', lastAt, text: 'Delen staat aan, maar het laatste punt is oud. Check GPS en internet, en houd SafeWalk open.' };
+  return { live: true, kind: 'warn', lastAt, text: bg
+    ? 'Delen staat aan, maar het laatste punt is oud. Check GPS, internet en of batterijbesparing SafeWalk niet beperkt.'
+    : 'Delen staat aan, maar het laatste punt is oud. Check GPS en internet, en houd SafeWalk open.' };
 }
 
 /** Titel + uitleg voor een melding, per soort (voorheen kreeg alles behalve SOS "Check-in gemist"). */

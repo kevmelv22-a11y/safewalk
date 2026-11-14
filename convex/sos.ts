@@ -2,7 +2,9 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import { queuePush, mapsLink } from './notify';
-import { audit, displayName, fail, rateLimit, requireAdult, requireUser } from './lib';
+import { audit, displayName, fail, rateLimit, requireAdult, requireUser, sessionOpen } from './lib';
+import { notifyLinkViewers } from './viewerAlerts';
+import { sessionWhat } from './liveShare';
 
 /** Registreert SOS (idempotent via clientRef voor de offline-wachtrij) en plant push. Belt NOOIT 112. */
 export const trigger = mutation({
@@ -20,6 +22,14 @@ export const trigger = mutation({
     const name = await displayName(ctx, uid); const link = mapsLink(a.lat, a.lng);
     await queuePush(ctx, { kind: 'sos', alertId, sessionId, recipients: contacts.map((c) => c.contactId), title: `🆘 SOS van ${name}`,
       body: link ? `${name} heeft SOS geactiveerd. Laatst bekende locatie: ${link}` : `${name} heeft SOS geactiveerd. Geen recente locatie beschikbaar.` });
+    // Loopt er een reis/timer? Dan zien kijkers met de meekijklink de SOS (en heft dit de privacymodus op).
+    const open = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => sessionOpen(s));
+    if (open) {
+      await ctx.db.patch(open._id, { sosAt: Date.now() });
+      const lastLoc = a.lat !== undefined && a.lng !== undefined ? { lat: a.lat, lng: a.lng, locationAt: a.locationAt }
+        : await ctx.db.query('locations').withIndex('by_session', (q) => q.eq('sessionId', open._id)).order('desc').first().then((l) => (l ? { lat: l.lat, lng: l.lng, locationAt: l.recordedAt } : {}));
+      await notifyLinkViewers(ctx, open._id, 'sos', { what: sessionWhat(open), at: Date.now(), ...lastLoc, batteryPct: open.batteryPct }, `sos:${alertId}`);
+    }
     await audit(ctx, uid, 'sos.triggered', alertId, { recipients: contacts.length });
     return alertId;
   },
@@ -33,6 +43,16 @@ export const cancel = mutation({ args: { alertId: v.id('alerts') }, handler: asy
   const informed = (await ctx.db.query('pushMessages').withIndex('by_alert', (q) => q.eq('alertId', alertId)).collect()).filter((m) => m.status !== 'queued').map((m) => m.recipientId);
   const name = await displayName(ctx, uid);
   if (informed.length) await queuePush(ctx, { kind: 'sos', recipients: informed, title: `✅ ${name}: vals alarm`, body: `${name} heeft aangegeven dat alles goed is.` });
+  // Kijkers via de link die de SOS-mail kregen, krijgen ook de intrekking. Privacymodus weer dicht als er geen andere open SOS is.
+  if (a!.kind === 'sos') {
+    const open = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => sessionOpen(s));
+    if (open) {
+      const otherOpen = (await ctx.db.query('alerts').withIndex('by_user', (q) => q.eq('userId', uid)).collect())
+        .some((x) => x._id !== alertId && x.kind === 'sos' && x.status === 'open' && x._creationTime >= open._creationTime);
+      if (!otherOpen && open.sosAt !== undefined) await ctx.db.patch(open._id, { sosAt: undefined });
+      await notifyLinkViewers(ctx, open._id, 'sos_cancelled', { what: sessionWhat(open), at: a!._creationTime }, `sos_cancelled:${alertId}`, `sos:${alertId}`);
+    }
+  }
   await audit(ctx, uid, 'sos.cancelled', alertId);
 } });
 

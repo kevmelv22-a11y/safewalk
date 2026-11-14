@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, Share } from 'react-native';
+import { Platform, Share, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -11,8 +11,12 @@ import { errorNl } from '../../src/lib/convex';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
 import { checkInPhase, deliveryIcon, deliveryLabel, formatCountdown, notificationKindLabel, sharingStatus, timeAgo } from '../../src/lib/safety';
 import { signalText } from '../../convex/motionText';
-import { startSharing, stopSharing } from '../../src/lib/location';
-import { useSharingSessionId } from '../../src/lib/sharingKeeper';
+import { startSharing, stopSharing, untilFor } from '../../src/lib/location';
+import { useSharingMode, useSharingSessionId } from '../../src/lib/sharingKeeper';
+import { Choice, Toggle } from '../../src/components/Choice';
+import { useLinkCodes } from '../../src/store/linkCodes';
+import { CODE_HINT, LINK_KEY_WARNING, PRIVACY_HINT, VIEWER_ALERTS_HINT } from '../../src/content/liveSharing';
+import { LINK_DURATIONS, LINK_DURATION_LABEL, type LinkDuration } from '../../convex/liveShare';
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 import { ARRIVAL_PROMPT_M, arrivalDistance, shouldAskArrived } from '../../src/lib/arrival';
 import { recordSafeArrival } from '../../src/lib/reviewPrompt';
@@ -38,6 +42,10 @@ export default function MySession() {
   const revokeLink = useMutation(api.tracking.revokeShareLink);
   const allLinks = useQuery(api.tracking.myShareLinks);
   const sharingId = useSharingSessionId();
+  const mode = useSharingMode();
+  const codes = useLinkCodes((x) => x.codes); const putCode = useLinkCodes((x) => x.put);
+  const [duration, setDuration] = useState<LinkDuration>('arrival');
+  const [withCode, setWithCode] = useState(false);
   const s = data?.session; const ci = data?.checkIn;
   const ended = !!s && s.endedAt !== undefined;
   useEffect(() => { if (ended) stopSharing(); }, [ended]);
@@ -48,7 +56,7 @@ export default function MySession() {
     </Screen>
   );
   if (!s) return <Screen><P muted>Reis laden…</P></Screen>;
-  const share = data.isOwner && !ended ? sharingStatus(sharingId === id, trail.at(-1)?.recordedAt ?? null, now) : null;
+  const share = data.isOwner && !ended ? sharingStatus(sharingId === id, trail.at(-1)?.recordedAt ?? null, now, mode) : null;
   const phase = ci && ci.status !== 'confirmed' && ci.status !== 'cancelled' ? checkInPhase(ci.dueAt, ci.graceMinutes, now) : null;
   const respond = async (extend: number) => {
     try {
@@ -72,7 +80,8 @@ export default function MySession() {
     setLinkBusy(true); setLinkMsg(null); setErr(null);
     try {
       // Expliciete keuze van de gebruiker (deze knop); locatie wordt al gedeeld met toestemming.
-      const r = await createTripLink({ sessionId: id, locationConsent: true });
+      const r = await createTripLink({ sessionId: id, locationConsent: true, duration, withCode });
+      if (r.accessCode) putCode(r.id, r.accessCode);
       const text = tripLinkMessage(`${site}${r.path}`);
       setLinkText(text);
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -98,13 +107,14 @@ export default function MySession() {
   };
   const resume = async () => {
     setResuming(true); setErr(null);
-    try { await startSharing(id); }
+    try { await startSharing(id, { until: untilFor(s.expiresAt) }); }
     catch (e) { setErr(String((e as Error).message) + ' Geef toestemming in de instellingen van je telefoon.'); }
     finally { setResuming(false); }
   };
   return (
     <Screen>
-      <H1>{s.destinationLabel}</H1>
+      <H1>{s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : s.destinationLabel}</H1>
+      {s.privacyMode && !ended && <Notice kind="info">🔒 Privacy-check-in staat aan. {PRIVACY_HINT}</Notice>}
       {ended && <Notice kind="info">Deze reis is beëindigd. Locatie wordt niet meer gedeeld.</Notice>}
       {share && (
         <Notice kind={share.kind}>{share.text}{share.lastAt ? ` Laatste punt: ${timeAgo(share.lastAt, now)}.` : ''}</Notice>
@@ -139,7 +149,8 @@ export default function MySession() {
       )}
       <LiveMap trail={trail} dest={s.destinationLat !== undefined && s.destinationLng !== undefined ? { lat: s.destinationLat, lng: s.destinationLng, label: s.destinationLabel } : null} now={now} />
       <Card>
-        <P>Meekijkers</P>
+        <P>Meekijkers in de app</P>
+        {data.viewers.length === 0 && <P muted>Geen; deze reis wordt alleen via een link gedeeld.</P>}
         {data.viewers.map((v) => <P key={v.viewerId} muted>{v.revoked ? '⛔' : '👀'} {v.name}{v.revoked ? ' (toegang ingetrokken)' : ''}</P>)}
         {!ended && data.viewers.filter((v) => !v.revoked).map((v) => (
           <Button key={'r' + v.viewerId} title={`Toegang intrekken: ${v.name}`} variant="secondary" onPress={() => revokeViewer({ sessionId: id, viewerId: v.viewerId }).catch((e) => setErr(errorNl(e)))} />
@@ -148,13 +159,26 @@ export default function MySession() {
       {data.isOwner && !ended && (
         <Card>
           <P>Meekijklink voor iemand zonder app</P>
-          <P muted style={{ fontSize: 14 }}>Wie de link heeft, ziet in de browser je bestemming, de aftelling tot je verwachte aankomst en of je veilig bent aangekomen of een check-in mist. Je locatie is alleen zichtbaar zolang deze reis loopt. De link verloopt vanzelf en je kunt hem hier intrekken.</P>
+          <P muted style={{ fontSize: 14 }}>Wie de link heeft, ziet in de browser {s.privacyMode ? 'de status van je reis (locatie pas bij een gemiste check-in of SOS)' : 'je live locatie, je recente route, je bestemming en de aftelling'}, met een knop om naar je toe te navigeren. De link verloopt vanzelf en je kunt hem hier intrekken.</P>
+          <P muted>Hoe lang werkt de link?</P>
+          <Choice label="Duur van de link" value={duration} onChange={setDuration} options={LINK_DURATIONS.map((d) => ({ value: d, label: LINK_DURATION_LABEL[d] }))} />
+          <Toggle value={withCode} onChange={setWithCode} title="Toegangscode toevoegen" hint={CODE_HINT} />
+          <Notice kind="warn">{LINK_KEY_WARNING}</Notice>
           <Button title="Meekijklink delen" onPress={shareTripLink} loading={linkBusy} />
+          <P muted style={{ fontSize: 14 }}>{VIEWER_ALERTS_HINT}</P>
           {linkMsg && <Notice kind="ok">{linkMsg}</Notice>}
           {linkText && <ContactComposer message={linkText} />}
+          {tripLinks.length > 0 && <P>Actieve links ({tripLinks.length})</P>}
           {tripLinks.map((l) => (
-            <Button key={l.id} title={`Intrekken: link tot ${new Date(l.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`} variant="secondary"
-              onPress={() => revokeLink({ id: l.id }).catch((e) => setErr(errorNl(e)))} />
+            <View key={l.id} style={{ gap: 6, paddingVertical: 6 }}>
+              <P muted style={{ fontSize: 14 }}>
+                🔗 Tot {new Date(l.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}{l.duration ? ` (${LINK_DURATION_LABEL[l.duration]})` : ''}
+                {l.hasCode ? (codes[l.id] ? ` · code ${codes[l.id].slice(0, 3)} ${codes[l.id].slice(3)}` : ' · met code') : ''}
+                {l.codeLocked ? ' · geblokkeerd na te veel foute codes' : ''}
+                {l.emailSubscribers ? ` · ${l.emailSubscribers} ${l.emailSubscribers === 1 ? 'kijker' : 'kijkers'} met e-mailmeldingen` : ''}
+              </P>
+              <Button title="Link intrekken" variant="danger" onPress={() => revokeLink({ id: l.id }).catch((e) => setErr(errorNl(e)))} />
+            </View>
           ))}
         </Card>
       )}

@@ -35,6 +35,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "POST_NOTIFICATIONS",
         "VIBRATE",
@@ -50,7 +51,8 @@
       },
       "blockedPermissions": [
         "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "com.google.android.gms.permission.ACTIVITY_RECOGNITION"
       ]
     },
     "plugins": [
@@ -60,8 +62,12 @@
         "expo-location",
         {
           "isAndroidBackgroundLocationEnabled": false,
-          "isAndroidForegroundServiceEnabled": false,
-          "locationWhenInUsePermission": "SafeWalk gebruikt je locatie om je reis te delen met contacten die jij kiest, om een bestemming op de kaart te tonen en om je laatst bekende locatie mee te sturen bij SOS."
+          "isAndroidForegroundServiceEnabled": true,
+          "locationWhenInUsePermission": "SafeWalk gebruikt je locatie om je reis te delen met contacten die jij kiest, om een bestemming op de kaart te tonen en om je laatst bekende locatie mee te sturen bij SOS.",
+          "isIosBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Tijdens een reis die jij zelf start, deelt SafeWalk je locatie ook als de app op de achtergrond staat of je scherm uit is, zodat je gekozen contacten kunnen meekijken. Delen stopt zodra je de reis beëindigt.",
+          "locationAlwaysPermission": "Tijdens een reis die jij zelf start, deelt SafeWalk je locatie ook op de achtergrond. Delen stopt zodra je de reis beëindigt.",
+          "isAndroidMotionActivityEnabled": false
         }
       ],
       [
@@ -155,7 +161,13 @@
         "./modules/safewalk-native/plugin/withSafewalkNative.js",
         {}
       ],
-      "./plugins/withAndroidReleaseKeep.js"
+      "./plugins/withAndroidReleaseKeep.js",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

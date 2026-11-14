@@ -4,6 +4,8 @@ import { closeSession } from './sessions';
 import { detectSignals, signalText, COOLDOWN_MS } from './motion';
 import { deviceStatusLine } from './deviceStatus';
 import { audit, displayName, isPremium, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
+import { notifyLinkViewers, purgeViewerData } from './viewerAlerts';
+import { sessionWhat, shouldSignalNotLive } from './liveShare';
 
 /** Elke minuut (cron): verlopen sessies sluiten en gemiste check-ins escaleren — onafhankelijk van de app. */
 export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) => {
@@ -52,10 +54,24 @@ export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) 
     await queuePush(ctx, { kind: 'missed_check_in', alertId, sessionId: s._id, recipients: viewers, title: `⚠️ ${name} heeft niet ingecheckt`,
       body: `${name} heeft niet op tijd bevestigd veilig te zijn. ${link ? `Laatst bekende locatie: ${link}` : 'Geen recente locatie.'}${deviceLine ? ` ${deviceLine}.` : ''} Probeer contact op te nemen.`,
       data: { batteryPct: device.batteryPct ?? null, lastSeenAt: device.lastSeenAt ?? null } });
+    await notifyLinkViewers(ctx, s._id, 'missed', { what: sessionWhat(s), at: now, lat: last?.lat, lng: last?.lng, locationAt: last?.recordedAt, batteryPct: s.batteryPct });
     await queuePush(ctx, { kind: 'check_in_required', sessionId: s._id, recipients: [s.userId], title: 'Check-in gemist',
       body: 'Je contacten zijn gewaarschuwd. Open SafeWalk om te bevestigen dat alles goed is.' });
     await audit(ctx, undefined, 'check_in.escalated', s._id);
     escalated++;
+  }
+
+  // "Niet meer live": een open reis die al even niets doorgeeft (geen bereik, batterij leeg, app weggeveegd).
+  for (const s of await ctx.db.query('sessions').withIndex('by_open', (q) => q.eq('endedAt', undefined)).collect()) {
+    if (s.expiresAt <= now || !shouldSignalNotLive(s, now)) continue;
+    const count = (s.notLiveCount ?? 0) + 1;
+    await ctx.db.patch(s._id, { notLiveAt: now, notLiveCount: count });
+    const viewers = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s._id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
+    const name = await displayName(ctx, s.userId);
+    const since = new Date(s.lastSeenAt!).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
+    await queuePush(ctx, { kind: 'not_live', sessionId: s._id, recipients: viewers, title: `📡 ${name} is niet meer live`,
+      body: `Sinds ${since} komt er geen nieuwe locatie binnen. Dat kan door geen bereik, een lege batterij of een uitgezette telefoon.` });
+    await notifyLinkViewers(ctx, s._id, 'not_live', { what: sessionWhat(s), at: s.lastSeenAt! }, `not_live:${count}`);
   }
   return escalated;
 } });
@@ -87,6 +103,8 @@ export const purge = internalMutation({ args: {}, handler: async (ctx) => {
   for (const row of await ctx.db.query('incidentLocations').collect()) {
     if (row.recordedAt < now - RETENTION_MAX_MS) { await ctx.db.delete(row._id); n++; }
   }
+  // E-mailadressen van kijkers en kijkerssleutels: weg zodra de link niet meer geldig is.
+  n += await purgeViewerData(ctx, now);
   // Fout- en auditregels: de privacytekst noemt max. 12 maanden. Geen langere bewaartermijn in code.
   const yearAgo = now - 365 * 24 * 3600_000;
   for (const row of await ctx.db.query('errorLogs').collect()) if (row._creationTime < yearAgo) await ctx.db.delete(row._id);
