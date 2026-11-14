@@ -1,9 +1,10 @@
 import MapView, { Circle, Marker, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
-import { View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { mapsAvailable } from '../lib/mapsAvailability';
 import { palette , useIsDark } from '../lib/theme';
 import { accuracyLabel, etaLabel, formatDistance, freshnessLabel, haversineMeters, locationFreshness, roughEtaMs, timeAgo } from '../lib/safety';
 import { darkMapStyle } from '../lib/mapStyle';
-import { Notice, P, Card } from './ui';
+import { Button, Notice, P, Card } from './ui';
 
 export type Loc = { lat: number; lng: number; accuracyM: number | null; recordedAt: number };
 export function LiveMap({ trail, dest, now }: { trail: Loc[]; dest?: { lat: number; lng: number; label: string } | null; now: number }) {
@@ -13,6 +14,15 @@ export function LiveMap({ trail, dest, now }: { trail: Loc[]; dest?: { lat: numb
   const center = last ?? (dest ? { lat: dest.lat, lng: dest.lng } : { lat: 52.37, lng: 4.9 });
   return (
     <View style={{ gap: 10 }}>
+      {!mapsAvailable() ? (
+        // Android zonder Google Maps-sleutel: MapView zou de app laten crashen. Dan geen kaart, wel een kaartlink.
+        <Card>
+          <P>Kaart niet beschikbaar in deze versie</P>
+          {last
+            ? <Button title="Laatste locatie openen in Google Maps" variant="secondary" onPress={() => { void Linking.openURL(`https://maps.google.com/?q=${last.lat.toFixed(6)},${last.lng.toFixed(6)}`); }} />
+            : <P muted>Nog geen locatie ontvangen.</P>}
+        </Card>
+      ) : (
       <View style={{ height: 320, borderRadius: 16, overflow: 'hidden' }}>
         <MapView style={{ flex: 1 }} provider={PROVIDER_DEFAULT} customMapStyle={isDark ? darkMapStyle : []} userInterfaceStyle={isDark ? 'dark' : 'light'}
           region={{ latitude: center.lat, longitude: center.lng, latitudeDelta: 0.02, longitudeDelta: 0.02 }} accessibilityLabel="Kaart met live locatie">
@@ -23,6 +33,7 @@ export function LiveMap({ trail, dest, now }: { trail: Loc[]; dest?: { lat: numb
           {dest && <Marker coordinate={{ latitude: dest.lat, longitude: dest.lng }} title={dest.label} pinColor={palette.purple} />}
         </MapView>
       </View>
+      )}
       <Card>
         <P>{freshnessLabel(f)}</P>
         <P muted>Laatste update: {timeAgo(last?.recordedAt, now)} · {accuracyLabel(last?.accuracyM)}</P>
