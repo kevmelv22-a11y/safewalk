@@ -63,33 +63,16 @@ export function TripPanel({
           <Text style={[styles.title, { color: t.text }]}>Geen actieve reis</Text>
           <Text style={[styles.meta, { color: t.muted }]}>
             {contactCount === 0
-              ? 'Voeg eerst een vertrouwd contact toe om je reis te kunnen delen.'
+              ? 'Nog geen vertrouwde contacten? Start dan een reis of timer met alleen een meekijklink, bijvoorbeeld via WhatsApp.'
               : 'Start een check-inreis zodat contacten je onderweg kunnen volgen.'}
           </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Veilig naar huis – start reis"
-            accessibilityState={{ disabled: contactCount === 0 }}
-            disabled={contactCount === 0}
             onPress={onStartTrip}
-            style={({ pressed }) => [
-              styles.cta,
-              contactCount === 0
-                ? {
-                    backgroundColor: t.isDark ? '#1E2D44' : '#D9E2EC',
-                    borderWidth: 1,
-                    borderColor: t.border,
-                    opacity: 1,
-                    minHeight: dash.touch,
-                  }
-                : {
-                    backgroundColor: t.green,
-                    opacity: pressed ? 0.88 : 1,
-                    minHeight: dash.touch,
-                  },
-            ]}
+            style={({ pressed }) => [styles.cta, { backgroundColor: t.green, opacity: pressed ? 0.88 : 1, minHeight: dash.touch }]}
           >
-            <Text style={[styles.ctaText, { color: contactCount === 0 ? (t.isDark ? '#E2E8F0' : '#334155') : '#fff' }]}>
+            <Text style={[styles.ctaText, { color: '#fff' }]}>
               Veilig naar huis – start reis
             </Text>
           </Pressable>
