@@ -12,7 +12,7 @@ export default function LocationPermission() {
     <Screen>
       <H1>Locatietoestemming</H1>
       <P>SafeWalk gebruikt je locatie alleen tijdens een veiligheidssessie die jij zelf start, of als je op SOS drukt.</P>
-      <P muted>• Alleen contacten die jij per reis kiest, zien je locatie{'\n'}• Na afloop wordt het delen gestopt en wordt locatiegeschiedenis binnen 24 uur verwijderd{'\n'}• Delen werkt alleen zolang SafeWalk open is. Als je de app sluit of je scherm vergrendelt, stopt het delen tijdelijk</P>
+      <P muted>• Alleen contacten die jij per reis kiest, zien je locatie{'\n'}• Na afloop wordt het delen gestopt en wordt locatiegeschiedenis binnen 24 uur verwijderd{'\n'}• Tijdens een reis of timer deelt SafeWalk ook met scherm uit of op de achtergrond; je ziet dan een melding “SafeWalk deelt je locatie”. Veeg je SafeWalk weg of zet je de telefoon uit, dan stopt het delen</P>
       <Notice kind="info">Locatie-updates zijn afhankelijk van GPS en internet en zijn niet gegarandeerd realtime. Delen gaat niet door als de app gesloten is.</Notice>
       {denied && <Notice kind="warn">Zonder locatietoestemming kun je je reis niet delen. Je kunt dit later wijzigen in de instellingen van je telefoon. SOS werkt dan zonder locatie.</Notice>}
       {!adult && <Notice kind="warn">Locatie wordt pas gevraagd vanaf 16 jaar. Onder 16 of zonder ingevulde leeftijd vragen we geen locatie toestemming.</Notice>}

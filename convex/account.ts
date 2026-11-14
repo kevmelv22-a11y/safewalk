@@ -44,7 +44,10 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   }
   await del(await q('recordingKeyEnvelopes').withIndex('by_recipient', (x) => x.eq('recipientId', uid)).collect());
   await del(await q('deviceCryptoKeys').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  // E-mailadressen van kijkers zonder app en kijkerssleutels van jouw links.
+  await del(await q('viewerSubscriptions').withIndex('by_owner', (x) => x.eq('ownerId', uid)).collect());
   for (const link of await q('shareLinks').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
+    await del(await q('linkGrants').withIndex('by_link', (x) => x.eq('linkId', link._id)).collect());
     if (!link.revokedAt) await ctx.db.patch(link._id, { revokedAt: Date.now() });
     await ctx.db.delete(link._id);
   }

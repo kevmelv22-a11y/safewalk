@@ -25,6 +25,8 @@ import type * as geo from "../geo.js";
 import type * as http from "../http.js";
 import type * as incidents from "../incidents.js";
 import type * as lib from "../lib.js";
+import type * as linkAccess from "../linkAccess.js";
+import type * as liveShare from "../liveShare.js";
 import type * as monitor from "../monitor.js";
 import type * as motion from "../motion.js";
 import type * as motionText from "../motionText.js";
@@ -39,6 +41,7 @@ import type * as sessions from "../sessions.js";
 import type * as sos from "../sos.js";
 import type * as trackPage from "../trackPage.js";
 import type * as tracking from "../tracking.js";
+import type * as viewerAlerts from "../viewerAlerts.js";
 
 import type {
   ApiFromModules,
@@ -64,6 +67,8 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   incidents: typeof incidents;
   lib: typeof lib;
+  linkAccess: typeof linkAccess;
+  liveShare: typeof liveShare;
   monitor: typeof monitor;
   motion: typeof motion;
   motionText: typeof motionText;
@@ -78,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   sos: typeof sos;
   trackPage: typeof trackPage;
   tracking: typeof tracking;
+  viewerAlerts: typeof viewerAlerts;
 }>;
 
 /**

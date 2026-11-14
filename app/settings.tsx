@@ -16,6 +16,9 @@ import { maybePromptQsTile } from '../src/lib/nativeEntryPoints';
 import { QUICK_LOCATION } from '../src/content/quickLocation';
 import { pushResultNl, tileResultNl } from '../src/lib/settingsCopy';
 import { registerPush } from '../src/lib/notifications';
+import { Toggle } from '../src/components/Choice';
+import { getShakeOptIn, setShakeOptIn } from '../src/lib/shake';
+import { SHAKE } from '../src/content/liveSharing';
 
 export default function Settings() {
   const params = useLocalSearchParams<{ theme?: string | string[] }>();
@@ -26,6 +29,8 @@ export default function Settings() {
   const deleteHistory = useMutation(api.sessions.deleteMyHistory);
   const deleteAccount = useMutation(api.account.deleteAccount);
   const [msg, setMsg] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
+  useEffect(() => { void getShakeOptIn().then(setShake); }, []);
   const blocked = useQuery(api.contacts.blocked) ?? [];
   const unblock = useMutation(api.contacts.unblock);
   const confirmDelete = () => confirmAction('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', 'Definitief verwijderen', async () => {
@@ -41,10 +46,15 @@ export default function Settings() {
       <SafetySettingsForm />
       <Card>
         <P>Delen & opnames</P>
-        <Button title="Tracking-link (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
+        <Button title="Meekijklink (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
         <Button title="Telefooncontacten kiezen" variant="secondary" onPress={() => router.push('/device-contacts')} />
         <Button title="Audio-opnames" variant="secondary" onPress={() => router.push('/recordings')} />
       </Card>
+      {Platform.OS !== 'web' && (
+        <Card>
+          <Toggle value={shake} onChange={(v) => { setShake(v); void setShakeOptIn(v); }} title={SHAKE.title} hint={SHAKE.hint} />
+        </Card>
+      )}
       <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
         <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
       <Card>

@@ -18,6 +18,7 @@ import { getConsentedLocation } from '../src/lib/locationOnce';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
 import { useProfile } from '../src/lib/queries';
 import { SharingKeeper } from '../src/lib/sharingKeeper';
+import { ShakeSosListener } from '../src/components/ShakeSosListener';
 import { registerPush } from '../src/lib/notifications';
 import { paramsFromNotificationData } from '../src/lib/fakeCall';
 import { openRingOnce } from '../src/lib/fakeCallRunner';
@@ -76,6 +77,7 @@ export default function RootLayout() {
         <PurchasesBootstrap />
         <AlarmGuard />
         <SharingKeeper />
+        <ShakeSosListener />
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -101,12 +103,12 @@ export default function RootLayout() {
           <Stack.Screen name="report" options={{ title: 'Misbruik melden' }} />
           <Stack.Screen name="session/[id]" options={{ title: 'Reis' }} />
           <Stack.Screen name="session/destination" options={{ title: 'Bestemming' }} />
-          <Stack.Screen name="session/new" options={{ title: 'Nieuwe reis' }} />
+          <Stack.Screen name="session/new" options={{ title: 'Reis of timer' }} />
           <Stack.Screen name="settings" options={{ title: 'Instellingen' }} />
           <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacybeleid' }} />
           <Stack.Screen name="terms" options={{ title: 'Gebruiksvoorwaarden' }} />
-          <Stack.Screen name="share-link" options={{ title: 'Tracking-link' }} />
+          <Stack.Screen name="share-link" options={{ title: 'Meekijklink' }} />
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
           <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
