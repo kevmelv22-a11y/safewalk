@@ -28,7 +28,7 @@ Alles blijft 16+ (`requireAdult`); 13–15 blijft dicht. Geen paywall-wijziging 
 2. **Resend**: `RESEND_API_KEY` staat al voor inlogcodes. Voor kijkersmails is een geverifieerd afzenderdomein nodig (`AUTH_EMAIL_FROM`, bv. `SafeWalk <meldingen@vonkbyte.nl>`); met `onboarding@resend.dev` komen mails alleen bij de eigenaar van het Resend-account aan. Gratis tier = 100 mails/dag, 3.000/maand; de app stopt zelf bij 80 kijkersmails/dag.
 3. **EAS-build** (~$1) – pas na 1.
 4. **Google Play – voorgronddienst-verklaring**: Play Console → App-content → "Rechten voor voorgrondservices" → type *Locatie*. Uitleg + **video** (≤ 30 s): reis starten → uitlegscherm → toestemming "Tijdens gebruik" → melding "SafeWalk deelt je locatie" → scherm uit → kijker ziet updates → reis stoppen → melding weg. Geen achtergrondlocatie-verklaring nodig (recht blijft geblokkeerd).
-5. **Data safety / App Privacy / privacybeleid** – zie hieronder; nog niet aangepast in `docs/data-safety.md` en `docs/privacybeleid.md`.
+5. **Data safety / App Privacy / privacybeleid** – `docs/data-safety.md`, `docs/privacybeleid.md` (in-app) en de openbare privacy.html zijn op 14 nov 2026 bijgewerkt; Play Console zelf nog invullen.
 
 ## Voorstel tekstwijzigingen (NIET gepubliceerd)
 **Data safety (Play)**

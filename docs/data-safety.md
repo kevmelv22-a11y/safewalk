@@ -5,15 +5,19 @@
 - **Versleuteld tijdens overdracht:** Ja. **Gebruiker kan verwijdering aanvragen:** Ja (in-app accountverwijdering of per e-mail via support@vonkbyte.nl).
 | Categorie | Type | Verzameld | Verplicht/optioneel | Doel |
 |---|---|---|---|---|
-| Locatie | Precieze locatie | Ja (alleen terwijl de app open is, tijdens een reis, SOS of incident) | Optioneel (vereist voor delen) | App-functionaliteit |
+| Locatie | Precieze locatie | Ja (alleen tijdens een reis, timer, SOS of incident die de gebruiker zelf start; tijdens een reis/timer ook met scherm uit via een zichtbare voorgrondmelding) | Optioneel (vereist voor delen) | App-functionaliteit |
 | Persoonlijke info | Naam, e-mailadres | Ja | Verplicht | Accountbeheer |
+| Persoonlijke info | E-mailadres van kijkers (ook niet-gebruikers) die via een meekijklink zelf meldingen aanvragen | Ja (dubbele opt-in; gewist na afmelden, einde reis, verlopen/intrekken van de link, of na 24 u als niet bevestigd) | Optioneel | App-functionaliteit (meldingen) |
 | Financiële info | Aankoopgeschiedenis | Ja (via store/RevenueCat) | Optioneel | App-functionaliteit |
 | Berichten | Overige in-app berichten (AI-vragen) | Ja, niet opgeslagen | Optioneel | App-functionaliteit |
 | App-activiteit | Overige acties (misbruikmeldingen) | Ja | Optioneel | Fraude/misbruikpreventie |
 | App-info en prestaties | Crashlogs/diagnose (foutmeldingen) | Ja | Verplicht | Analyse (stabiliteit) |
 | Apparaat-ID's | Pushtoken | Ja | Optioneel | App-functionaliteit |
-- **Achtergrondlocatie (Play Console):** niet van toepassing. Sinds versionCode 3 vraagt de Android-app geen `ACCESS_BACKGROUND_LOCATION` meer (geblokkeerd in `app.json`); locatie wordt alleen gedeeld terwijl SafeWalk open is. Er is dus geen achtergrondlocatie-verklaring of video nodig.
-- **Let op iOS (nog open):** `app.json` heeft voor iOS nog `UIBackgroundModes: location` en "Always"-teksten. De code vraagt nooit "Altijd"-toestemming. Vóór een iOS-release die teksten en de achtergrondmodus gelijktrekken met het echte gedrag (alleen terwijl de app open is).
+- **Achtergrondlocatie (Play Console):** nog steeds niet van toepassing: `ACCESS_BACKGROUND_LOCATION` blijft geblokkeerd in `app.json`. Sinds versionCode 8 deelt de app tijdens een zelf gestarte reis of timer wel locatie met scherm uit, via een **locatie-voorgronddienst** (`FOREGROUND_SERVICE_LOCATION`) met vaste melding "SafeWalk deelt je locatie". Die dienst start altijd terwijl de app open is. Daarvoor is in Play Console de verklaring **Rechten voor voorgrondservices → Locatie** nodig (met video), géén achtergrondlocatie-verklaring.
+- **iOS:** `UIBackgroundModes: location` wordt nu gebruikt (delen met scherm uit tijdens een reis, blauwe indicator). De app vraagt alleen "Tijdens gebruik", nooit "Altijd".
+- **Verwerker e-mail:** Resend verstuurt inlogcodes én e-mails aan kijkers die zich aanmelden.
+- **Privacy-check-in:** kijkers zien alleen de status; locatie, route en batterij pas bij een gemiste check-in of SOS. De locatie wordt in die modus wel verzameld (zelfde bewaartermijn).
+- **Schudden voor SOS:** accelerometer alleen lokaal, niets verzonden of opgeslagen (geen Data safety-categorie). `ACTIVITY_RECOGNITION` is geblokkeerd.
 
 ## Apple – App Privacy ("Data Linked to You")
 | Data type | Gebruik | Gekoppeld aan gebruiker | Tracking |

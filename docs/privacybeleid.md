@@ -1,7 +1,7 @@
 # Privacybeleid SafeWalk
 
 **Verwerkingsverantwoordelijke:** Vonk Byte · KvK-nummer volgt (inschrijving januari 2027) · support@vonkbyte.nl
-**Laatst bijgewerkt:** 13 november 2026
+**Laatst bijgewerkt:** 14 november 2026
 
 ## 1. Wat SafeWalk is
 SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt met vertrouwde contacten. SafeWalk is **geen hulpdienst**, belt nooit automatisch 112 en kan niet garanderen dat meldingen aankomen.
@@ -11,11 +11,13 @@ SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt m
 |---|---|---|---|
 | Naam, e-mailadres, wachtwoord-hash | Account en inloggen | Overeenkomst | Tot accountverwijdering |
 | Geboortejaar en geboortemaand | Leeftijdsgrens. Eigen opgave, geen identiteitsbewijs | Overeenkomst | Tot accountverwijdering |
-| Locatie tijdens een reis of SOS | Delen met door jou gekozen contacten | Uitdrukkelijke toestemming | Reispunten: uiterlijk 24 uur na einde reis, nooit langer dan 3 dagen. Incidentlocaties: uiterlijk 3 dagen |
+| Locatie tijdens een reis, timer of SOS. Tijdens een reis of timer ook met je scherm uit of de app op de achtergrond: op Android met een vaste melding “SafeWalk deelt je locatie”, op iPhone met de blauwe locatie-indicator. Het delen stopt als je de reis beëindigt, je aankomst bevestigt, de reis verloopt of je de app wegveegt. Lukt delen op de achtergrond op een toestel niet, dan deelt de app alleen terwijl hij open is; dat zie je in de app. Geen toestemming voor “Altijd”-locatie | Delen met door jou gekozen contacten en met wie jouw meekijklink heeft | Uitdrukkelijke toestemming | Reispunten: uiterlijk 24 uur na einde reis, nooit langer dan 3 dagen. Incidentlocaties: uiterlijk 3 dagen |
 | Laatst bekende locatie in een SOS- of check-in-melding | Waarschuwen van je contacten | Toestemming | Coördinaten gewist na 30 dagen |
-| Reisgegevens (bestemmingsnaam, tijden, status) | Check-in, geschiedenis | Overeenkomst | Maximaal 90 dagen |
-| Batterijpercentage en laatst-online-tijd van je telefoon tijdens een reis | Bij een gemiste check-in kunnen je contacten zien of je telefoon misschien leeg of offline was | Toestemming (je start de reis zelf) | Gewist zodra de reis eindigt. In een melding over een gemiste check-in: gewist na 30 dagen, samen met de locatie |
+| Reis- of timergegevens (bestemmingsnaam of timernaam, tijden, status) | Check-in, geschiedenis | Overeenkomst | Maximaal 90 dagen |
+| Batterijpercentage en laatst-online-tijd van je telefoon tijdens een reis | Je kijkers zien of je telefoon misschien leeg of offline is. Bij 15% of minder krijgen ze één melding per reis, en ook als er meer dan 10 minuten geen locatie binnenkomt (“niet meer live”). In de privacy-check-in krijgen ze geen batterijmelding | Toestemming (je start de reis zelf) | Gewist zodra de reis eindigt. In een melding over een gemiste check-in: gewist na 30 dagen, samen met de locatie |
 | Uitnodigingsbeloning (wie wie uitnodigde, datum, einddatum van de gratis Premium) | 1 maand gratis Premium voor allebei, en misbruik beperken (maximaal 3 per jaar) | Overeenkomst | 365 dagen. Bij accountverwijdering gewist. Was jij de genodigde, dan blijft alleen een losse id zonder naam of e-mail staan tot die 365 dagen om zijn, zodat de jaarlimiet van de ander klopt |
+| E-mailadres van iemand die via een meekijklink zelf meldingen aanvraagt (ook zonder SafeWalk-account), met een hash van het adres, de status, tijdstippen en welke meldingen al zijn verstuurd | Die persoon e-mailen bij een SOS (en het intrekken daarvan), een gemiste check-in, aankomst of einde van het delen, een batterij van 15% of minder, of als je niet meer live bent. Pas na bevestiging via de eerste e-mail (dubbele opt-in); elke e-mail heeft een afmeldlink. Maximaal 5 adressen per link en 12 e-mails per adres. De e-mail bevat nooit jouw naam | Toestemming van de kijker | Niet bevestigd: na 24 uur gewist. Verder gewist na afmelden, na aankomst of einde van de reis, en als de link verloopt of wordt ingetrokken (bij intrekken meteen, anders binnen ongeveer 15 minuten). Ook gewist als jij je account verwijdert |
+| Toegangscode van een meekijklink (optioneel, 6 cijfers) | Iemand die de link per ongeluk krijgt, kan dan niet meekijken. Alleen een hash met zout. Na een juiste code bewaart de browser van de kijker een sleutel; de server alleen een hash daarvan | Overeenkomst | Hash van de code: bij de (verlopen) link tot accountverwijdering. Hash van de kijkerssleutel: gewist als de link verloopt of wordt ingetrokken |
 | Vertrouwde contacten in de app, uitnodigingen, blokkades | Contactbeheer | Overeenkomst | Tot verwijdering |
 | Telefooncontacten die jij zelf aanvinkt (naam en nummer) | Alleen zodat jij een sms of WhatsApp kunt openen. De app verstuurt die berichten niet | Toestemming, pas na adresboektoestemming | Tot je ze verwijdert of je account verwijdert |
 | Geluidsopname bij "Ik voel me niet veilig" | Versleuteld opgeslagen zodat gekozen contacten kunnen luisteren | Toestemming | Tot jij de opname of je account verwijdert. Een kopie die iemand al downloadde, kunnen wij niet terughalen |
@@ -25,17 +27,25 @@ SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt m
 | Vragen aan de AI-assistent | Alleen als Premium aan staat en de sleutel van OpenAI is gezet. Wij slaan het gesprek niet op | Toestemming | Niet door SafeWalk opgeslagen. OpenAI ontvangt de berichten wel |
 | Misbruikmeldingen, auditlog, foutmeldingen | Misbruikpreventie en storingen | Gerechtvaardigd belang | Maximaal 12 maanden, en eerder als het account wordt verwijderd voor zover de regel aan dat account hangt |
 
-We verkopen geen gegevens en tonen geen advertenties. Locatie wordt niet verzameld buiten een reis, SOS of incident dat jij zelf start.
+We verkopen geen gegevens en tonen geen advertenties. Locatie wordt niet verzameld buiten een reis, timer, SOS of incident dat jij zelf start.
 
 De nep-oproep werkt helemaal op je telefoon. Er gaan daarbij geen gegevens naar SafeWalk of naar anderen. Na je derde veilige aankomst kan de app één keer het beoordelingsvenster van Google Play of de App Store tonen. Dat venster is van Google of Apple. SafeWalk ziet niet of en wat je beoordeelt; de app telt alleen op je telefoon hoe vaak je veilig bent aangekomen.
 
 ## 3. Wie je locatie kan zien
-Alleen personen die jouw uitnodiging hebben geaccepteerd en die jij voor een specifieke reis kiest, zolang die reis actief is. Een tijdelijke trackinglink werkt alleen met een geheim token, verloopt, en kun je intrekken. Een meekijklink voor een reis toont aan iedereen die de link heeft: de bestemmingsnaam die jij invulde, de verwachte aankomsttijd, de check-in-status, je batterijpercentage en laatst-online-tijd, en je locatie zolang de reis loopt. Na aankomst of stoppen toont de link alleen nog dat de reis klaar is, tot hij verloopt (uiterlijk 24 uur). **Beheerders van SafeWalk kunnen je locatie niet inzien.**
+Alleen personen die jouw uitnodiging hebben geaccepteerd en die jij voor een specifieke reis kiest, zolang die reis actief is. Een tijdelijke trackinglink werkt alleen met een geheim token, verloopt, en kun je intrekken. Een meekijklink voor een reis of timer toont aan iedereen die de link heeft (en de toegangscode, als je die instelt): de bestemmingsnaam of timernaam die jij invulde, de verwachte aankomsttijd, de check-in-status, of je SOS hebt gegeven, je batterijpercentage en laatst-online-tijd, en zolang de reis loopt je locatie, de bestemming op de kaart en je route van het laatste uur. Je kiest hoe lang de link werkt: 15 minuten, 1 uur, tot aankomst of 8 uur, nooit langer dan 24 uur. Na aankomst of stoppen toont de link alleen nog dat de reis klaar is, tot hij verloopt.
+
+**Privacy-check-in.** Zet je die aan, dan zien je kijkers (in de app en via de link) alleen of je onderweg bent, aangekomen bent of een check-in hebt gemist. Je locatie, bestemming op de kaart, route en batterij worden pas zichtbaar als je een check-in mist of SOS geeft. Je locatie gaat in deze modus wel naar onze server, zodat die er is als het nodig is.
+
+Kijkers kunnen **browsermeldingen** aanzetten. Die blijven in hun eigen browser en werken alleen zolang de pagina open is; SafeWalk bewaart daarvoor niets. E-mails aan kijkers bevatten de naam van de reis of timer en het tijdstip; bij een SOS of gemiste check-in ook je laatst bekende locatie (als kaartlink) en je batterijpercentage.
+
+**Schudden voor SOS** (alleen als je het aanzet): de bewegingssensor wordt alleen op je telefoon gelezen, en alleen terwijl de app open is. Er gaan geen bewegingsgegevens naar SafeWalk. Na het schudden heb je minstens 5 seconden om te annuleren.
+
+**Beheerders van SafeWalk kunnen je locatie niet inzien.**
 
 ## 4. Verwerkers
 - Convex, Inc. (database en serverfuncties; servers in de Verenigde Staten)
 - Expo (pushmeldingen) en Apple of Google (aflevering van pushberichten)
-- Resend (alleen de e-mail met een inlog- of herstelcode, als die sleutel is gezet)
+- Resend (de e-mail met een inlog- of herstelcode, en e-mails aan kijkers die zich via een meekijklink voor meldingen aanmelden)
 - RevenueCat en Google Play (abonnementen)
 - OpenAI (alleen als jij de optionele AI-assistent gebruikt en die aan staat)
 - Google Maps of Apple Maps (kaart en adres zoeken)
