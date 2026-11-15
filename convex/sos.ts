@@ -3,7 +3,7 @@ import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
 import type { Id } from './_generated/dataModel';
 import { queuePush, mapsLink } from './notify';
-import { audit, displayName, fail, rateLimit, requireAdult, requireUser, sessionOpen } from './lib';
+import { activeChildLink, audit, displayName, fail, rateLimit, requireAdultOrLinkedChild, requireUser, sessionOpen } from './lib';
 import { notifyLinkViewers } from './viewerAlerts';
 import { sessionWhat } from './liveShare';
 import { rideShareLine } from './rideShare';
@@ -21,7 +21,10 @@ export async function emitSos(
   let sessionId = a.sessionId;
   if (sessionId) { const s = await ctx.db.get(sessionId); if (!s || s.userId !== uid) sessionId = undefined; }
   const alertId = await ctx.db.insert('alerts', { userId: uid, kind: 'sos', clientRef: a.clientRef, sessionId, lat: a.lat, lng: a.lng, accuracyM: a.accuracyM, locationAt: a.locationAt, status: 'open' });
-  const contacts = await ctx.db.query('trustedContacts').withIndex('by_owner', (q) => q.eq('ownerId', uid).eq('status', 'accepted')).collect();
+  const childLink = await activeChildLink(ctx, uid);
+  const contacts = childLink
+    ? [...new Set([childLink.parentId, ...(childLink.contactIds ?? [])])].map((contactId) => ({ contactId }))
+    : await ctx.db.query('trustedContacts').withIndex('by_owner', (q) => q.eq('ownerId', uid).eq('status', 'accepted')).collect();
   const name = await displayName(ctx, uid); const link = mapsLink(a.lat, a.lng);
   const open = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => sessionOpen(s));
   const ride = rideShareLine(open ? { plate: open.ridePlate, driverName: open.rideDriverName, vehicle: open.rideVehicle } : undefined);
@@ -44,7 +47,7 @@ export const trigger = mutation({
   args: { clientRef: v.string(), sessionId: v.optional(v.id('sessions')), lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
-    await requireAdult(ctx, uid);
+    await requireAdultOrLinkedChild(ctx, uid);
     return await emitSos(ctx, uid, a);
   },
 });

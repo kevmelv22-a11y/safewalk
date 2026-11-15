@@ -5,7 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
 import { convex, tokenStorage } from '../src/lib/convex';
-import { startSosRetry } from '../src/lib/sos';
+import { startOfflineRetry } from '../src/lib/offlineRetry';
 import { useIsDark, useTheme } from '../src/lib/theme';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -40,7 +40,7 @@ function PurchasesBootstrap() {
 export default function RootLayout() {
   const t = useTheme(); const isDark = useIsDark();
   useEffect(() => {
-    const stopRetry = startSosRetry();
+    const stopRetry = startOfflineRetry();
     cleanupPlaybackLeftovers(); // only sw-play-* in the app's own playback cache dir
     initQuickActions().catch(() => undefined);
     const vol = initVolumeDoublePress(() => {
@@ -121,6 +121,10 @@ export default function RootLayout() {
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
           <Stack.Screen name="fake-call" options={{ title: 'Nep-oproep' }} />
           <Stack.Screen name="fake-call-ring" options={{ title: 'Oproep', presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="kind" options={{ title: 'Kindermodus', headerBackVisible: false }} />
+          <Stack.Screen name="kind/koppelen" options={{ title: 'Koppelen aan ouder' }} />
+          <Stack.Screen name="settings/kinderen" options={{ title: 'Kinderen' }} />
+          <Stack.Screen name="ouder/[linkId]" options={{ title: 'Kind volgen' }} />
         </Stack>
       </ConvexAuthProvider>
     </SafeAreaProvider>

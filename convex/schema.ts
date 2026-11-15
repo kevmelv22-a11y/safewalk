@@ -62,13 +62,16 @@ export default defineSchema({
     ridePlate: v.optional(v.string()),
     rideDriverName: v.optional(v.string()),
     rideVehicle: v.optional(v.string()),
-  }).index('by_user', ['userId']).index('by_open', ['endedAt']),
+    // Kindermodus: reis die aan een ouder-kindkoppeling hangt (ouder is kijker).
+    childLinkId: v.optional(v.id('childLinks')),
+  }).index('by_user', ['userId']).index('by_open', ['endedAt']).index('by_child_link', ['childLinkId']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
   locations: defineTable({
     sessionId: v.id('sessions'), userId: v.id('users'), lat: v.number(), lng: v.number(),
     accuracyM: v.optional(v.number()), recordedAt: v.number(),
-  }).index('by_session', ['sessionId', 'recordedAt']).index('by_user', ['userId']),
+    clientId: v.optional(v.string()),
+  }).index('by_session', ['sessionId', 'recordedAt']).index('by_user', ['userId']).index('by_session_client', ['sessionId', 'clientId']),
   checkIns: defineTable({
     sessionId: v.id('sessions'), userId: v.id('users'), dueAt: v.number(), graceMinutes: v.number(), extensions: v.number(),
     status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('missed'), v.literal('cancelled')),
@@ -79,6 +82,7 @@ export default defineSchema({
     kind: v.union(
       v.literal('sos'), v.literal('missed_check_in'),
       v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
+      v.literal('child_arrived'), v.literal('geofence_enter'), v.literal('geofence_leave'),
     ), clientRef: v.optional(v.string()),
     lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()),
     // Alleen bij gemiste check-in: batterij en laatst-online op het moment van escaleren (na 30 dagen gewist, net als de locatie).
@@ -90,7 +94,8 @@ export default defineSchema({
     kind: v.union(v.literal('sos'), v.literal('missed_check_in'), v.literal('trip_started'), v.literal('almost_arrived'),
       v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check'),
       v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
-      v.literal('low_battery'), v.literal('not_live')),
+      v.literal('low_battery'), v.literal('not_live'),
+      v.literal('child_arrived'), v.literal('geofence_enter'), v.literal('geofence_leave')),
     alertId: v.optional(v.id('alerts')), sessionId: v.optional(v.id('sessions')),
     title: v.string(), body: v.string(), data: v.optional(v.any()),
     // queued → sent (ticket ok) → delivered (receipt ok: overgedragen aan Apple/Google) | failed | no_token | unknown
@@ -176,7 +181,8 @@ export default defineSchema({
     lng: v.number(),
     accuracyM: v.optional(v.number()),
     recordedAt: v.number(),
-  }).index('by_incident', ['incidentId', 'recordedAt']),
+    clientId: v.optional(v.string()),
+  }).index('by_incident', ['incidentId', 'recordedAt']).index('by_incident_client', ['incidentId', 'clientId']),
   // Geselecteerde telefooncontacten (minimaal: naam + genormaliseerd telefoonnummer); geen volledige adresboek-dump
   deviceContacts: defineTable({
     userId: v.id('users'),
@@ -224,5 +230,32 @@ export default defineSchema({
     storageId: v.optional(v.id('_storage')),
     createdAt: v.number(),
   }).index('by_created', ['createdAt']),
+  // Ouder-kindkoppeling. Toestemming staat op het ouderaccount (geen vinkje van het kind).
+  childLinks: defineTable({
+    parentId: v.id('users'),
+    childId: v.optional(v.id('users')),
+    status: v.union(v.literal('pending'), v.literal('active'), v.literal('revoked')),
+    inviteHash: v.optional(v.string()),
+    inviteExpiresAt: v.optional(v.number()),
+    consentAt: v.optional(v.number()),
+    consentVersion: v.string(),
+    createdAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    contactIds: v.optional(v.array(v.id('users'))),
+  }).index('by_parent', ['parentId']).index('by_child', ['childId']).index('by_invite', ['inviteHash'])
+    .index('by_parent_status', ['parentId', 'status']).index('by_child_status', ['childId', 'status']),
+  geofences: defineTable({
+    linkId: v.id('childLinks'),
+    parentId: v.id('users'),
+    childId: v.id('users'),
+    kind: v.union(v.literal('home'), v.literal('school')),
+    label: v.string(),
+    lat: v.number(),
+    lng: v.number(),
+    radiusM: v.number(),
+    lastInside: v.optional(v.boolean()),
+    lastEventAt: v.optional(v.number()),
+  }).index('by_link', ['linkId']).index('by_child', ['childId']).index('by_link_kind', ['linkId', 'kind']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

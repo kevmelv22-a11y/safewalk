@@ -8,9 +8,12 @@ import { applyAudioMode } from '../src/lib/audioMode';
 import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
 import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
+import { ConnectionBanner } from '../src/components/ConnectionBanner';
 import { PinPad } from '../src/components/PinPad';
 import { startAlarm } from '../src/lib/dangerAlarm';
 import { getConsentedLocation } from '../src/lib/locationOnce';
+import { enqueueIncidentPing } from '../src/lib/incidentQueue';
+import { setSharingCadence } from '../src/lib/location';
 import { uploadEncryptedRecording } from '../src/lib/recordingUpload';
 import { runDangerUnlock } from '../src/lib/dangerUnlock';
 import { ContactComposer } from '../src/components/ContactComposer';
@@ -30,7 +33,8 @@ import { CRITICAL_ACTIONS } from '../src/lib/themeCatalog';
  */
 export default function Danger() {
   const t = useTheme();
-  const { incidentId, sharePath } = useLocalSearchParams<{ incidentId?: string; sharePath?: string }>();
+  const { incidentId, sharePath, silent: silentParam } = useLocalSearchParams<{ incidentId?: string; sharePath?: string; silent?: string }>();
+  const silent = silentParam === '1';
   const pinStatus = useQuery(api.security.pinStatus);
   const active = useQuery(api.incidents.active);
   const verify = useMutation(api.security.verifyPin);
@@ -54,12 +58,18 @@ export default function Danger() {
   const iid = (incidentId || active?._id) as Id<'incidents'> | undefined;
 
   useEffect(() => {
+    if (silent) return;
     let alive = true;
     (async () => {
       alarm.current = await startAlarm();
       if (!alive) await alarm.current.stop();
     })();
     return () => { alive = false; alarm.current?.stop(); };
+  }, [silent]);
+
+  useEffect(() => {
+    void setSharingCadence('alarm');
+    return () => { void setSharingCadence('trip'); };
   }, []);
 
   // Strobe ~2 Hz
@@ -73,7 +83,7 @@ export default function Danger() {
 
   // Consented mic recording once per danger session
   useEffect(() => {
-    if (!iid || startedRec.current) return;
+    if (silent || !iid || startedRec.current) return;
     startedRec.current = true;
     (async () => {
       try {
@@ -107,17 +117,20 @@ export default function Danger() {
     let cancelled = false;
     const tick = async () => {
       const loc = await getConsentedLocation();
-      if (cancelled || !loc.locationConsent) return;
+      if (cancelled || !loc.locationConsent || loc.lat === undefined || loc.lng === undefined) return;
+      const clientId = `${iid}:${loc.locationAt}`;
+      const row = {
+        incidentId: iid, clientId, lat: loc.lat, lng: loc.lng, accuracyM: loc.accuracyM,
+        recordedAt: loc.locationAt, locationConsent: true as const,
+      };
       try {
-        await ping({
-          incidentId: iid,
-          lat: loc.lat, lng: loc.lng, accuracyM: loc.accuracyM,
-          recordedAt: loc.locationAt, locationConsent: true,
-        });
-      } catch { /* offline: tracking veroudert eerlijk */ }
+        await ping(row);
+      } catch {
+        await enqueueIncidentPing(row);
+      }
     };
     tick();
-    const id = setInterval(tick, 15_000);
+    const id = setInterval(tick, 5_000);
     return () => { cancelled = true; clearInterval(id); };
   }, [iid, ping]);
 
@@ -188,8 +201,11 @@ export default function Danger() {
   return (
     <Screen ambient={false} backgroundColor="#1a0505">
       <View style={{ flex: 1, backgroundColor: '#1a0505', margin: -20, padding: 20, gap: 14, borderTopWidth: 3, borderTopColor: CRITICAL_ACTIONS.red }}>
-        <H1>GEVAARMODUS ACTIEF</H1>
-        <Notice kind="danger">Alarm speelt tot je het stopt met je veiligheidscode (server-check). SafeWalk belt 112 niet automatisch.</Notice>
+        <ConnectionBanner />
+        <H1>{silent ? 'STIL ALARM ACTIEF' : 'GEVAARMODUS ACTIEF'}</H1>
+        <Notice kind="danger">{silent
+          ? 'Stil alarm: geen geluid, geen zaklamp, geen opname. Contacten krijgen een melding met je locatie. Stoppen kan met je veiligheidscode. SafeWalk belt 112 niet automatisch.'
+          : 'Alarm speelt tot je het stopt met je veiligheidscode (server-check). SafeWalk belt 112 niet automatisch.'}</Notice>
         {recActive && <Notice kind="danger">🔴 OPNAME BEZIG — alarmgeluid kan in de opname zitten.</Notice>}
         {recNote && <Notice kind="info">{recNote}</Notice>}
         {sharePath && (

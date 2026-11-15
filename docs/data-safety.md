@@ -20,7 +20,10 @@
 - **Privacy-check-in:** kijkers zien alleen de status; locatie, route en batterij pas bij een gemiste check-in of SOS. De locatie wordt in die modus wel verzameld (zelfde bewaartermijn).
 - **Dwangcode:** alleen een hash, net als de veiligheidscode (geen leesbare code). Bij gebruik gaat een SOS naar gekozen contacten; de app toont dat niet als succesvolle SOS aan de gebruiker.
 - **Noodinfo:** alleen lokaal op het toestel, niet verzameld door SafeWalk (geen Data safety-categorie).
-- **Plekken in de buurt:** op verzoek van de gebruiker gaat de locatie naar de OpenStreetMap Overpass API; SafeWalk slaat die zoekopdracht niet op. Dit is user-initiated sharing met een verwerker, geen achtergrondlocatie.
+- **Plekken in de buurt:** op verzoek van de gebruiker gaat de locatie naar de OpenStreetMap Overpass API; SafeWalk slaat die zoekopdracht niet op de server op. De laatste lijst kan lokaal op het toestel staan (max. 24 uur). Dit is user-initiated sharing met een verwerker, geen achtergrondlocatie.
+- **Offline-wachtrij:** locatiepunten en een nog niet verzonden SOS blijven lokaal op het toestel tot ze verstuurd zijn of de sessie eindigt (geen extra servercategorie).
+- **Kindermodus / ouder-kindkoppeling:** optioneel; ouderaccount (16+) geeft toestemming (geen identiteitscontrole). Locatie van het kind alleen tijdens kindermodus met voorgronddienst / “tijdens gebruik”, dezelfde locatiecategorie. Zones thuis/school en gekozen contacten horen bij account-/app-functionaliteit. Geen `ACCESS_BACKGROUND_LOCATION`.
+- **Valdetectie:** accelerometer alleen lokaal, uit standaard, niets verzonden (geen Data safety-categorie).
 - **Sms als reserve:** de app opent alleen de systeem-composer; SafeWalk verstuurt geen sms en bewaart de berichttekst niet extra.
 - **Schudden voor SOS:** accelerometer alleen lokaal, niets verzonden of opgeslagen (geen Data safety-categorie). `ACTIVITY_RECOGNITION` is geblokkeerd.
 

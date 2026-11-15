@@ -26,6 +26,26 @@ export async function requireAdult(ctx: QueryCtx, uid: Id<'users'>) {
   if (status === 'under13') fail('AGE_UNDER_13');
   fail('AGE_PARENT_REQUIRED');
 }
+
+/** Versie van de oudertoestemmingstekst; bij wijziging moeten ouders opnieuw toestemmen. */
+export const CHILD_CONSENT_VERSION = 'child-link-v1-2026-11-15';
+
+export async function activeChildLink(ctx: QueryCtx, childId: Id<'users'>) {
+  return await ctx.db.query('childLinks').withIndex('by_child_status', (q) => q.eq('childId', childId).eq('status', 'active')).first();
+}
+
+/** 16+, of 13–15 met een actieve ouder-koppeling (toestemming staat op het ouderaccount). */
+export async function requireAdultOrLinkedChild(ctx: QueryCtx, uid: Id<'users'>) {
+  const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+  const status = ageStatus(p?.birthYear, p?.birthMonth);
+  if (status === 'adult') return { role: 'adult' as const, link: null };
+  if (status === 'unknown') fail('AGE_REQUIRED');
+  if (status === 'under13') fail('AGE_UNDER_13');
+  const link = await activeChildLink(ctx, uid);
+  if (!link) fail('AGE_PARENT_REQUIRED');
+  return { role: 'child' as const, link };
+}
+
 export async function isAdmin(ctx: QueryCtx, uid: Id<'users'>) {
   return !!(await ctx.db.query('admins').withIndex('by_user', (q) => q.eq('userId', uid)).first());
 }

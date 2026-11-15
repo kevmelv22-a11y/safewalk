@@ -27,15 +27,19 @@ SafeWalk is een persoonlijke veiligheidsapp waarmee je je reis tijdelijk deelt m
 | Pushtoken en afleverstatus | Meldingen sturen en status tonen | Overeenkomst | Tot verwijdering of ongeldig token |
 | Abonnementsstatus via RevenueCat en Google Play | Premium | Overeenkomst | De status in onze database tot accountverwijdering. Play en RevenueCat bewaren hun eigen administratie |
 | Vragen aan de AI-assistent | Alleen als Premium aan staat en de sleutel van OpenAI is gezet. Wij slaan het gesprek niet op | Toestemming | Niet door SafeWalk opgeslagen. OpenAI ontvangt de berichten wel |
+| Ouder-kindkoppeling (accounts van ouder en kind, tijdstip en versie van de toestemming, gekozen SOS-contacten, zones thuis/school) | Kindermodus: locatie en SOS van een kind van 13–15 alleen na toestemming in het ouderaccount | Toestemming van de ouder of voogd (eigen verklaring in een account van 16+, geen identiteitscontrole) | Tot de koppeling of het account wordt verwijderd |
+| Locatie van een gekoppeld kind tijdens kindermodus | De ouder ziet live of laatst bekende locatie, batterij en of de verbinding is verbroken; bij thuis/school-zones een melding bij aankomen of vertrekken; bij lage batterij een melding | Toestemming van de ouder, zichtbaar voor het kind | Zelfde termijnen als reispunten. Zones blijven tot de ouder ze wist of de koppeling eindigt |
 | Misbruikmeldingen, auditlog, foutmeldingen | Misbruikpreventie en storingen | Gerechtvaardigd belang | Maximaal 12 maanden, en eerder als het account wordt verwijderd voor zover de regel aan dat account hangt |
 
 We verkopen geen gegevens en tonen geen advertenties. Locatie wordt niet verzameld buiten een reis, timer, SOS of incident dat jij zelf start.
 
 Noodinfo (medische notities en ICE-contacten) bewaar je optioneel alleen op dit toestel. Die gegevens gaan niet naar SafeWalk en niet naar je contacten, tenzij jij ze zelf laat zien of deelt.
 
-Als jij “Plekken in de buurt” zoekt, gaat je huidige locatie naar de publieke Overpass API van OpenStreetMap om politie, ziekenhuizen en vergelijkbare plekken op te vragen. SafeWalk slaat die zoekopdracht en die locatie daarvoor niet op.
+Als jij “Plekken in de buurt” zoekt, gaat je huidige locatie naar de publieke Overpass API van OpenStreetMap om politie, ziekenhuizen en vergelijkbare plekken op te vragen. SafeWalk slaat die zoekopdracht niet op de server op. De laatste lijst kan op jouw toestel bewaard blijven, zodat je die zonder netwerk nog kunt zien (maximaal 24 uur). Volledige offline kaarttegels zitten niet in deze versie.
 
-Een sms als reserve opent alleen de berichten-app van je telefoon, met een vooringevulde tekst. Jij tikt zelf op versturen. SafeWalk verstuurt geen sms.
+Locatiepunten en een SOS die niet verstuurd konden worden, blijven in een wachtrij op jouw toestel en gaan automatisch opnieuw zodra er internet is. Zonder enig netwerkbereik (ook geen sms) kan niets verstuurd worden.
+
+Een sms als reserve opent alleen de berichten-app van je telefoon, met een vooringevulde tekst. Jij tikt zelf op versturen. Automatische sms is niet mogelijk: Google Play en iPhone staan dat voor deze app niet toe. SafeWalk verstuurt geen sms.
 
 De nep-oproep werkt helemaal op je telefoon. Er gaan daarbij geen gegevens naar SafeWalk of naar anderen. Na je derde veilige aankomst kan de app één keer het beoordelingsvenster van Google Play of de App Store tonen. Dat venster is van Google of Apple. SafeWalk ziet niet of en wat je beoordeelt; de app telt alleen op je telefoon hoe vaak je veilig bent aangekomen.
 
@@ -48,6 +52,10 @@ Kijkers kunnen **browsermeldingen** aanzetten. Die blijven in hun eigen browser 
 
 **Schudden voor SOS** (alleen als je het aanzet): de bewegingssensor wordt alleen op je telefoon gelezen, en alleen terwijl de app open is. Er gaan geen bewegingsgegevens naar SafeWalk. Na het schudden heb je minstens 5 seconden om te annuleren.
 
+**Valdetectie** (uit standaard, alleen als je het aanzet): bij een scherpe schok gevolgd door stilte vraagt de app 10 seconden “Alles goed?”. Alleen terwijl de app open is; er gaan geen bewegingsgegevens naar SafeWalk. Dit kan vals afgaan.
+
+**Kindermodus.** Een ouder of voogd met een eigen SafeWalk-account van 16 jaar of ouder kan een kind van 13 tot en met 15 koppelen, na het accepteren van een toestemmingstekst. Dat is geen identiteitscontrole: SafeWalk kan niet nagaan of iemand echt de ouder of voogd is. Een vinkje, e-mail of code van het kind telt niet als toestemming. Het kind ziet altijd met wie de locatie wordt gedeeld, kan SOS niet uitzetten, en de ouder kiest de contacten en zones. Locatie loopt alleen terwijl de app open is of de zichtbare locatiemelding aanstaat. Er is geen “Altijd”-achtergrondlocatie.
+
 **Beheerders van SafeWalk kunnen je locatie niet inzien.**
 
 ## 4. Verwerkers
@@ -57,7 +65,7 @@ Kijkers kunnen **browsermeldingen** aanzetten. Die blijven in hun eigen browser 
 - RevenueCat en Google Play (abonnementen)
 - OpenAI (alleen als jij de optionele AI-assistent gebruikt en die aan staat)
 - Google Maps of Apple Maps (kaart en adres zoeken)
-- OpenStreetMap Overpass API (alleen als jij “Plekken in de buurt” zoekt; je locatie gaat naar die dienst, wij slaan die zoekopdracht niet op)
+- OpenStreetMap Overpass API (alleen als jij “Plekken in de buurt” zoekt; je locatie gaat naar die dienst, wij slaan die zoekopdracht niet op de server op)
 Wij hebben de contracten met verwerkers buiten de EER niet in deze tekst als afgesloten aangetoond.
 
 ## 5. Jouw rechten
@@ -70,7 +78,7 @@ Verbindingen met onze server gaan over HTTPS. Auth-tokens staan in de beveiligde
 SafeWalk is bedoeld vanaf 13 jaar. Jonger dan 13 wordt geweigerd.
 Je geeft zelf een geboortejaar en geboortemaand op. Dat is geen identiteitscontrole en geen oudercontrole.
 Vanaf 16 jaar kun je de functies in dit beleid gebruiken, waaronder locatie delen, contacten, opnames, aankopen en de optionele AI-assistent.
-Van 13 tot en met 15 jaar zijn die functies dicht. In Nederland is voor toestemming onder de 16 ouderlijke machtiging nodig. Die machtiging zit niet in deze versie. Een vinkje, e-mail of code van het kind geldt niet als ouder. Tot die controle echt bestaat, blijven locatie delen, contacten uploaden, opnames, aankopen en de AI-assistent uit.
+Van 13 tot en met 15 jaar blijven opnames, aankopen, eigen contactenbeheer en de AI-assistent dicht. Locatie delen en SOS kunnen alleen via kindermodus, nadat een ouder of voogd in een eigen account van 16 jaar of ouder toestemming heeft gegeven en jullie hebben gekoppeld. In Nederland is voor toestemming onder de 16 ouderlijke machtiging nodig. SafeWalk controleert niet of die persoon echt de ouder of voogd is. Een vinkje, e-mail of zelfverzonnen code van het kind geldt niet als ouder. Zonder die koppeling blijven locatie delen en SOS ook dicht.
 Een bestaande rekening zonder opgegeven leeftijd blijft dicht voor die functies tot de leeftijd is ingevuld.
 
 ## 8. Contact
