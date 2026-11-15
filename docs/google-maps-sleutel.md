@@ -1,25 +1,16 @@
-# Google Maps-sleutel voor Android
+# Kaart op Android: geen Google-sleutel
 
-Zonder sleutel toont de app op Android bewust geen kaart (PR10-fallback), zodat de app niet crasht. iOS gebruikt Apple Kaarten en heeft deze sleutel niet nodig.
+De Android-kaart gebruikt **geen Google Maps API-sleutel**. In plaats daarvan toont de app een OpenStreetMap-kaart via OpenFreeMap-tegels (MapLibre GL JS in een WebView). Er is geen registratie, geen betaalde API en geen kaart nodig.
 
-De app leest de sleutel **alleen** uit de omgevingsvariabele `GOOGLE_MAPS_ANDROID_API_KEY` (via `app.config.ts` → `android.config.googleMaps.apiKey`). Zet die waarde nooit in git, nooit in `eas.json` en nooit in een chat.
+iOS blijft Apple Kaarten gebruiken (`react-native-maps`, `PROVIDER_DEFAULT`). Die heeft geen sleutel nodig.
 
-## Wat Kevin moet aanmaken (of controleren)
+## Wat dit betekent
 
-1. Open Google Cloud Console en kies (of maak) een project, bijvoorbeeld “SafeWalk”.
-2. Zet de **Maps SDK for Android** aan (API’s en services → bibliotheek).
-3. Maak een **API-sleutel**.
-4. Beperk de sleutel:
-   - Toepassingsbeperking: **Apps voor Android**.
-   - Pakketnaam: `nl.safewalk.app`.
-   - SHA-1: de vingerafdruk van de **Play-app-ondertekenings Sleutel** (niet alleen de upload-sleutel). Die vind je in Play Console → SafeWalk → Instellingen → App-ondertekening.
-   - API-beperking: alleen **Maps SDK for Android**.
-5. De Maps SDK for Android valt onder het [gratis maandelijkse tegoed van Google Maps](https://mapsplatform.google.com/pricing/). Voor het huidige gebruik van SafeWalk hoeft er in de regel niet betaald te worden; controleer zelf het actuele tegoed en zet eventueel quota of een budgetalert.
+- Zet `GOOGLE_MAPS_ANDROID_API_KEY` niet in git, niet in `eas.json` en niet in een chat. `app.config.ts` negeert die variabele als hij toch in de omgeving staat, en schrijft geen `android.config.googleMaps` meer.
+- Een eventueel eerder aangemaakte Google-sleutel of EAS-secret is voor de kaart niet meer nodig. Verwijder die secret alleen als Kevin dat later expliciet vraagt.
+- Een **nieuwe Android-build** is nodig voordat de OSM-kaart in een geïnstalleerde app verschijnt, omdat `react-native-webview` een native module is. Deze documentatie beschrijft de bron; er is in deze wijziging geen EAS-build gestart.
+- Lukt het laden van de kaart niet (geen netwerk, oude binary zonder WebView), dan blijft de bestaande fallback: geen kaart in de app, wel zoeken op adres en een link naar de laatste locatie.
+- Tegels komen van OpenFreeMap (openbare instantie, gegevens van OpenStreetMap). Dat is geen officieel OSM.org-tegelservicetarief; de app gebruikt niet `tile.openstreetmap.org`. Bij de kaart staat “© OpenStreetMap-bijdragers”.
+- OpenFreeMap ziet het IP-adres van het toestel en het bekeken kaartgebied. Zie het privacybeleid.
 
-## Hoe de sleutel in een build komt
-
-- Lokaal: exporteer `GOOGLE_MAPS_ANDROID_API_KEY` in je schil, of zet hem in een niet-gecommitte `.env`. Een lokale kopie kan op de ontwikkelmachine staan in `/workspace/safewalk-builds/.google-maps-android-key` — die file hoort niet in de repo.
-- EAS: later, **alleen na Kevins akkoord**, als EAS-secret `GOOGLE_MAPS_ANDROID_API_KEY`. Daarna pikt een nieuwe Android-build hem automatisch op. Zonder die secret blijft de kaartfallback actief.
-- Deze pull request voegt de sleutel zelf niet toe en zet geen EAS-secret.
-
-Na een build met sleutel is `extra.mapsConfigured.android` waar, en toont de app de kaart.
+De lokale file `/workspace/safewalk-builds/.google-maps-android-key` hoort niet in de repo en wordt door de app niet meer gelezen.

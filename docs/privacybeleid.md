@@ -37,6 +37,8 @@ Noodinfo (medische notities en ICE-contacten) bewaar je optioneel alleen op dit 
 
 Als jij “Plekken in de buurt” zoekt, gaat je huidige locatie naar de publieke Overpass API van OpenStreetMap om politie, ziekenhuizen en vergelijkbare plekken op te vragen. SafeWalk slaat die zoekopdracht niet op de server op. De laatste lijst kan op jouw toestel bewaard blijven, zodat je die zonder netwerk nog kunt zien (maximaal 24 uur). Volledige offline kaarttegels zitten niet in deze versie.
 
+Als jij in de Android-app een kaart opent, laadt de app kaarttegels van OpenFreeMap, gemaakt met gegevens van OpenStreetMap. Die tegelserver ziet je IP-adres en welk kaartgebied je bekijkt. SafeWalk stuurt je naam, e-mailadres of account niet mee. Wij bepalen niet of en hoe lang OpenFreeMap eventuele logbestanden bewaart. Op iPhone gebruikt de app Apple Kaarten voor de kaartweergave. Adres zoeken gaat via de geocoder van je toestel (Apple of Google). Op een meekijklink in de browser worden OpenStreetMap-kaarttegels geladen; ook die server ziet je IP-adres en het kaartgebied. Bij de kaart staat de vermelding © OpenStreetMap-bijdragers.
+
 Locatiepunten en een SOS die niet verstuurd konden worden, blijven in een wachtrij op jouw toestel en gaan automatisch opnieuw zodra er internet is. Zonder enig netwerkbereik (ook geen sms) kan niets verstuurd worden.
 
 Een sms als reserve opent alleen de berichten-app van je telefoon, met een vooringevulde tekst. Jij tikt zelf op versturen. Automatische sms is niet mogelijk: Google Play en iPhone staan dat voor deze app niet toe. SafeWalk verstuurt geen sms.
@@ -64,7 +66,9 @@ Kijkers kunnen **browsermeldingen** aanzetten. Die blijven in hun eigen browser 
 - Resend (de e-mail met een inlog- of herstelcode, en e-mails aan kijkers die zich via een meekijklink voor meldingen aanmelden)
 - RevenueCat en Google Play (abonnementen)
 - OpenAI (alleen als jij de optionele AI-assistent gebruikt en die aan staat)
-- Google Maps of Apple Maps (kaart en adres zoeken)
+- Apple Kaarten (kaartweergave in de iPhone-app) en de geocoder van je toestel (Apple of Google, voor adres zoeken)
+- OpenFreeMap (kaarttegels in de Android-app; de server ziet je IP-adres en het kaartgebied dat je bekijkt, niet je naam of account)
+- OpenStreetMap-tegelservers (kaart op een meekijklink in de browser; de server ziet je IP-adres en het kaartgebied)
 - OpenStreetMap Overpass API (alleen als jij “Plekken in de buurt” zoekt; je locatie gaat naar die dienst, wij slaan die zoekopdracht niet op de server op)
 Wij hebben de contracten met verwerkers buiten de EER niet in deze tekst als afgesloten aangetoond.
 

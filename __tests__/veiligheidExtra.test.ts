@@ -108,10 +108,10 @@ describe('accu-optimalisatie', () => {
   });
 });
 
-describe('kaartsleutel blijft optioneel', () => {
-  test('Android zonder extra.mapsConfigured.android toont geen kaart', () => {
-    expect(mapsAvailable('android', { mapsConfigured: { android: false } })).toBe(false);
-    expect(mapsAvailable('android', { mapsConfigured: { android: true } })).toBe(true);
+describe('kaart heeft geen Google-sleutel nodig', () => {
+  test('Android toont de kaart ook zonder mapsConfigured', () => {
+    expect(mapsAvailable('android', { mapsConfigured: { android: false } })).toBe(true);
+    expect(mapsAvailable('android', {})).toBe(true);
     expect(mapsAvailable('ios', { mapsConfigured: { android: false } })).toBe(true);
   });
 });

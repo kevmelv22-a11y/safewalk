@@ -5,7 +5,7 @@ Persoonlijke veiligheidsapp: deel je reis tijdelijk met vertrouwde contacten. Be
 > ⚠️ **SafeWalk is geen officiële hulpdienst.** De app belt 112 nooit automatisch en kan niet garanderen dat pushmeldingen aankomen. De 112-knop opent de telefoon-app met 112 klaargezet; jij drukt zelf op bellen (Android: ACTION_DIAL).
 
 ## Stack
-Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve queries, mutations, actions, crons, HTTP-actions) · **Convex Auth** (wachtwoord) · expo-location + expo-task-manager · expo-notifications · react-native-maps · Zustand · RevenueCat (`react-native-purchases`) · optioneel OpenAI · Admin: Vite + React.
+Expo SDK 58 · Expo Router · TypeScript · **Convex** (database, reactieve queries, mutations, actions, crons, HTTP-actions) · **Convex Auth** (wachtwoord) · expo-location + expo-task-manager · expo-notifications · react-native-maps (iOS / Apple Kaarten) · react-native-webview + OpenFreeMap (Android-kaart, geen Google-sleutel) · Zustand · RevenueCat (`react-native-purchases`) · optioneel OpenAI · Admin: Vite + React.
 
 ## Functies
 | Onderdeel | Waar |
@@ -68,7 +68,7 @@ Achtergrondlocatie is in deze versie uitgeschakeld. Push en aankopen werken **ni
 npx eas build --profile development --platform android   # of ios
 npx expo start --dev-client
 ```
-App-omgeving (`.env` / EAS-secrets): `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `GOOGLE_MAPS_ANDROID_API_KEY`. Voor de Android-kaartsleutel: zie `docs/google-maps-sleutel.md` (niet committen; EAS-secret alleen na akkoord). Vul `extra.eas.projectId` in `app.json`.
+App-omgeving (`.env` / EAS-secrets): `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`. De Android-kaart gebruikt OpenStreetMap/OpenFreeMap en heeft geen Google-sleutel nodig (zie `docs/google-maps-sleutel.md`). Vul `extra.eas.projectId` in `app.json`.
 
 ### RevenueCat instellen
 1. Producten in App Store Connect / Play Console: maandabonnement €2,99.
