@@ -52,6 +52,14 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
     await ctx.db.delete(link._id);
   }
   await del(await q('deviceContacts').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  for (const link of [...await q('childLinks').withIndex('by_parent', (x) => x.eq('parentId', uid)).collect(),
+    ...await q('childLinks').withIndex('by_child', (x) => x.eq('childId', uid)).collect()]) {
+    await del(await q('geofences').withIndex('by_link', (x) => x.eq('linkId', link._id)).collect());
+    if (link.status !== 'revoked') await ctx.db.patch(link._id, { status: 'revoked', revokedAt: Date.now(), inviteHash: undefined, inviteExpiresAt: undefined });
+    await ctx.db.delete(link._id);
+  }
+  await del(await q('geofences').withIndex('by_child', (x) => x.eq('childId', uid)).collect());
+
   const incidentRows = [
     ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'active')).collect(),
     ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'resolved')).collect(),

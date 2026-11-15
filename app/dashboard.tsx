@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { Card, Notice, Disclaimer } from '../src/components/ui';
+import { Card, Notice, Disclaimer, Button } from '../src/components/ui';
 import { ActionButtons } from '../src/components/ActionButtons';
 import { PinPad } from '../src/components/PinPad';
 import { DashboardShell } from '../src/components/dashboard/DashboardShell';
@@ -36,7 +36,7 @@ export default function Dashboard() {
   const mine = sessions?.mine;
   const watching = sessions?.watching ?? [];
   const myContacts = contacts?.mine ?? [];
-  const [busy, setBusy] = useState<'unsafe' | 'come' | 'safe' | 'live' | null>(null);
+  const [busy, setBusy] = useState<'unsafe' | 'silent' | 'come' | 'safe' | 'live' | null>(null);
   const [safeOpen, setSafeOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -55,17 +55,17 @@ export default function Dashboard() {
 
   const withLoc = async () => getConsentedLocation();
 
-  const onUnsafe = async () => {
+  const startDanger = async (opts: { silent: boolean; busy: 'unsafe' | 'silent' }) => {
     if (!pinStatus?.pinSet) return router.push('/onboarding/pin');
-    setBusy('unsafe'); setErr(null); setMsg(null);
+    setBusy(opts.busy); setErr(null); setMsg(null);
     try {
       const loc = await withLoc();
       const r = await startUnsafe({
-        clientRef: clientRef('unsafe'),
+        clientRef: clientRef(opts.silent ? 'silent' : 'unsafe'),
         sessionId: mine?._id,
-        torchRequested: !!pinStatus.torchStrobeOptIn,
+        torchRequested: opts.silent ? false : !!pinStatus.torchStrobeOptIn,
         createTrackingLink: !!loc.locationConsent,
-        shareRecordingScope: true, // scope alleen; opname start na mic-consent op /danger
+        shareRecordingScope: opts.silent ? false : true,
         ...loc,
       });
       router.push({
@@ -73,12 +73,15 @@ export default function Dashboard() {
         params: {
           incidentId: r.incidentId ?? '',
           ...(r.sharePath ? { sharePath: r.sharePath } : {}),
+          ...(opts.silent ? { silent: '1' } : {}),
         },
       });
     } catch (e) {
       setErr(errorNl(e));
     } finally { setBusy(null); }
   };
+  const onUnsafe = () => startDanger({ silent: false, busy: 'unsafe' });
+  const onSilent = () => startDanger({ silent: true, busy: 'silent' });
 
   const onCome = async () => {
     setBusy('come'); setErr(null); setMsg(null);
@@ -140,7 +143,9 @@ export default function Dashboard() {
       />
 
       <View style={{ gap: 8 }}>
-        <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy === 'live' ? null : busy} disabled={!!busy} />
+        <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy === 'live' || busy === 'silent' ? null : busy} disabled={!!busy} />
+        <Button title="Stil alarm (geen geluid of licht)" variant="secondary" onPress={onSilent} loading={busy === 'silent'} disabled={!!busy}
+          hint="Deelt stil je locatie en waarschuwt contacten. Geen alarmgeluid, geen zaklamp, geen opname." />
       </View>
 
       {safeOpen && (

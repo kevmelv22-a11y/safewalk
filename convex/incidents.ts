@@ -166,6 +166,7 @@ export const pingLocation = mutation({
     accuracyM: v.optional(v.number()),
     recordedAt: v.number(),
     locationConsent: v.boolean(),
+    clientId: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
@@ -176,9 +177,14 @@ export const pingLocation = mutation({
     const inc = await ctx.db.get(a.incidentId);
     if (!inc || inc.userId !== uid || inc.status !== 'active') fail('NOT_FOUND');
     const incident = inc!;
+    if (a.clientId) {
+      const dup = await ctx.db.query('incidentLocations').withIndex('by_incident_client', (q) => q.eq('incidentId', a.incidentId).eq('clientId', a.clientId)).first();
+      if (dup) return { ok: true as const };
+    }
     await ctx.db.insert('incidentLocations', {
       incidentId: a.incidentId, userId: uid, lat: a.lat, lng: a.lng,
       accuracyM: a.accuracyM, recordedAt: Math.min(a.recordedAt, Date.now()),
+      ...(a.clientId ? { clientId: a.clientId } : {}),
     });
     // Optioneel: ook trip-sessie voeden als gekoppeld
     if (incident.sessionId) {

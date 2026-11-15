@@ -21,8 +21,8 @@ type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error'
 export default function Sos() {
   const t = useTheme();
   const { sessionId, trigger } = useLocalSearchParams<{ sessionId?: string; trigger?: string }>();
-  // Via schudden altijd minstens 5 s om te annuleren (ook als het profiel korter is ingesteld).
-  const minCountdown = trigger === 'shake' ? 5 : 0;
+  // Via schudden altijd minstens 5 s om te annuleren; bij valdetectie 10 s “Alles goed?”.
+  const minCountdown = trigger === 'fall' ? 10 : trigger === 'shake' ? 5 : 0;
   const profile = useProfile();
   const cancelAlert = useMutation(api.sos.cancel);
   const [left, setLeft] = useState<number | null>(null);
@@ -67,7 +67,8 @@ export default function Sos() {
       {phase === 'countdown' && (
         <View style={{ alignItems: 'center', gap: 16, paddingTop: 30 }}>
           {trigger === 'shake' && <Notice kind="warn">{SHAKE.detected}. Per ongeluk? Tik op ANNULEREN.</Notice>}
-          <H1>SOS wordt verstuurd over</H1>
+          {trigger === 'fall' && <Notice kind="warn">Mogelijke val herkend. Alles goed? Tik op ANNULEREN als het een vergissing is. Anders gaat er over 10 seconden een SOS naar je contacten.</Notice>}
+          <H1>{trigger === 'fall' ? 'Alles goed?' : 'SOS wordt verstuurd over'}</H1>
           <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: t.red }}>{left ?? '…'}</Text>
           <P muted>Je vertrouwde contacten krijgen een pushmelding met je laatst bekende locatie.</P>
           <View style={{ alignSelf: 'stretch', gap: 12 }}>

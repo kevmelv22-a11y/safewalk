@@ -99,6 +99,7 @@ Privacybeleid en gebruiksvoorwaarden (`docs/`, in de app via `node scripts/sync-
 - `app.json`: Nederlandstalige permissieteksten (`NSLocationWhenInUse…`, `NSLocationAlwaysAndWhenInUse…`, `UIBackgroundModes: location, remote-notification`), Android foreground-service-permissies, iconen/splash (placeholders in merkkleuren in `assets/`).
 - `eas.json`: `development`, `preview`, `production` (+ submit-placeholders).
 - `docs/privacybeleid.md`, `docs/gebruiksvoorwaarden.md` (concepten, juridisch laten toetsen), `docs/store-listing.md` (NL/EN), `docs/data-safety.md` (Play Data safety + Apple App Privacy).
+- `docs/architectuur.md` (mappen, offline-wachtrij, permissies, wat niet gebouwd is) en `docs/offline-testen.md` (vliegtuigmodus, alleen-sms, geen bereik).
 
 ## Tests
 - `npm test` – Jest: versheid locatie, check-in-fases, validatie, uitnodigingslinks, afstand/ETA, offline-wachtrij.

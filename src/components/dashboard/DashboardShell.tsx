@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
 import { ThemeBackdrop } from '../ThemeBackdrop';
 import { dash } from './tokens';
+import { ConnectionBanner } from '../ConnectionBanner';
 
 /** Centered phone-width shell; surfaces follow active app theme skin. */
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -19,7 +20,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         contentContainerStyle={[styles.scroll, { paddingHorizontal: pad, paddingBottom: 36 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.column}>{children}</View>
+        <View style={styles.column}><ConnectionBanner />{children}</View>
       </ScrollView>
     </SafeAreaView>
   );

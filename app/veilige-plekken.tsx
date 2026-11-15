@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
@@ -9,19 +9,27 @@ import {
   OVERPASS_URL, SAFE_PLACES_DISCLAIMER_NL, PLACE_KIND_NL, overpassQuery, parseOverpass, placeNavigateUrl,
   type NearbyPlace, type PlaceKind,
 } from '../src/lib/safePlaces';
+import { loadPlacesCache, savePlacesCache, PLACES_CACHE_HINT } from '../src/lib/offlinePlaces';
 
 const KIND_ORDER: PlaceKind[] = ['police', 'hospital', 'clinic', 'pharmacy', 'supermarket', 'fuel'];
 
 export default function VeiligePlekken() {
   const profile = useProfile();
   const [places, setPlaces] = useState<NearbyPlace[] | null>(null);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const blocked = profile && profile.ageStatus !== 'adult';
 
+  useEffect(() => {
+    void loadPlacesCache().then((c) => {
+      if (c) { setPlaces(c.places); setCachedAt(c.savedAt); }
+    }).catch(() => {});
+  }, []);
+
   const search = async () => {
     if (blocked) return setErr('Deze functie gebruikt je locatie en is beschikbaar vanaf 16 jaar.');
-    setBusy(true); setErr(null); setPlaces(null);
+    setBusy(true); setErr(null);
     try {
       const loc = await getConsentedLocation();
       if (!loc.locationConsent || loc.lat === undefined || loc.lng === undefined) {
@@ -35,9 +43,19 @@ export default function VeiligePlekken() {
       clearTimeout(t);
       if (!res.ok) throw new Error('OVERPASS');
       const data = await res.json() as { elements?: [] };
-      setPlaces(parseOverpass(data, { lat: loc.lat, lng: loc.lng }));
+      const parsed = parseOverpass(data, { lat: loc.lat, lng: loc.lng });
+      setPlaces(parsed);
+      setCachedAt(null);
+      await savePlacesCache({ lat: loc.lat, lng: loc.lng, savedAt: Date.now(), places: parsed });
     } catch {
-      setErr('Zoeken lukte niet (geen netwerk, of de OpenStreetMap-dienst is even druk). Probeer het later opnieuw.');
+      const cached = await loadPlacesCache();
+      if (cached) {
+        setPlaces(cached.places);
+        setCachedAt(cached.savedAt);
+        setErr('Zoeken lukte niet (geen netwerk of de dienst is druk). Hieronder staat de laatst bewaarde lijst op dit toestel.');
+      } else {
+        setErr('Zoeken lukte niet (geen netwerk, of de OpenStreetMap-dienst is even druk). Probeer het later opnieuw.');
+      }
     } finally { setBusy(false); }
   };
 
@@ -52,7 +70,8 @@ export default function VeiligePlekken() {
       <Notice kind="info">{SAFE_PLACES_DISCLAIMER_NL}</Notice>
       {blocked && <Notice kind="warn">Zoeken met je locatie kan pas vanaf 16 jaar.</Notice>}
       <Button title="Zoek politie, ziekenhuis en open plekken" onPress={search} loading={busy} disabled={!!blocked} />
-      <P muted>Je locatie gaat bij het zoeken naar de Overpass API van OpenStreetMap. SafeWalk slaat deze zoekopdracht niet op.</P>
+      <P muted>Je locatie gaat bij het zoeken naar de Overpass API van OpenStreetMap. SafeWalk slaat de zoekopdracht niet op de server op. De laatste lijst kan op dit toestel bewaard blijven om offline te bekijken. Volledige offline kaarttegels (MapLibre) zitten nog niet in deze versie.</P>
+      {cachedAt && <Notice kind="info">{`${PLACES_CACHE_HINT} Opgehaald: ${new Date(cachedAt).toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam' })} (Europe/Amsterdam).`}</Notice>}
       {err && <Notice kind="warn">{err}</Notice>}
       {places && places.length === 0 && <Notice kind="info">Geen plekken gevonden binnen ongeveer 2,5 km. Probeer een andere plek of zoek zelf in een kaart-app.</Notice>}
       {KIND_ORDER.map((kind) => {

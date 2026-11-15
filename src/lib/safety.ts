@@ -138,9 +138,15 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('EMAIL_SEND_FAILED')) return 'De e-mail kon niet worden verstuurd. Probeer het later opnieuw.';
   if (msg.includes('AGE_REQUIRED')) return 'Vul eerst je geboortejaar en -maand in. Zonder leeftijd blijven delen, opnames, contacten, aankopen en de assistent uit.';
   if (msg.includes('AGE_UNDER_13')) return 'SafeWalk is niet bruikbaar onder 13 jaar.';
-  if (msg.includes('AGE_PARENT_REQUIRED')) return 'Van 13 tot en met 15 jaar blijven delen, opnames, contacten, aankopen en de assistent uit. Ouderlijke machtiging is nog niet ingebouwd.';
+  if (msg.includes('AGE_PARENT_REQUIRED')) return 'Van 13 tot en met 15 jaar blijven die functies dicht, tot een ouder of voogd je koppelt via kindermodus. Een vinkje of code van jou telt niet als ouder.';
   if (msg.includes('AGE_LOCKED')) return 'Een eerdere geboortedatum kun je niet later invullen.';
   if (msg.includes('AGE_INVALID')) return 'Vul een geldig geboortejaar en een maand van 1 tot 12 in.';
+  if (msg.includes('INVITE_SELF')) return 'Je kunt jezelf niet als kind koppelen.';
+  if (msg.includes('INVITE_INVALID')) return 'Deze koppelcode is ongeldig of verlopen.';
+  if (msg.includes('ALREADY_LINKED')) return 'Dit account is al aan een ouder gekoppeld.';
+  if (msg.includes('CHILD_MUST_BE_MINOR')) return 'Alleen een account van 13 tot en met 15 jaar kan als kind worden gekoppeld.';
+  if (msg.includes('CHILD_LIMIT')) return 'Je hebt het maximum aantal kind-koppelingen bereikt.';
+  if (msg.includes('CONSENT_REQUIRED')) return 'Je moet de toestemmingstekst eerst accepteren.';
   if (msg.includes('PIN_NOT_SET')) return 'Stel eerst een veiligheidscode in.';
   if (msg.includes('PIN_INVALID')) return 'Gebruik 4–8 tekens (cijfers en letters) en bevestig dezelfde code. Hoofdletters tellen mee.';
   if (msg.includes('PIN_SAME_AS_DURESS') || msg.includes('DURESS_SAME_AS_PIN')) return 'De dwangcode moet anders zijn dan je veiligheidscode.';

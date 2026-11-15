@@ -5,7 +5,8 @@ import type { Doc, Id } from './_generated/dataModel';
 import { queuePush } from './notify';
 import { haversineMeters, ALMOST_ARRIVED_M } from './geo';
 import { normalizeBatteryPct } from './deviceStatus';
-import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireAdult, requireUser, sessionOpen } from './lib';
+import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireAdult, requireAdultOrLinkedChild, requireUser, sessionOpen } from './lib';
+import { applyChildGeofences } from './childGeo';
 import { notifyLinkViewers } from './viewerAlerts';
 import { revealDetails, sessionWhat, shouldSignalLowBattery } from './liveShare';
 import { extendArrivalLinks, insertTripLink } from './tracking';
@@ -180,16 +181,20 @@ export const respondCheckIn = mutation({ args: { sessionId: v.id('sessions'), ex
 } });
 
 export const addLocation = mutation({
-  args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number(), batteryPct: v.optional(v.number()) },
-  handler: async (ctx, { batteryPct, ...a }) => {
+  args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number(), batteryPct: v.optional(v.number()), clientId: v.optional(v.string()) },
+  handler: async (ctx, { batteryPct, clientId, ...a }) => {
     const uid = await requireUser(ctx);
-    await requireAdult(ctx, uid);
+    await requireAdultOrLinkedChild(ctx, uid);
     const s = await ctx.db.get(a.sessionId);
     if (!s || s.userId !== uid || !sessionOpen(s)) fail('SESSION_CLOSED');
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180 || (a.accuracyM ?? 0) < 0) fail('BAD_REQUEST');
+    if (clientId) {
+      const dup = await ctx.db.query('locations').withIndex('by_session_client', (q) => q.eq('sessionId', a.sessionId).eq('clientId', clientId)).first();
+      if (dup) return;
+    }
     await rateLimit(ctx, `loc:${uid}`, 240, H);
     const recordedAt = Math.min(a.recordedAt, Date.now());
-    await ctx.db.insert('locations', { ...a, userId: uid, recordedAt });
+    await ctx.db.insert('locations', { ...a, userId: uid, recordedAt, ...(clientId ? { clientId } : {}) });
     // Laatst online = wanneer de server dit punt ontving. Batterij alleen als het toestel hem meegeeft (0–100).
     const pct = normalizeBatteryPct(batteryPct);
     const lowBattery = shouldSignalLowBattery(s!, pct);
@@ -212,6 +217,69 @@ export const addLocation = mutation({
       const name = await displayName(ctx, uid);
       await queuePush(ctx, { kind: 'almost_arrived', sessionId: s!._id, recipients: viewers, title: `${name} is bijna aangekomen`, body: `${name} is minder dan ${ALMOST_ARRIVED_M} m van ${s!.destinationLabel}.` });
     }
+    if (s!.childLinkId) {
+      await applyChildGeofences(ctx, { childId: uid, linkId: s!.childLinkId, lat: a.lat, lng: a.lng, recordedAt, sessionId: s!._id });
+    }
+  },
+});
+
+const locPoint = v.object({
+  sessionId: v.id('sessions'), clientId: v.string(), lat: v.number(), lng: v.number(),
+  accuracyM: v.optional(v.number()), recordedAt: v.number(), batteryPct: v.optional(v.number()),
+});
+
+/**
+ * Batch locatiepunten (offline wachtrij). Idempotent via clientId per sessie.
+ * status: ok | duplicate | rejected | closed
+ */
+export const addLocations = mutation({
+  args: { points: v.array(locPoint) },
+  handler: async (ctx, { points }) => {
+    const uid = await requireUser(ctx);
+    await requireAdultOrLinkedChild(ctx, uid);
+    if (points.length === 0) return { results: [] as { clientId: string; status: string }[] };
+    if (points.length > 40) fail('BAD_REQUEST');
+    await rateLimit(ctx, `locbatch:${uid}`, 120, H);
+    const results: { clientId: string; status: string }[] = [];
+    const sessionCache = new Map<string, Doc<'sessions'> | null>();
+    for (const p of points) {
+      let s = sessionCache.get(p.sessionId);
+      if (s === undefined) {
+        const row = await ctx.db.get(p.sessionId);
+        s = row && row.userId === uid ? row : null;
+        sessionCache.set(p.sessionId, s);
+      }
+      if (!s || !sessionOpen(s)) { results.push({ clientId: p.clientId, status: 'closed' }); continue; }
+      if (Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180 || (p.accuracyM ?? 0) < 0) {
+        results.push({ clientId: p.clientId, status: 'rejected' }); continue;
+      }
+      const dup = await ctx.db.query('locations').withIndex('by_session_client', (q) => q.eq('sessionId', p.sessionId).eq('clientId', p.clientId)).first();
+      if (dup) { results.push({ clientId: p.clientId, status: 'duplicate' }); continue; }
+      const recordedAt = Math.min(p.recordedAt, Date.now());
+      await ctx.db.insert('locations', {
+        sessionId: p.sessionId, userId: uid, lat: p.lat, lng: p.lng,
+        accuracyM: p.accuracyM, recordedAt, clientId: p.clientId,
+      });
+      const pct = normalizeBatteryPct(p.batteryPct);
+      const lowBattery = shouldSignalLowBattery(s, pct);
+      await ctx.db.patch(s._id, { lastSeenAt: Date.now(), ...(pct !== undefined ? { batteryPct: pct, batteryAt: recordedAt } : {}),
+        ...(s.notLiveAt !== undefined ? { notLiveAt: undefined } : {}), ...(lowBattery ? { lowBatteryAt: Date.now() } : {}) });
+      if (lowBattery) {
+        const name = await displayName(ctx, uid);
+        await queuePush(ctx, { kind: 'low_battery', sessionId: s._id, recipients: await activeViewerIds(ctx, s._id), title: `🔋 Batterij van ${name} bijna leeg`,
+          body: `${name} heeft nog ${pct}% batterij. Valt de telefoon uit, dan stopt de live locatie.` });
+        await notifyLinkViewers(ctx, s._id, 'low_battery', { what: sessionWhat(s), at: Date.now(), batteryPct: pct });
+        sessionCache.set(p.sessionId, { ...s, lowBatteryAt: Date.now(), lastSeenAt: Date.now(), ...(pct !== undefined ? { batteryPct: pct } : {}) });
+      } else {
+        sessionCache.set(p.sessionId, { ...s, lastSeenAt: Date.now(), notLiveAt: undefined, ...(pct !== undefined ? { batteryPct: pct, batteryAt: recordedAt } : {}) });
+      }
+      const fresh = sessionCache.get(p.sessionId)!;
+      if (fresh.childLinkId) {
+        await applyChildGeofences(ctx, { childId: uid, linkId: fresh.childLinkId, lat: p.lat, lng: p.lng, recordedAt, sessionId: fresh._id });
+      }
+      results.push({ clientId: p.clientId, status: 'ok' });
+    }
+    return { results };
   },
 });
 

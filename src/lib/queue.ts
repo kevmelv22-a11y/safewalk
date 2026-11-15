@@ -27,4 +27,28 @@ export class PersistentQueue<T> {
     }
     await this.save(keep); return ok;
   }
+
+  /** Items die nu verwerkt mogen worden (voor batch-verzenden). */
+  async due(now = Date.now()): Promise<QueueItem<T>[]> {
+    return (await this.all()).filter((i) => i.nextAt <= now);
+  }
+
+  /** Verwijder geslaagde ids; backoff voor mislukte. Permanente weigeringen: id in okIds zetten. */
+  async applyResults(okIds: string[], failed: { id: string; error?: string }[], now = Date.now()) {
+    const ok = new Set(okIds);
+    const failMap = new Map(failed.map((f) => [f.id, f.error]));
+    const keep: QueueItem<T>[] = [];
+    for (const it of await this.all()) {
+      if (ok.has(it.id)) continue;
+      if (failMap.has(it.id)) {
+        const attempts = it.attempts + 1;
+        if (attempts < this.maxAttempts) {
+          keep.push({ ...it, attempts, nextAt: now + backoffMs(attempts), lastError: failMap.get(it.id) });
+        }
+        continue;
+      }
+      keep.push(it);
+    }
+    await this.save(keep);
+  }
 }

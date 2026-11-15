@@ -18,6 +18,7 @@ import { pushResultNl, tileResultNl } from '../src/lib/settingsCopy';
 import { registerPush } from '../src/lib/notifications';
 import { Toggle } from '../src/components/Choice';
 import { getShakeOptIn, setShakeOptIn } from '../src/lib/shake';
+import { getFallOptIn, setFallOptIn } from '../src/lib/fallDetect';
 import { SHAKE } from '../src/content/liveSharing';
 import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../src/lib/batteryOptimization';
 
@@ -31,7 +32,9 @@ export default function Settings() {
   const deleteAccount = useMutation(api.account.deleteAccount);
   const [msg, setMsg] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
+  const [fall, setFall] = useState(false);
   useEffect(() => { void getShakeOptIn().then(setShake); }, []);
+  useEffect(() => { void getFallOptIn().then(setFall); }, []);
   const blocked = useQuery(api.contacts.blocked) ?? [];
   const unblock = useMutation(api.contacts.unblock);
   const confirmDelete = () => confirmAction('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', 'Definitief verwijderen', async () => {
@@ -54,11 +57,15 @@ export default function Settings() {
       {Platform.OS !== 'web' && (
         <Card>
           <Toggle value={shake} onChange={(v) => { setShake(v); void setShakeOptIn(v); }} title={SHAKE.title} hint={SHAKE.hint} />
+          <Toggle value={fall} onChange={(v) => { setFall(v); void setFallOptIn(v); }} title="Valdetectie"
+            hint="Uit standaard. Bij een scherpe schok gevolgd door stilte vraagt de app 10 seconden “Alles goed?”. Alleen terwijl de app open is; er gaan geen bewegingsgegevens naar SafeWalk. Kan vals afgaan, bijvoorbeeld bij sport." />
         </Card>
       )}
       <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
         <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} />
-        <Button title="Dwangcode instellen" variant="secondary" onPress={() => router.push('/settings/dwangcode')} /></Card>
+        <Button title="Dwangcode instellen" variant="secondary" onPress={() => router.push('/settings/dwangcode')} />
+        <Button title="Kinderen koppelen" variant="secondary" onPress={() => router.push('/settings/kinderen')}
+          hint="Voor een kind van 13 tot 15 jaar. Jij geeft toestemming in dit account." /></Card>
       <Card>
         <P>Hulp</P>
         <Button title="Hulplijnen" variant="secondary" onPress={() => router.push('/hulplijnen')} />
