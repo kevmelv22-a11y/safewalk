@@ -2,6 +2,9 @@
  * Pure builders for user-confirmed SMS / WhatsApp composers. Nothing here sends anything:
  * the OS composer opens pre-filled and the user must tap Send. No loops, no background sends.
  */
+import { mapsQueryUrl, validCoords } from './coords';
+import { rideShareLine, type RideShare } from './rideShare';
+
 export const MAX_SMS_RECIPIENTS = 10;
 
 export function e164Digits(phoneE164: string): string {
@@ -19,6 +22,25 @@ export function locationMessage(url: string): string {
 export function tripLinkMessage(url: string): string {
   if (!/^https:\/\/[^\s]+\/track\/live\?token=[0-9a-f]{64}$/.test(url)) throw new Error('BAD_LINK');
   return `Ik ben onderweg. Via deze link kun je tot ik er ben zien waar ik ben en of ik veilig ben aangekomen (geen app nodig, tijdelijk): ${url}\nSafeWalk belt niet 112.`;
+}
+
+/** Sms-reserve: locatie + Google Maps-link. De app opent alleen de composer; de gebruiker tikt op versturen. */
+export function reserveSmsMessage(o: {
+  lat?: number;
+  lng?: number;
+  context?: 'sos' | 'trip';
+  what?: string;
+  ride?: RideShare | null;
+}): string {
+  const loc = validCoords(o.lat, o.lng) ? mapsQueryUrl(o.lat!, o.lng!) : null;
+  const where = loc ? `Laatst bekende locatie: ${loc}` : 'Er is geen recente locatie bekend.';
+  const head = o.context === 'trip'
+    ? `Ik deel mijn locatie via SafeWalk${o.what ? ` (${o.what})` : ''}.`
+    : 'SOS via SafeWalk.';
+  const ride = rideShareLine(o.ride ?? undefined);
+  return [head, where, ride, 'SafeWalk belt niet 112. Ik stuur dit bericht zelf.']
+    .filter((x) => x && x.trim())
+    .join(' ');
 }
 
 /** One composer for all chosen recipients (user still presses Send once). */

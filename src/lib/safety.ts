@@ -143,6 +143,7 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('AGE_INVALID')) return 'Vul een geldig geboortejaar en een maand van 1 tot 12 in.';
   if (msg.includes('PIN_NOT_SET')) return 'Stel eerst een veiligheidscode in.';
   if (msg.includes('PIN_INVALID')) return 'Gebruik 4–8 tekens (cijfers en letters) en bevestig dezelfde code. Hoofdletters tellen mee.';
+  if (msg.includes('PIN_SAME_AS_DURESS') || msg.includes('DURESS_SAME_AS_PIN')) return 'De dwangcode moet anders zijn dan je veiligheidscode.';
   if (msg.includes('PIN_WRONG') || msg.includes('PIN_REQUIRED')) return 'Onjuiste code. Probeer opnieuw.';
   if (msg.includes('WEAK_PASSWORD')) return 'Gebruik een wachtwoord van minstens 10 tekens.';
   if (/invalid code|could not verify|InvalidAccountId|InvalidSecret/i.test(msg)) return 'De code is onjuist of verlopen.';

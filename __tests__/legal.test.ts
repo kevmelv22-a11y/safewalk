@@ -15,7 +15,7 @@ describe('juridische teksten', () => {
   it('bedrijfsgegevens ingevuld, geen placeholders of conceptbanners', () => {
     for (const md of [PRIVACY_MD, TERMS_MD]) {
       expect(md).toMatch(/Vonk Byte/); expect(md).toMatch(/support@vonkbyte\.nl/);
-      expect(md).toMatch(/31 oktober 2026|10 november 2026|13 november 2026|14 november 2026/);
+      expect(md).toMatch(/31 oktober 2026|10 november 2026|13 november 2026|14 november 2026|15 november 2026/);
       expect(md).toMatch(/KvK-nummer volgt \(inschrijving januari 2027\)/);
       expect(md).not.toMatch(/\[[^\]]*\]|CONCEPT|Concept/);
     }

@@ -112,6 +112,10 @@ export default function RootLayout() {
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
           <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
+          <Stack.Screen name="settings/dwangcode" options={{ title: 'Dwangcode' }} />
+          <Stack.Screen name="hulplijnen" options={{ title: 'Hulplijnen' }} />
+          <Stack.Screen name="noodinfo" options={{ title: 'Noodinfo' }} />
+          <Stack.Screen name="veilige-plekken" options={{ title: 'Plekken in de buurt' }} />
           <Stack.Screen name="quick-ping" options={{ title: "Locatie sturen" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />

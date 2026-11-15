@@ -68,7 +68,7 @@ Achtergrondlocatie is in deze versie uitgeschakeld. Push en aankopen werken **ni
 npx eas build --profile development --platform android   # of ios
 npx expo start --dev-client
 ```
-App-omgeving (`.env` / EAS-secrets): `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `GOOGLE_MAPS_ANDROID_API_KEY`. Vul `extra.eas.projectId` in `app.json`.
+App-omgeving (`.env` / EAS-secrets): `EXPO_PUBLIC_CONVEX_URL`, `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`, `GOOGLE_MAPS_ANDROID_API_KEY`. Voor de Android-kaartsleutel: zie `docs/google-maps-sleutel.md` (niet committen; EAS-secret alleen na akkoord). Vul `extra.eas.projectId` in `app.json`.
 
 ### RevenueCat instellen
 1. Producten in App Store Connect / Play Console: maandabonnement €2,99.

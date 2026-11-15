@@ -19,6 +19,7 @@ import { registerPush } from '../src/lib/notifications';
 import { Toggle } from '../src/components/Choice';
 import { getShakeOptIn, setShakeOptIn } from '../src/lib/shake';
 import { SHAKE } from '../src/content/liveSharing';
+import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../src/lib/batteryOptimization';
 
 export default function Settings() {
   const params = useLocalSearchParams<{ theme?: string | string[] }>();
@@ -56,12 +57,21 @@ export default function Settings() {
         </Card>
       )}
       <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
-        <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
+        <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} />
+        <Button title="Dwangcode instellen" variant="secondary" onPress={() => router.push('/settings/dwangcode')} /></Card>
+      <Card>
+        <P>Hulp</P>
+        <Button title="Hulplijnen" variant="secondary" onPress={() => router.push('/hulplijnen')} />
+        <Button title="Noodinfo op dit toestel" variant="secondary" onPress={() => router.push('/noodinfo')} />
+        <Button title="Plekken in de buurt" variant="secondary" onPress={() => router.push('/veilige-plekken')} />
+      </Card>
       <Card>
         <P>Snelkoppelingen</P>
         <P muted>{QUICK_LOCATION.shortcuts}</P>
         {Platform.OS === 'android' && <P muted>{QUICK_LOCATION.volumeAndroid}</P>}
         <P muted>Zaklamp-strobe werkt alleen met SafeWalk open. Telefoon uit of de app geforceerd stoppen stopt alarm en delen.</P>
+        <P muted>{BATTERY_HINT_NL}</P>
+        {Platform.OS !== 'web' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
         <Button title={`Open “${QUICK_LOCATION.title}”`} variant="secondary" onPress={() => router.push('/quick-ping')} />
         {Platform.OS === 'android' && (
           <Button title="Snelinstellingentegel toevoegen" variant="secondary" onPress={async () => setMsg(tileResultNl(await maybePromptQsTile()))} />

@@ -17,6 +17,7 @@ import { useNow } from '../src/lib/useLiveLocations';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { errorCode, errorNl } from '../src/lib/convex';
 import { onPressOpen112 } from '../src/lib/dial112';
+import { stopSharing } from '../src/lib/location';
 
 function clientRef(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -115,6 +116,7 @@ export default function Dashboard() {
       const loc = await withLoc();
       const res = await verifyPin({ pin, purpose: 'arrived_safe', sessionId: mine?._id, ...loc });
       if (!res.ok) { setErr('Onjuiste code. Probeer opnieuw.'); return; }
+      await stopSharing().catch(() => {});
       setSafeOpen(false);
       setMsg('Veilig aangekomen bevestigd. Eventueel alarm is gestopt.');
     } catch (e) {
@@ -180,6 +182,8 @@ export default function Dashboard() {
         onPremium={() => router.push('/premium')}
         onSettings={() => router.push('/settings')}
         onFakeCall={() => router.push('/fake-call')}
+        onHulplijnen={() => router.push('/hulplijnen')}
+        onSafePlaces={() => router.push('/veilige-plekken')}
       />
 
       <Disclaimer />

@@ -20,6 +20,8 @@ export type PublicTrip = {
   /** Telefoon gaf de laatste 2 minuten iets door (zonder plek of tijdstip). */
   deviceLive: boolean;
   signals: { sosAt: number | null; lowBattery: boolean; notLiveSince: number | null };
+  /** Ritgegevens, alleen als de gebruiker ze invulde en details zichtbaar zijn. */
+  ride: { plate?: string; driverName?: string; vehicle?: string } | null;
 };
 
 export const DEFAULT_DOWNLOAD_URL = 'https://play.google.com/store/apps/details?id=nl.safewalk.app';
@@ -164,7 +166,14 @@ function renderTrip(){
   if(typeof trip.lastSeenAt==='number') dev.push('laatst online '+hm(trip.lastSeenAt));
   if(open&&trip.privacyMode&&!trip.revealed) dev.push(trip.deviceLive?'telefoon geeft status door':'telefoon geeft niets meer door');
   if(dev.length&&open) h+='<div class="muted" style="margin-top:6px">📱 '+esc(dev.join(' · '))+'</div>';
-  if(open&&(trip.state==='missed'||sig.sosAt)) h+='<div class="row"><a class="btn btn-d" href="tel:112">Bel 112</a></div>';
+  if(trip.ride&&(trip.ride.plate||trip.ride.driverName||trip.ride.vehicle)){
+    const bits=[];
+    if(trip.ride.plate) bits.push('Kenteken '+trip.ride.plate);
+    if(trip.ride.driverName) bits.push('Chauffeur '+trip.ride.driverName);
+    if(trip.ride.vehicle) bits.push(trip.ride.vehicle);
+    h+='<div class="info">🚗 Rit: '+bits.join(' · ')+'</div>';
+  }
+    if(open&&(trip.state==='missed'||sig.sosAt)) h+='<div class="row"><a class="btn btn-d" href="tel:112">Bel 112</a></div>';
   el.innerHTML=h;
 }
 function headers(){const h={};if(grant)h['x-safewalk-grant']=grant;return h;}

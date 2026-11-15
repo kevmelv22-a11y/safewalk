@@ -8,11 +8,12 @@ export const me = query({ args: {}, handler: async (ctx) => {
   const uid = await getAuthUserId(ctx); if (!uid) return null;
   const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
   if (!p) return null;
-  const { pinHash: _h, pinSalt: _s, ...safe } = p;
+  const { pinHash: _h, pinSalt: _s, duressHash: _dh, duressSalt: _ds, duressCloakAt: _dc, ...safe } = p;
   return {
     ...safe,
     userId: uid,
     pinSet: Boolean(p.pinHash && p.pinSalt),
+    duressSet: Boolean(p.duressHash && p.duressSalt),
     premium: await isPremium(ctx, uid),
     ageStatus: ageStatus(p.birthYear, p.birthMonth),
   };

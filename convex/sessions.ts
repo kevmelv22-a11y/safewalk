@@ -9,6 +9,7 @@ import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, r
 import { notifyLinkViewers } from './viewerAlerts';
 import { revealDetails, sessionWhat, shouldSignalLowBattery } from './liveShare';
 import { extendArrivalLinks, insertTripLink } from './tracking';
+import { parseRideShare } from './rideShare';
 
 const activeViewerIds = async (ctx: MutationCtx, sessionId: Id<'sessions'>) =>
   (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
@@ -18,16 +19,17 @@ const H = 3600_000;
 async function closeSession(ctx: MutationCtx, id: Id<'sessions'>, status: 'ended' | 'expired', reason: 'stopped' | 'arrived' | 'expired' | 'replaced' = status === 'expired' ? 'expired' : 'stopped') {
   const now = Date.now();
   const s = await ctx.db.get(id);
+  if (!s) return;
   const active = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
-  if (s && active.length && reason !== 'replaced') {
+  if (active.length && reason !== 'replaced') {
     const name = await displayName(ctx, s.userId);
     const body = { arrived: `${name} heeft bevestigd veilig te zijn aangekomen.`, stopped: `${name} heeft het delen van de reis gestopt.`, expired: `De reis van ${name} is verlopen; locatie wordt niet meer gedeeld.` }[reason];
     await queuePush(ctx, { kind: 'trip_ended', sessionId: id, recipients: active, title: s.kind === 'timer' ? 'Timer beëindigd' : 'Reis beëindigd', body });
   }
   // Kijkers met alleen een link (e-mail): aankomst of gestopt. Laatste e-mail; daarna wordt hun adres gewist.
-  if (s && reason !== 'replaced') await notifyLinkViewers(ctx, id, reason === 'arrived' ? 'arrived' : 'ended', { what: sessionWhat(s), at: now });
+  if (reason !== 'replaced') await notifyLinkViewers(ctx, id, reason === 'arrived' ? 'arrived' : 'ended', { what: sessionWhat(s), at: now });
   // Toestelstatus en signalen zijn alleen nodig tijdens de reis: direct wissen.
-  await ctx.db.patch(id, { status, endedAt: now, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, lowBatteryAt: undefined, notLiveAt: undefined });
+  await ctx.db.patch(id, { status, endedAt: now, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, lowBatteryAt: undefined, notLiveAt: undefined, ridePlate: undefined, rideDriverName: undefined, rideVehicle: undefined });
   for (const c of await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
     if (c.status === 'pending') await ctx.db.patch(c._id, { status: 'cancelled' });
   for (const vw of await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
@@ -38,6 +40,7 @@ export { closeSession };
 type StartInput = {
   kind?: 'trip' | 'timer'; destination: string; destLat?: number; destLng?: number; expectedArrival: number;
   viewerIds: Id<'users'>[]; graceMinutes?: number; privacyMode?: boolean; linkOnlyAllowed?: boolean;
+  ridePlate?: string; rideDriverName?: string; rideVehicle?: string;
 };
 
 /** Gedeelde start-logica voor een reis of timer. Zonder kijkers alleen als er meteen een link bij komt (linkOnlyAllowed). */
@@ -49,6 +52,9 @@ async function startCore(ctx: MutationCtx, uid: Id<'users'>, a: StartInput) {
   const dest = a.destination.trim();
   if (!dest || dest.length > 120) fail('BAD_REQUEST');
   if (kind === 'timer' && (a.destLat !== undefined || a.destLng !== undefined)) fail('BAD_REQUEST');
+  if ((a.destLat === undefined) !== (a.destLng === undefined)) fail('BAD_REQUEST');
+  if (a.destLat !== undefined && a.destLng !== undefined && (Math.abs(a.destLat) > 90 || Math.abs(a.destLng) > 180 || !Number.isFinite(a.destLat) || !Number.isFinite(a.destLng))) fail('BAD_REQUEST');
+  if (kind === 'timer' && (a.ridePlate || a.rideDriverName || a.rideVehicle)) fail('BAD_REQUEST');
   if (a.expectedArrival <= now || a.expectedArrival > now + 12 * H) fail('INVALID_ARRIVAL');
   if (a.viewerIds.length > 20) fail('NO_VIEWERS');
   if (a.viewerIds.length === 0 && !a.linkOnlyAllowed) fail('NO_VIEWERS');
@@ -61,17 +67,21 @@ async function startCore(ctx: MutationCtx, uid: Id<'users'>, a: StartInput) {
   const premium = await isPremium(ctx, uid);
   if (a.graceMinutes !== undefined && a.graceMinutes !== 5 && !premium) fail('PREMIUM_REQUIRED');
   const grace = Math.min(30, Math.max(1, a.graceMinutes ?? (premium ? profile?.defaultGraceMinutes : 5) ?? 5));
+  const ride = kind === 'trip' ? { ...(a.ridePlate ? { ridePlate: a.ridePlate } : {}), ...(a.rideDriverName ? { rideDriverName: a.rideDriverName } : {}), ...(a.rideVehicle ? { rideVehicle: a.rideVehicle } : {}) } : {};
   const id = await ctx.db.insert('sessions', { userId: uid, destinationLabel: dest, destinationLat: a.destLat, destinationLng: a.destLng,
     expectedArrival: a.expectedArrival, status: 'active', expiresAt: a.expectedArrival + 2 * H,
-    ...(kind === 'timer' ? { kind } : {}), ...(a.privacyMode ? { privacyMode: true } : {}) });
+    ...(kind === 'timer' ? { kind } : {}), ...(a.privacyMode ? { privacyMode: true } : {}), ...ride });
   for (const vid of new Set(a.viewerIds)) await ctx.db.insert('sessionViewers', { sessionId: id, viewerId: vid });
   await ctx.db.insert('checkIns', { sessionId: id, userId: uid, dueAt: a.expectedArrival, graceMinutes: grace, extensions: 0, status: 'pending' });
   const name = await displayName(ctx, uid);
   const at = new Date(a.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
   const privacyNote = a.privacyMode ? ' Je ziet alleen de status; locatie pas bij een gemiste check-in of SOS.' : ' Je kunt de locatie volgen tot de reis eindigt.';
+  const rideNote = !a.privacyMode && (a.ridePlate || a.rideDriverName || a.rideVehicle)
+    ? ` Rit: ${[a.ridePlate && `kenteken ${a.ridePlate}`, a.rideDriverName && `chauffeur ${a.rideDriverName}`, a.rideVehicle].filter(Boolean).join(' · ')}.`
+    : '';
   if (a.viewerIds.length) await queuePush(ctx, { kind: 'trip_started', sessionId: id, recipients: a.viewerIds,
     title: kind === 'timer' ? `${name} heeft een timer gestart` : `${name} deelt een reis met je`,
-    body: kind === 'timer' ? `${name}: ${dest} (tot ${at}).${privacyNote}` : `${name} is onderweg naar ${dest} (verwacht ${at}).${privacyNote}` });
+    body: kind === 'timer' ? `${name}: ${dest} (tot ${at}).${privacyNote}` : `${name} is onderweg naar ${dest} (verwacht ${at}).${privacyNote}${rideNote}` });
   await audit(ctx, uid, 'session.started', id, { viewers: a.viewerIds.length, kind, privacy: !!a.privacyMode });
   return id;
 }
@@ -94,6 +104,9 @@ export const begin = mutation({
     destination: v.string(), destLat: v.optional(v.number()), destLng: v.optional(v.number()),
     expectedArrival: v.number(), viewerIds: v.array(v.id('users')), graceMinutes: v.optional(v.number()),
     privacyMode: v.optional(v.boolean()),
+    ridePlate: v.optional(v.string()),
+    rideDriverName: v.optional(v.string()),
+    rideVehicle: v.optional(v.string()),
     link: v.optional(v.object({
       duration: v.optional(v.union(v.literal('15m'), v.literal('1h'), v.literal('arrival'), v.literal('8h'))),
       withCode: v.optional(v.boolean()),
@@ -103,11 +116,22 @@ export const begin = mutation({
   handler: async (ctx, { link, ...a }) => {
     const uid = await requireUser(ctx);
     if (link && !link.locationConsent) fail('LOCATION_CONSENT_REQUIRED');
-    const sessionId = await startCore(ctx, uid, { ...a, linkOnlyAllowed: !!link });
+    const ride = parseRideShare({ plate: a.ridePlate, driverName: a.rideDriverName, vehicle: a.rideVehicle });
+    if (!ride.ok) fail('BAD_REQUEST');
+    const rideValue = ride.ok ? ride.value : undefined;
+    const sessionId = await startCore(ctx, uid, {
+      ...a,
+      linkOnlyAllowed: !!link,
+      ridePlate: rideValue?.plate,
+      rideDriverName: rideValue?.driverName,
+      rideVehicle: rideValue?.vehicle,
+    });
     let created: Awaited<ReturnType<typeof insertTripLink>> | null = null;
     if (link) {
       await rateLimit(ctx, `share-create:${uid}`, 20, 60 * 60_000);
-      created = await insertTripLink(ctx, uid, (await ctx.db.get(sessionId))!, { duration: link.duration, withCode: link.withCode });
+      const session = await ctx.db.get(sessionId);
+      if (!session) fail('SESSION_NOT_FOUND');
+      created = await insertTripLink(ctx, uid, session!, { duration: link.duration, withCode: link.withCode });
     }
     return { sessionId, link: created };
   },
@@ -202,14 +226,16 @@ export const deleteMyHistory = mutation({ args: {}, handler: async (ctx) => {
 // ───────── Queries (reactief) ─────────
 export const overview = query({ args: {}, handler: async (ctx) => {
   const uid = await getAuthUserId(ctx); if (!uid) return { mine: null, watching: [] };
-  const mine = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => s.endedAt === undefined) ?? null;
+  const profile = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+  const mineRaw = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => s.endedAt === undefined) ?? null;
+  const mine = mineRaw && profile?.duressCloakAt !== undefined && mineRaw._creationTime <= profile.duressCloakAt ? null : mineRaw;
   const watching = [];
   for (const vw of await ctx.db.query('sessionViewers').withIndex('by_viewer', (q) => q.eq('viewerId', uid)).order('desc').take(50)) {
     if (vw.revokedAt !== undefined) continue;
     const s = await canViewSession(ctx, vw.sessionId, uid);
     if (!s) continue;
     const hide = !revealDetails(s, null);
-    watching.push({ ...s, ...(hide ? { batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, destinationLat: undefined, destinationLng: undefined } : {}), ownerName: await displayName(ctx, s.userId) });
+    watching.push({ ...s, ...(hide ? { batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, destinationLat: undefined, destinationLng: undefined, ridePlate: undefined, rideDriverName: undefined, rideVehicle: undefined } : {}), ownerName: await displayName(ctx, s.userId) });
   }
   return { mine, watching };
 } });
@@ -227,7 +253,7 @@ export const get = query({ args: { sessionId: v.id('sessions') }, handler: async
   const signals = isOwner ? (await ctx.db.query('motionSignals').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).filter((x) => x.status === 'open') : [];
   // Privacy-check-in: kijkers zien batterij/laatst online/bestemmingspunt pas bij gemiste check-in of SOS.
   const revealed = revealDetails(s, checkIn?.status ?? null);
-  const session: Doc<'sessions'> = isOwner || revealed ? s : { ...s, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, destinationLat: undefined, destinationLng: undefined, startDistanceM: undefined };
+  const session: Doc<'sessions'> = isOwner || revealed ? s : { ...s, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, destinationLat: undefined, destinationLng: undefined, startDistanceM: undefined, ridePlate: undefined, rideDriverName: undefined, rideVehicle: undefined };
   return { session, isOwner, signals, ownerName: await displayName(ctx, s.userId), checkIn, viewers, notifications, privacy: { mode: !!s.privacyMode, revealed: !!s.privacyMode && revealed } };
 } });
 
