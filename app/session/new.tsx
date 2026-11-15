@@ -19,6 +19,8 @@ import { localNotify, scheduleCheckInReminder } from '../../src/lib/notification
 import { acceptDisclosure, disclosureAccepted } from '../../src/lib/liveDisclosure';
 import { tripLinkMessage } from '../../src/lib/composer';
 import { CODE_HINT, LINK_KEY_WARNING, LINK_ONLY_HINT, PRIVACY_HINT, TIMER_LABELS, TIMER_MINUTES, VIEWER_ALERTS_HINT } from '../../src/content/liveSharing';
+import { parseRideShare, RIDE_SHARE_HINT_NL, RIDE_SHARE_ISSUE_NL } from '../../src/lib/rideShare';
+import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../../src/lib/batteryOptimization';
 import { LINK_DURATIONS, LINK_DURATION_LABEL, type LinkDuration } from '../../convex/liveShare';
 
 type Kind = 'trip' | 'timer';
@@ -38,6 +40,7 @@ export default function NewSession() {
   const [withLink, setWithLink] = useState(false); const [linkTouched, setLinkTouched] = useState(false);
   const [duration, setDuration] = useState<LinkDuration>('arrival'); const [withCode, setWithCode] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(false);
+  const [plate, setPlate] = useState(''); const [driverName, setDriverName] = useState(''); const [vehicle, setVehicle] = useState('');
   const [disclose, setDisclose] = useState(false);
   const destination = useTripDraft((s) => s.destination); const setDestination = useTripDraft((s) => s.setDestination);
   const [eta, setEta] = useState<number | null>(null);
@@ -71,9 +74,12 @@ export default function NewSession() {
     setBusy(true); setErr(null);
     let id: Id<'sessions'>; let link: Awaited<ReturnType<typeof begin>>['link'] = null;
     try {
+      const ride = kind === 'trip' ? parseRideShare({ plate, driverName, vehicle }) : { ok: true as const };
+      if (!ride.ok) { setBusy(false); return setErr(RIDE_SHARE_ISSUE_NL[ride.issue]); }
       const r = await begin({
         kind, destination: label.trim(), viewerIds: sel, expectedArrival: arrival.getTime(), privacyMode,
         ...(kind === 'trip' && destination ? { destLat: destination.lat, destLng: destination.lng } : {}),
+        ...(ride.ok && ride.value ? { ridePlate: ride.value.plate, rideDriverName: ride.value.driverName, rideVehicle: ride.value.vehicle } : {}),
         ...(withLink ? { link: { duration, withCode, locationConsent: true } } : {}),
       });
       id = r.sessionId; link = r.link; setDestination(null);
@@ -118,6 +124,15 @@ export default function NewSession() {
         <Choice label="Duur van de timer" value={timerMinutes} onChange={setTimerMinutes} options={TIMER_MINUTES.map((m) => ({ value: m, label: m < 60 ? `${m} min` : `${m / 60} u`.replace('.5', ',5') }))} />
       </>)}
       <P muted>{kind === 'timer' ? 'Timer loopt af' : 'Verwachte aankomst'}: {new Date(now + mins * 60_000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</P>
+      {kind === 'trip' && (
+        <Card>
+          <P>Taxi of rit delen (optioneel)</P>
+          <P muted>{RIDE_SHARE_HINT_NL}</P>
+          <Field label="Kenteken" value={plate} onChangeText={setPlate} autoCapitalize="characters" maxLength={16} placeholder="bijv. XX-123-X" />
+          <Field label="Naam chauffeur" value={driverName} onChangeText={setDriverName} maxLength={80} />
+          <Field label="Voertuig (kleur, merk of type)" value={vehicle} onChangeText={setVehicle} maxLength={80} />
+        </Card>
+      )}
 
       <Card>
         <P>Wie mag meekijken in de app?</P>
@@ -142,6 +157,8 @@ export default function NewSession() {
       </Card>
 
       <Notice kind="info">Je locatie wordt gedeeld vanaf het starten tot je aankomst bevestigt, stopt of de {kind === 'timer' ? 'timer' : 'reis'} verloopt, ook met scherm uit (Android: met een vaste melding). Veeg SafeWalk tijdens je reis niet weg.</Notice>
+      <Notice kind="info">{BATTERY_HINT_NL}</Notice>
+      {Platform.OS === 'android' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
       {err && <Notice kind="warn">{err}</Notice>}
       <Button title={kind === 'timer' ? 'Start timer en deel' : 'Start en deel locatie'} variant="success" onPress={ask} loading={busy} />
       <LiveDisclosure visible={disclose} privacyMode={privacyMode}

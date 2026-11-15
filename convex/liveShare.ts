@@ -92,6 +92,7 @@ export type EventDetails = {
   at: number;
   lat?: number; lng?: number; locationAt?: number;
   batteryPct?: number;
+  ride?: string; // al geformatteerde ritregel, optioneel
 };
 
 const escHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -101,11 +102,12 @@ export function viewerEmail(ev: ViewerEvent, d: EventDetails, unsubUrl: string):
   const loc = d.lat !== undefined && d.lng !== undefined
     ? `Laatst bekende locatie${d.locationAt ? ` (${hhmm(d.locationAt)})` : ''}: https://maps.google.com/?q=${d.lat.toFixed(6)},${d.lng.toFixed(6)}` : 'Er is geen recente locatie bekend.';
   const batt = typeof d.batteryPct === 'number' ? ` Batterij: ${d.batteryPct}%.` : '';
+  const ride = d.ride ? ` ${d.ride}` : '';
   const urgent = 'Probeer direct contact op te nemen. Bij direct gevaar: bel 112. SafeWalk belt zelf geen 112.';
   const m: Record<ViewerEvent, [string, string]> = {
-    sos: ['🆘 SOS via SafeWalk', `De persoon die deze SafeWalk-meekijklink met je deelde, heeft om ${hhmm(d.at)} SOS geactiveerd (${d.what}). ${loc}${batt} ${urgent}`],
+    sos: ['🆘 SOS via SafeWalk', `De persoon die deze SafeWalk-meekijklink met je deelde, heeft om ${hhmm(d.at)} SOS geactiveerd (${d.what}). ${loc}${batt}${ride} ${urgent}`],
     sos_cancelled: ['✅ SOS ingetrokken', `De SOS van ${hhmm(d.at)} is ingetrokken: volgens de gebruiker is alles goed (${d.what}).`],
-    missed: ['⚠️ Check-in gemist via SafeWalk', `Er is niet op tijd bevestigd dat alles goed is (${d.what}, ${hhmm(d.at)}). ${loc}${batt} ${urgent}`],
+    missed: ['⚠️ Check-in gemist via SafeWalk', `Er is niet op tijd bevestigd dat alles goed is (${d.what}, ${hhmm(d.at)}). ${loc}${batt}${ride} ${urgent}`],
     arrived: ['✅ Veilig aangekomen', `Om ${hhmm(d.at)} is bevestigd: veilig aangekomen (${d.what}). De locatie wordt niet meer gedeeld. Je krijgt voor deze link geen e-mails meer.`],
     ended: ['Delen gestopt', `Het delen is om ${hhmm(d.at)} gestopt of verlopen (${d.what}), zonder bevestiging van aankomst. Twijfel je? Neem zelf contact op. Je krijgt voor deze link geen e-mails meer.`],
     low_battery: ['🔋 Batterij bijna leeg', `De telefoon meldde om ${hhmm(d.at)} een batterij van ${d.batteryPct ?? '?'}% (${d.what}). Valt de telefoon straks uit, dan stopt de live locatie.`],

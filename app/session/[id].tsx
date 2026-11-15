@@ -20,8 +20,10 @@ import { LINK_DURATIONS, LINK_DURATION_LABEL, type LinkDuration } from '../../co
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 import { ARRIVAL_PROMPT_M, arrivalDistance, shouldAskArrived } from '../../src/lib/arrival';
 import { recordSafeArrival } from '../../src/lib/reviewPrompt';
-import { tripLinkMessage } from '../../src/lib/composer';
+import { reserveSmsMessage, tripLinkMessage } from '../../src/lib/composer';
 import { ContactComposer } from '../../src/components/ContactComposer';
+import { rideShareLine } from '../../src/lib/rideShare';
+import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../../src/lib/batteryOptimization';
 
 export default function MySession() {
   const id = useLocalSearchParams<{ id: string }>().id as Id<'sessions'>; const now = useNow(1000);
@@ -114,6 +116,7 @@ export default function MySession() {
   return (
     <Screen>
       <H1>{s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : s.destinationLabel}</H1>
+      {!!rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle }) && <Notice kind="info">🚗 {rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle })}</Notice>}
       {s.privacyMode && !ended && <Notice kind="info">🔒 Privacy-check-in staat aan. {PRIVACY_HINT}</Notice>}
       {ended && <Notice kind="info">Deze reis is beëindigd. Locatie wordt niet meer gedeeld.</Notice>}
       {share && (
@@ -122,6 +125,18 @@ export default function MySession() {
       {share && !share.live && (
         <Button title="Locatie delen hervatten" variant="success" loading={resuming} onPress={resume} />
       )}
+      {data.isOwner && !ended && share && !share.live && (
+        <Card>
+          <P>Sms als reserve</P>
+          <P muted>Geen verbinding of delen staat stil. Open je sms-app met je laatst bekende locatie; jij tikt zelf op versturen. SafeWalk verstuurt geen sms.</P>
+          <ContactComposer message={reserveSmsMessage({
+            lat: last?.lat, lng: last?.lng, context: 'trip', what: s.kind === 'timer' ? s.destinationLabel : `reis naar ${s.destinationLabel}`,
+            ride: { plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle },
+          })} />
+        </Card>
+      )}
+      {data.isOwner && !ended && <Notice kind="info">{BATTERY_HINT_NL}</Notice>}
+      {data.isOwner && !ended && Platform.OS === 'android' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
       {s.status === 'alert' && !ended && <Notice kind="danger">Je check-in is gemist. Je contacten zijn gewaarschuwd. Bevestig hieronder als alles goed is.</Notice>}
       {!ended && data.signals.map((sg) => (
         <Card key={sg._id} style={{ borderColor: '#F59E0B', borderWidth: 2 }}>

@@ -11,6 +11,9 @@ import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
 import { useProfile } from '../src/lib/queries';
 import { useTheme } from '../src/lib/theme';
 import { errorNl } from '../src/lib/convex';
+import { ContactComposer } from '../src/components/ContactComposer';
+import { reserveSmsMessage } from '../src/lib/composer';
+import { lastKnown } from '../src/lib/location';
 import { SHAKE } from '../src/content/liveSharing';
 
 type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error';
@@ -28,6 +31,8 @@ export default function Sos() {
   const [err, setErr] = useState<string | null>(null);
   const fired = useRef(false); const clientRef = useRef<string | null>(null);
   const alert = useQuery(api.sos.get, alertId ? { alertId } : 'skip');
+  const [smsLoc, setSmsLoc] = useState<{ lat?: number; lng?: number }>({});
+  useEffect(() => { void lastKnown().then((l) => { if (l) setSmsLoc({ lat: l.lat, lng: l.lng }); }).catch(() => {}); }, []);
 
   const fire = async () => {
     if (fired.current) return; fired.current = true; setPhase('sending');
@@ -81,6 +86,17 @@ export default function Sos() {
       {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err} Bel bij direct gevaar zelf 112.</Notice>}
       {phase === 'cancelled' && <Notice kind="ok">SOS geannuleerd.</Notice>}
       {phase !== 'countdown' && (<>
+
+      {(phase === 'queued' || phase === 'error' || phase === 'sent') && (
+        <>
+          <Notice kind={phase === 'sent' ? 'info' : 'warn'}>
+            {phase === 'queued' || phase === 'error'
+              ? 'Geen (stabiele) verbinding? Open je sms-app met je locatie. Jij tikt zelf op versturen. SafeWalk verstuurt geen sms.'
+              : 'Je kunt de locatie ook zelf als sms sturen. Jij tikt op versturen; SafeWalk verstuurt geen sms.'}
+          </Notice>
+          <ContactComposer message={reserveSmsMessage({ lat: smsLoc.lat, lng: smsLoc.lng, context: 'sos' })} />
+        </>
+      )}
         <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
         <P muted>{DialCopy.hint}. Het nummer 112 staat klaar; jij drukt op bellen.</P>
         {(phase === 'sent' || phase === 'queued') && <Button title="Vals alarm – ik ben veilig" variant="secondary" onPress={cancelAfter} />}

@@ -413,3 +413,33 @@ describe('account verwijderen wist ook kijkers-e-mail en sleutels', () => {
     void (null as unknown as Id<'users'>);
   });
 });
+
+describe('taxi of rit delen', () => {
+  test('kenteken en chauffeur komen op de meekijkpagina en in de start-push, niet in privacymodus', async () => {
+    const { t, a, b, invite } = await setup();
+    await invite();
+    const r = await a.as.mutation(api.sessions.begin, {
+      destination: 'Uitgaan', expectedArrival: Date.now() + 30 * MIN, viewerIds: [b.id],
+      ridePlate: 'xx-123-x', rideDriverName: 'Sam', rideVehicle: 'zwarte Tesla',
+      link: { locationConsent: true, duration: '1h' },
+    });
+    const s = (await t.run((ctx) => ctx.db.get(r.sessionId)))!;
+    expect(s.ridePlate).toBe('XX-123-X');
+    const p = (await resolve(t, r.link!.token))!;
+    expect(p.trip!.ride).toEqual({ plate: 'XX-123-X', driverName: 'Sam', vehicle: 'zwarte Tesla' });
+    expect(liveTrackHtml({ api: 'https://x.test/track/location?token=aa', player: 'p', token: 't', downloadUrl: DEFAULT_DOWNLOAD_URL, leafletJsSri: 's', leafletCssSri: 'c' })).toMatch(/trip\.ride/);
+    const startPush = (await t.run((ctx) => ctx.db.query('pushMessages').collect())).find((m) => m.kind === 'trip_started');
+    expect(startPush?.body).toMatch(/kenteken XX-123-X/);
+    expect(startPush?.body).toMatch(/chauffeur Sam/);
+
+    const hidden = await a.as.mutation(api.sessions.begin, {
+      destination: 'Privé', expectedArrival: Date.now() + 30 * MIN, viewerIds: [b.id], privacyMode: true,
+      ridePlate: 'YY-1', rideDriverName: 'Jo', link: { locationConsent: true },
+    });
+    const hp = (await resolve(t, hidden.link!.token))!;
+    expect(hp.trip!.privacyMode).toBe(true);
+    expect(hp.trip!.ride).toBeNull();
+    const hiddenPush = (await t.run((ctx) => ctx.db.query('pushMessages').collect())).filter((m) => m.kind === 'trip_started' && m.body.includes('Privé'));
+    expect(hiddenPush[0]?.body ?? '').not.toMatch(/kenteken/);
+  });
+});

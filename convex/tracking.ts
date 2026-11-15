@@ -289,6 +289,9 @@ export const resolvePublic = internalQuery({
             lowBattery: showDevice && s.lowBatteryAt !== undefined,
             notLiveSince: sessionLive && s.notLiveAt !== undefined ? s.lastSeenAt ?? s.notLiveAt : null,
           },
+          ride: reveal && (s.ridePlate || s.rideDriverName || s.rideVehicle)
+            ? { plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle }
+            : null,
         };
       }
     }

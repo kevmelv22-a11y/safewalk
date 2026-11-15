@@ -17,6 +17,12 @@ export default defineSchema({
     pinHash: v.optional(v.string()),
     pinSalt: v.optional(v.string()),
     pinSetAt: v.optional(v.number()),
+    // Dwangcode: tweede code, alleen hash+salt. Bij gebruik lijkt de app gestopt; contacten krijgen stil een SOS.
+    duressHash: v.optional(v.string()),
+    duressSalt: v.optional(v.string()),
+    duressSetAt: v.optional(v.number()),
+    // Verbergt de open reis op het eigen dashboard na gebruik van de dwangcode bij "veilig aangekomen".
+    duressCloakAt: v.optional(v.number()),
     torchStrobeOptIn: v.optional(v.boolean()), // fotosensitiviteitswaarschuwing expliciet geaccepteerd
     // Eigen verklaring, geen volledige geboortedatum. Afwezig = leeftijd onbekend.
     birthYear: v.optional(v.number()),
@@ -52,6 +58,10 @@ export default defineSchema({
     // Signalen naar kijkers (elk hooguit beperkt per reis): batterij bijna leeg, niet meer live, SOS tijdens de reis.
     lowBatteryAt: v.optional(v.number()), notLiveAt: v.optional(v.number()), notLiveCount: v.optional(v.number()),
     sosAt: v.optional(v.number()),
+    // Optionele ritgegevens (taxi/rit delen), alleen als de gebruiker ze invult. Worden bij het einde van de reis gewist.
+    ridePlate: v.optional(v.string()),
+    rideDriverName: v.optional(v.string()),
+    rideVehicle: v.optional(v.string()),
   }).index('by_user', ['userId']).index('by_open', ['endedAt']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
