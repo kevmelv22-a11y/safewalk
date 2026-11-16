@@ -26,7 +26,7 @@ export const CONNECTION_COPY: Record<ConnectionKind, { title: string; body: stri
   },
   sms_only: {
     title: 'Alleen SMS',
-    body: 'Geen internet. SafeWalk kan niets automatisch versturen: Google Play en iPhone staan automatische sms niet toe. Locatie wordt bewaard en later verstuurd. Je kunt zelf een vooringevulde sms versturen als het mobiele netwerk dat toelaat.',
+    body: 'Geen internet. Live meekijken via de link werkt niet. Locatie wordt bewaard en later verstuurd. Op Android kun je automatische sms-updates aanzetten (dit kan geld kosten). Anders kun je zelf een vooringevulde sms versturen. Op iPhone kan een app nooit zelf sms’en.',
   },
   offline: {
     title: 'Geen bereik – locatie wordt bewaard en verstuurd zodra mogelijk',

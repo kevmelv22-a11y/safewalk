@@ -68,3 +68,21 @@ test('kotlin alarm service starts foreground as MEDIA_PLAYBACK with Dutch notifi
   assert.match(mod, /startAlarmForegroundService/);
   assert.match(mod, /stopAlarmForegroundService/);
 });
+
+test('SEND_SMS is declared for Android auto-sms and kotlin exposes sendSms', () => {
+  const app = JSON.parse(readFileSync(join(__dirname, '../../../../app.json'), 'utf8'));
+  assert.ok(app.expo.android.permissions.includes('android.permission.SEND_SMS'));
+  const pluginSrc = readFileSync(join(__dirname, '../withSafewalkNative.js'), 'utf8');
+  assert.match(pluginSrc, /android\.permission\.SEND_SMS/);
+  const kt = readFileSync(
+    join(__dirname, '../../android/src/main/java/nl/safewalk/nativehelpers/SafewalkNativeModule.kt'),
+    'utf8',
+  );
+  assert.match(kt, /sendTextMessage/);
+  assert.match(kt, /SEND_SMS/);
+  assert.match(kt, /"autoSms" to true/);
+  // iOS mag niet zelf sms'en
+  const sw = readFileSync(join(__dirname, '../../ios/SafewalkNativeModule.swift'), 'utf8');
+  assert.match(sw, /reason": "unsupported"/);
+  assert.match(sw, /"autoSms": false/);
+});

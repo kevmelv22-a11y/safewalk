@@ -28,19 +28,27 @@ export function tripLinkMessage(url: string): string {
 export function reserveSmsMessage(o: {
   lat?: number;
   lng?: number;
-  context?: 'sos' | 'trip';
+  context?: 'sos' | 'trip' | 'share';
   what?: string;
   ride?: RideShare | null;
+  link?: string;
 }): string {
   const loc = validCoords(o.lat, o.lng) ? mapsQueryUrl(o.lat!, o.lng!) : null;
   const where = loc ? `Laatst bekende locatie: ${loc}` : 'Er is geen recente locatie bekend.';
-  const head = o.context === 'trip'
+  const head = (o.context === 'trip' || o.context === 'share')
     ? `Ik deel mijn locatie via SafeWalk${o.what ? ` (${o.what})` : ''}.`
     : 'SOS via SafeWalk.';
   const ride = rideShareLine(o.ride ?? undefined);
-  return [head, where, ride, 'SafeWalk belt niet 112. Ik stuur dit bericht zelf.']
+  const link = o.link && /^https:\/\/\S+$/.test(o.link) ? o.link : '';
+  return [head, where, link, ride, 'SafeWalk belt niet 112. Ik stuur dit bericht zelf.']
     .filter((x) => x && x.trim())
     .join(' ');
+}
+
+/** Sms-composer zonder vooraf ingevuld nummer: de gebruiker kiest zelf de ontvanger. */
+export function smsBodyUrl(os: string, body: string): string {
+  const b = encodeURIComponent(body);
+  return os === 'ios' ? `sms:&body=${b}` : `sms:?body=${b}`;
 }
 
 /** One composer for all chosen recipients (user still presses Send once). */

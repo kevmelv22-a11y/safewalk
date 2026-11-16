@@ -11,7 +11,7 @@ export type PublicTrip = {
   batteryPct: number | null;
   lastSeenAt: number | null;
   /** 'timer' = sessie zonder bestemming. */
-  kind: 'trip' | 'timer';
+  kind: 'trip' | 'timer' | 'share';
   /** Privacy-check-in: alleen status tot een gemiste check-in of SOS. */
   privacyMode: boolean;
   /** Privacymodus, maar details zijn vrijgegeven door gemiste check-in of SOS. */
@@ -80,6 +80,7 @@ h3{margin:14px 0 6px;font-size:15px}
 .warn{background:#fee2e2;color:#7f1d1d;border-radius:10px;padding:9px 11px;margin-top:8px;font-weight:600}
 .info{background:#eef2ff;color:#312e81;border-radius:10px;padding:9px 11px;margin-top:8px}
 .amber{background:#fef3c7;color:#78350f;border-radius:10px;padding:9px 11px;margin-top:8px;font-weight:600}
+.lost{background:#7c2d12;color:#fff;border-radius:10px;padding:9px 11px;margin-top:8px;font-weight:700}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .btn{display:inline-block;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;text-align:center}
 .btn-p{background:#7856ff;color:#fff}.btn-s{background:#e2e8f0;color:#0f172a}.btn-d{background:#dc2626;color:#fff}
@@ -141,8 +142,8 @@ let me=null, acc=null, line=null, destM=null, follow=true, trip=null, skew=0, la
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function hm(t){return new Date(t).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});}
 function cd(ms){ms=Math.max(0,ms);const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0');}
-const LABEL={underway:'Onderweg',grace:'Aankomsttijd verstreken',missed:'Check-in gemist',arrived:'Veilig aangekomen',ended:'Reis gestopt'};
-function title(t){return t.kind==='timer'?'Timer: '+esc(t.destination):'Reis naar '+esc(t.destination);}
+const LABEL={underway:'Onderweg',grace:'Aankomsttijd verstreken',missed:'Check-in gemist',arrived:'Veilig aangekomen',ended:'Gestopt'};
+function title(t){return t.kind==='share'?esc(t.destination||'Locatie delen'):t.kind==='timer'?'Timer: '+esc(t.destination):'Reis naar '+esc(t.destination);}
 function renderTrip(){
   const el=$('trip');
   if(!trip){el.innerHTML='';return;}
@@ -152,15 +153,22 @@ function renderTrip(){
   if(open&&sig.sosAt) h+='<span class="badge b-sos">SOS</span> ';
   h+='<span class="badge b-'+trip.state+'">'+LABEL[trip.state]+'</span><h2>'+title(trip)+'</h2>';
   if(open&&sig.sosAt) h+='<div class="warn">🆘 SOS geactiveerd om '+hm(sig.sosAt)+'. Probeer direct contact op te nemen. Bij direct gevaar: bel 112.</div>';
-  if(trip.state==='underway') h+='<div class="big">'+cd(trip.expectedArrival-now)+'</div><div class="muted">tot '+(trip.kind==='timer'?'de timer afloopt':'verwachte aankomst')+' ('+hm(trip.expectedArrival)+')</div>';
+  if(trip.state==='underway') h+='<div class="big">'+cd(trip.expectedArrival-now)+'</div><div class="muted">tot '+(trip.kind==='share'?'het delen stopt':trip.kind==='timer'?'de timer afloopt':'verwachte aankomst')+' ('+hm(trip.expectedArrival)+')</div>';
   if(trip.state==='grace') h+='<div class="big">'+cd((trip.graceEndsAt||now)-now)+'</div><div class="muted">om te bevestigen dat alles goed is. Daarna volgt een waarschuwing.</div>';
   if(trip.state==='missed') h+='<div class="warn">Er is niet op tijd bevestigd dat alles goed is. Probeer contact op te nemen. Bij direct gevaar: bel 112.</div>';
   if(trip.state==='arrived') h+='<div class="muted">Bevestigd'+(trip.endedAt?' om '+hm(trip.endedAt):'')+'. De locatie wordt niet meer gedeeld.</div>';
-  if(trip.state==='ended') h+='<div class="muted">Gestopt of verlopen, zonder bevestiging van aankomst. De locatie wordt niet meer gedeeld.</div>';
+  if(trip.state==='ended') h+='<div class="muted">'+(trip.kind==='share'?'Delen gestopt of verlopen.':'Gestopt of verlopen, zonder bevestiging van aankomst.')+' De locatie wordt niet meer gedeeld.</div>';
   if(open&&trip.privacyMode&&!trip.revealed) h+='<div class="info">🔒 Privacymodus: je ziet alleen de status. Locatie, batterij en route worden pas zichtbaar bij een gemiste check-in of SOS.</div>';
   if(open&&trip.privacyMode&&trip.revealed) h+='<div class="amber">De privacymodus is opgeheven door een gemiste check-in of SOS: je ziet nu locatie en batterij.</div>';
   if(open&&sig.lowBattery) h+='<div class="amber">🔋 Batterij bijna leeg'+(typeof trip.batteryPct==='number'?' ('+trip.batteryPct+'%)':'')+'. Valt de telefoon uit, dan stopt de live locatie.</div>';
-  if(open&&sig.notLiveSince) h+='<div class="amber">📡 Niet meer live sinds '+hm(sig.notLiveSince)+'. Geen bereik, lege batterij of telefoon uit? Neem bij twijfel contact op.</div>';
+  if(open&&sig.notLiveSince){
+    const lastLoc = last && last.location;
+    const when = lastLoc ? new Date(lastLoc.recordedAt).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : hm(sig.notLiveSince);
+    h+='<div class="lost">📡 Verbinding kwijt. Laatst bekende locatie: '+when+'. Zodra er weer bereik is, komen bewaarde punten binnen. Geen bereik, lege batterij of telefoon uit? Neem bij twijfel contact op.</div>';
+  } else if(open&&last&&last.location&&last.location.stale){
+    const when=new Date(last.location.recordedAt).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    h+='<div class="amber">Laatst bekende locatie: '+when+' (niet meer live). De getoonde plek kan verouderd zijn.</div>';
+  }
   const dev=[];
   if(typeof trip.batteryPct==='number') dev.push('Batterij '+trip.batteryPct+'%');
   if(typeof trip.lastSeenAt==='number') dev.push('laatst online '+hm(trip.lastSeenAt));
@@ -250,19 +258,20 @@ async function tick(){
     $('gate').hidden=true;
     last=j; trip=j.trip||null; renderTrip(); diff(j);
     const hidden=trip&&trip.privacyMode&&!trip.revealed;
-    const liveLabel=j.live?'<span class="live">LIVE</span>':(hidden&&trip.deviceLive?'<span class="live">Telefoon actief</span>':'<span class="stale">Niet live</span>');
+    const lost=!!(trip&&trip.signals&&trip.signals.notLiveSince)||!!(j.location&&j.location.stale);
+    const liveLabel=j.live?'<span class="live">LIVE</span>':(hidden&&trip.deviceLive?'<span class="live">Telefoon actief</span>':(lost?'<span class="stale">Verbinding kwijt</span>':'<span class="stale">Niet live</span>'));
     // Geen locatie en geen bestemming: geen kaart tonen (een standaardkaart zou een plek suggereren).
     const over=trip&&(trip.state==='arrived'||trip.state==='ended');
     const showMap=!!(j.location||(trip&&trip.destinationPoint&&!over));
     $('map').style.visibility=showMap?'visible':'hidden'; $('attr').style.visibility=showMap?'visible':'hidden';
     const until=' · link tot '+new Date(j.expiresAt).toLocaleString('nl-NL',{weekday:'short',hour:'2-digit',minute:'2-digit'});
     if(!j.location){
-      const why=trip&&(trip.state==='arrived'||trip.state==='ended')?' (reis niet meer actief)':(trip&&trip.privacyMode&&!trip.revealed?' (privacymodus)':'');
+      const why=trip&&(trip.state==='arrived'||trip.state==='ended')?' (delen niet meer actief)':(trip&&trip.privacyMode&&!trip.revealed?' (privacymodus)':'');
       m.innerHTML=liveLabel+' · Geen locatie'+why+until;
     } else {
       const l=j.location;
       const when=new Date(l.recordedAt).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      m.innerHTML=liveLabel+(l.stale?' · <span class="stale">verouderd</span>':'')+' · '+when+(l.accuracyM!=null?' · ±'+Math.round(l.accuracyM)+' m':'')+until;
+      m.innerHTML=liveLabel+(l.stale?' · <span class="stale">laatst bekend</span>':'')+' · '+when+(l.accuracyM!=null?' · ±'+Math.round(l.accuracyM)+' m':'')+until;
     }
     renderMap(j); renderNav(j.location);
     $('alerts').hidden=!(j.canSubscribe&&SUBSCRIBE);

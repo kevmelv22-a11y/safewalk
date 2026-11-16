@@ -21,7 +21,10 @@ import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifica
 import { ARRIVAL_PROMPT_M, arrivalDistance, shouldAskArrived } from '../../src/lib/arrival';
 import { recordSafeArrival } from '../../src/lib/reviewPrompt';
 import { reserveSmsMessage, tripLinkMessage } from '../../src/lib/composer';
+import { SHARE_COPY } from '../../src/content/longShare';
+import { shouldPromptRenewal } from '../../convex/longShare';
 import { ContactComposer } from '../../src/components/ContactComposer';
+import { OfflineSmsPrompt } from '../../src/components/OfflineSmsPrompt';
 import { rideShareLine } from '../../src/lib/rideShare';
 import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../../src/lib/batteryOptimization';
 
@@ -31,11 +34,13 @@ export default function MySession() {
   const data = useQuery(api.sessions.get, { sessionId: id });
   const respondCheckIn = useMutation(api.sessions.respondCheckIn);
   const endSession = useMutation(api.sessions.end);
+  const renewShare = useMutation(api.sessions.renewShare);
   const revokeViewer = useMutation(api.sessions.revokeViewer);
   const acknowledge = useMutation(api.motion.acknowledge);
   const [err, setErr] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
   const [resuming, setResuming] = useState(false);
+  const [renewing, setRenewing] = useState(false);
   const [snoozedAt, setSnoozedAt] = useState<number | null>(null);
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkMsg, setLinkMsg] = useState<string | null>(null);
@@ -50,6 +55,8 @@ export default function MySession() {
   const [withCode, setWithCode] = useState(false);
   const s = data?.session; const ci = data?.checkIn;
   const ended = !!s && s.endedAt !== undefined;
+  const isShare = s?.kind === 'share';
+  const renewDue = !!(s && shouldPromptRenewal(s, now));
   useEffect(() => { if (ended) stopSharing(); }, [ended]);
   if (data === null) return (
     <Screen>
@@ -101,7 +108,7 @@ export default function MySession() {
     try { await endSession({ sessionId: id }); }
     catch (e) {
       // Niet lokaal stoppen: de reis loopt op de server nog door (check-in kan je contacten waarschuwen).
-      setErr(`Reis beëindigen lukte niet: ${errorNl(e)} Je reis en het delen lopen nog. Probeer het opnieuw als je verbinding hebt.`);
+      setErr(`Stoppen lukte niet: ${errorNl(e)} Je reis en het delen lopen nog. Probeer het opnieuw als je verbinding hebt.`);
       setStopping(false);
       return;
     }
@@ -115,10 +122,16 @@ export default function MySession() {
   };
   return (
     <Screen>
-      <H1>{s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : s.destinationLabel}</H1>
+      <H1>{isShare ? `📍 ${s.destinationLabel}` : s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : s.destinationLabel}</H1>
+      {isShare && !ended && (
+        <P muted>{s.shareUntilStop ? SHARE_COPY.activeUntilStop : SHARE_COPY.activeUntil}{' '}
+          {new Date(s.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+        </P>
+      )}
       {!!rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle }) && <Notice kind="info">🚗 {rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle })}</Notice>}
       {s.privacyMode && !ended && <Notice kind="info">🔒 Privacy-check-in staat aan. {PRIVACY_HINT}</Notice>}
-      {ended && <Notice kind="info">Deze reis is beëindigd. Locatie wordt niet meer gedeeld.</Notice>}
+      {ended && <Notice kind="info">{isShare ? 'Dit delen is beëindigd. Locatie wordt niet meer gedeeld.' : 'Deze reis is beëindigd. Locatie wordt niet meer gedeeld.'}</Notice>}
+      <OfflineSmsPrompt />
       {share && (
         <Notice kind={share.kind}>{share.text}{share.lastAt ? ` Laatste punt: ${timeAgo(share.lastAt, now)}.` : ''}</Notice>
       )}
@@ -130,12 +143,22 @@ export default function MySession() {
           <P>Sms als reserve</P>
           <P muted>Geen verbinding of delen staat stil. Open je sms-app met je laatst bekende locatie; jij tikt zelf op versturen. SafeWalk verstuurt geen sms.</P>
           <ContactComposer message={reserveSmsMessage({
-            lat: last?.lat, lng: last?.lng, context: 'trip', what: s.kind === 'timer' ? s.destinationLabel : `reis naar ${s.destinationLabel}`,
+            lat: last?.lat, lng: last?.lng, context: isShare ? 'share' : 'trip', what: s.kind === 'timer' || isShare ? s.destinationLabel : `reis naar ${s.destinationLabel}`,
             ride: { plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle },
           })} />
         </Card>
       )}
       {data.isOwner && !ended && <Notice kind="info">{BATTERY_HINT_NL}</Notice>}
+      {data.isOwner && !ended && isShare && renewDue && (
+        <Card>
+          <P>{SHARE_COPY.renewTitle}</P>
+          <P muted>{SHARE_COPY.renewBody}</P>
+          <Button title={SHARE_COPY.renew} variant="success" loading={renewing} onPress={() => {
+            setRenewing(true); setErr(null);
+            renewShare({ sessionId: id }).catch((e) => setErr(errorNl(e))).finally(() => setRenewing(false));
+          }} />
+        </Card>
+      )}
       {data.isOwner && !ended && Platform.OS === 'android' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
       {s.status === 'alert' && !ended && <Notice kind="danger">Je check-in is gemist. Je contacten zijn gewaarschuwd. Bevestig hieronder als alles goed is.</Notice>}
       {!ended && data.signals.map((sg) => (
@@ -205,7 +228,7 @@ export default function MySession() {
       )}
       {err && <Notice kind="danger">{err}</Notice>}
       {!ended && <SosButton sessionId={id} />}
-      {!ended && <Button title="Stop delen en beëindig reis" variant="danger" loading={stopping} onPress={stop} />}
+      {!ended && <Button title={isShare ? SHARE_COPY.stop : "Stop delen en beëindig reis"} variant="danger" loading={stopping} onPress={stop} />}
     </Screen>
   );
 }

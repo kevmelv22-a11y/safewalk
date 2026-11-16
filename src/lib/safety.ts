@@ -74,6 +74,14 @@ export function validateStartInput(i: { destination: string; arrival: Date; view
   return validateSessionInput(i, now);
 }
 
+/** Validatie voor langdurig delen: 1–24 uur, contact of meekijklink verplicht. */
+export function validateShareInput(i: { arrival: Date; viewerIds: string[]; withLink: boolean }, now = Date.now()): string | null {
+  if (i.arrival.getTime() <= now + 60_000) return 'Kies een duur in de toekomst.';
+  if (i.arrival.getTime() > now + 24 * 3600_000) return 'Delen duurt per keer maximaal 24 uur.';
+  if (!i.withLink && i.viewerIds.length === 0) return 'Kies minstens één vertrouwd contact, of zet de meekijklink aan.';
+  return null;
+}
+
 /** Haalt het uitnodigingstoken uit een link (safewalk://invite/<token> of https://.../invite/<token>) of los token. */
 export function parseInviteToken(input: string): string | null {
   const m = input.trim().match(/(?:invite\/|token=)?([a-f0-9]{64})\b/i);
@@ -133,6 +141,7 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('RESTRICTED')) return 'Je account is beperkt. Neem contact op met support@vonkbyte.nl. SOS blijft werken.';
   if (msg.includes('RATE_LIMITED')) return 'Te veel verzoeken. Probeer het later opnieuw.';
   if (msg.includes('INVALID_ARRIVAL')) return 'Ongeldige aankomsttijd.';
+  if (msg.includes('INVALID_SHARE')) return 'Delen duurt per keer maximaal 24 uur.';
   if (msg.includes('EXTENSION_NOT_ALLOWED')) return 'Verlengen is niet meer mogelijk.';
   if (msg.includes('EMAIL_NOT_CONFIGURED')) return 'E-mailverificatie is momenteel niet beschikbaar. Probeer het later opnieuw.';
   if (msg.includes('EMAIL_SEND_FAILED')) return 'De e-mail kon niet worden verstuurd. Probeer het later opnieuw.';

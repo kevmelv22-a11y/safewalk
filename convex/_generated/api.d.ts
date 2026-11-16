@@ -30,6 +30,7 @@ import type * as incidents from "../incidents.js";
 import type * as lib from "../lib.js";
 import type * as linkAccess from "../linkAccess.js";
 import type * as liveShare from "../liveShare.js";
+import type * as longShare from "../longShare.js";
 import type * as monitor from "../monitor.js";
 import type * as motion from "../motion.js";
 import type * as motionText from "../motionText.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   lib: typeof lib;
   linkAccess: typeof linkAccess;
   liveShare: typeof liveShare;
+  longShare: typeof longShare;
   monitor: typeof monitor;
   motion: typeof motion;
   motionText: typeof motionText;

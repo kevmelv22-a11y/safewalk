@@ -131,4 +131,6 @@ export function confirmEmail(confirmUrl: string): { subject: string; text: strin
 
 /** Wat de reis heet in teksten: "Reis naar Thuis" of "Timer: Date". */
 export const sessionWhat = (s: { kind?: string; destinationLabel: string }) =>
-  s.kind === 'timer' ? `Timer: ${s.destinationLabel}` : `Reis naar ${s.destinationLabel}`;
+  s.kind === 'timer' ? `Timer: ${s.destinationLabel}`
+    : s.kind === 'share' ? (s.destinationLabel || 'Locatie delen')
+    : `Reis naar ${s.destinationLabel}`;

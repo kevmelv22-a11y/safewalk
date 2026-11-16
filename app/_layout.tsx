@@ -18,6 +18,7 @@ import { getConsentedLocation } from '../src/lib/locationOnce';
 import { initQuickActions, initVolumeDoublePress, openQuickPing } from '../src/lib/nativeEntryPoints';
 import { useProfile } from '../src/lib/queries';
 import { SharingKeeper } from '../src/lib/sharingKeeper';
+import { AutoSmsKeeper } from '../src/lib/autoSmsKeeper';
 import { ShakeSosListener } from '../src/components/ShakeSosListener';
 import { registerPush } from '../src/lib/notifications';
 import { paramsFromNotificationData } from '../src/lib/fakeCall';
@@ -77,6 +78,7 @@ export default function RootLayout() {
         <PurchasesBootstrap />
         <AlarmGuard />
         <SharingKeeper />
+        <AutoSmsKeeper />
         <ShakeSosListener />
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
@@ -104,6 +106,7 @@ export default function RootLayout() {
           <Stack.Screen name="session/[id]" options={{ title: 'Reis' }} />
           <Stack.Screen name="session/destination" options={{ title: 'Bestemming' }} />
           <Stack.Screen name="session/new" options={{ title: 'Reis of timer' }} />
+          <Stack.Screen name="session/delen" options={{ title: 'Locatie delen' }} />
           <Stack.Screen name="settings" options={{ title: 'Instellingen' }} />
           <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
           <Stack.Screen name="privacy" options={{ title: 'Privacybeleid' }} />
@@ -112,6 +115,7 @@ export default function RootLayout() {
           <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
           <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
           <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
+          <Stack.Screen name="settings/auto-sms" options={{ title: 'Automatische sms' }} />
           <Stack.Screen name="settings/dwangcode" options={{ title: 'Dwangcode' }} />
           <Stack.Screen name="hulplijnen" options={{ title: 'Hulplijnen' }} />
           <Stack.Screen name="noodinfo" options={{ title: 'Noodinfo' }} />

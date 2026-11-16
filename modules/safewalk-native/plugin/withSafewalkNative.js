@@ -77,6 +77,7 @@ function withAndroidPermissions(config) {
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     'android.permission.POST_NOTIFICATIONS',
     'android.permission.VIBRATE',
+    'android.permission.SEND_SMS',
   ]);
 }
 

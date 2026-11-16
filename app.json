@@ -42,7 +42,8 @@
         "android.permission.CAMERA",
         "android.permission.FLASHLIGHT",
         "android.permission.READ_CONTACTS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SEND_SMS"
       ],
       "versionCode": 8,
       "adaptiveIcon": {
