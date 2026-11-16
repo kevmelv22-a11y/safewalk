@@ -5,6 +5,7 @@ export function getNativeCapabilities() {
     volumeDoublePress: false,
     backgroundTorch: false,
     notes: 'Web: geen native volume/tile. Gebruik /quick-ping.',
+    autoSms: false,
     compiled: false as const,
   };
 }
@@ -19,3 +20,11 @@ export async function openEmergencyDialer(): Promise<boolean> {
 export function startAlarmForegroundService(): boolean { return false; }
 export function stopAlarmForegroundService(): boolean { return false; }
 export function isAlarmForegroundServiceRunning(): boolean { return false; }
+
+export type NativeSmsResult = { ok: boolean; reason?: string };
+/** Web: nooit zelf een sms versturen. */
+export async function sendSms(_phone: string, _body: string): Promise<NativeSmsResult> {
+  return { ok: false, reason: 'unsupported' };
+}
+export function canSendSms(): boolean { return false; }
+export function hasSendSmsPermission(): boolean { return false; }

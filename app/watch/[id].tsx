@@ -19,13 +19,13 @@ export default function Watch() {
   const s = data.session;
   return (
     <Screen>
-      <H1>{data.ownerName} {s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : `→ ${s.destinationLabel}`}</H1>
+      <H1>{data.ownerName} {s.kind === 'share' ? `📍 ${s.destinationLabel}` : s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : `→ ${s.destinationLabel}`}</H1>
       {s.sosAt !== undefined && <Notice kind="danger">🆘 {data.ownerName} heeft SOS geactiveerd om {new Date(s.sosAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}. Bel bij direct gevaar zelf 112.</Notice>}
       {s.status === 'alert' && <Notice kind="danger">{data.ownerName} heeft niet op tijd ingecheckt. Probeer contact op te nemen. Bel bij direct gevaar zelf 112.</Notice>}
       {data.privacy?.mode && !data.privacy.revealed && <Notice kind="info">🔒 Privacy-check-in: je ziet alleen de status. Locatie, batterij en route worden pas zichtbaar bij een gemiste check-in of SOS.</Notice>}
       {s.lowBatteryAt !== undefined && <Notice kind="warn">🔋 Batterij bijna leeg{typeof s.batteryPct === 'number' ? ` (${s.batteryPct}%)` : ''}. Valt de telefoon uit, dan stopt de live locatie.</Notice>}
-      {s.notLiveAt !== undefined && <Notice kind="warn">📡 Niet meer live{s.lastSeenAt ? ` sinds ${new Date(s.lastSeenAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}. Geen bereik, lege batterij of telefoon uit? Neem bij twijfel contact op.</Notice>}
-      <Card><P>{s.kind === 'timer' ? 'Timer loopt af' : 'Verwachte aankomst'} {new Date(s.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</P>
+      {s.notLiveAt !== undefined && <Notice kind="warn">📡 Verbinding kwijt{s.lastSeenAt ? ` · laatst bekende locatie ${new Date(s.lastSeenAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}. Zodra er weer bereik is, komen bewaarde punten binnen. Geen bereik, lege batterij of telefoon uit? Neem bij twijfel contact op.</Notice>}
+      <Card><P>{s.kind === 'share' ? 'Delen stopt' : s.kind === 'timer' ? 'Timer loopt af' : 'Verwachte aankomst'} {new Date(s.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</P>
         <P muted>{s.expectedArrival > now ? `nog ${formatCountdown(s.expectedArrival - now)}` : 'Verwachte tijd verstreken'}</P>
         {!!rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle }) && <P>🚗 {rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle })}</P>}
       </Card>

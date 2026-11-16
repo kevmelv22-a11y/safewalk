@@ -18,11 +18,24 @@ public class SafewalkNativeModule: Module {
       // no-op on iOS
     }
 
+    Function("canSendSms") { () -> Bool in
+      return false
+    }
+
+    Function("hasSendSmsPermission") { () -> Bool in
+      return false
+    }
+
+    AsyncFunction("sendSms") { (_: String, _: String) -> [String: Any] in
+      return ["ok": false, "reason": "unsupported"]
+    }
+
     Function("getCapabilities") { () -> [String: Any] in
       return [
         "volumeDoublePress": false,
         "backgroundTorch": false,
-        "notes": "iOS: geen volume×2 hook. Gebruik App Shortcut / Control / deep link safewalk://quick-ping. Torch alleen met actieve Camera (foreground)."
+        "autoSms": false,
+        "notes": "iOS: geen volume×2 hook. Gebruik App Shortcut / Control / deep link safewalk://quick-ping. Torch alleen met actieve Camera (foreground). Een iOS-app kan nooit zelf een sms versturen."
       ]
     }
   }

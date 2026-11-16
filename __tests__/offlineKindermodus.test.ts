@@ -16,7 +16,9 @@ describe('verbindingsstatus', () => {
     expect(classifyConnection({ isConnected: true, isInternetReachable: false, type: 'wifi' })).toBe('offline');
     expect(classifyConnection({ isConnected: false, isInternetReachable: false, type: 'none' })).toBe('offline');
     expect(CONNECTION_COPY.offline.body).toMatch(/Zonder enig netwerkbereik/);
-    expect(CONNECTION_COPY.sms_only.body).toMatch(/automatische sms niet toe/);
+    expect(CONNECTION_COPY.sms_only.body).toMatch(/Live meekijken via de link werkt niet/);
+    expect(CONNECTION_COPY.sms_only.body).toMatch(/automatische sms-updates/);
+    expect(CONNECTION_COPY.sms_only.body).toMatch(/iPhone kan een app nooit zelf sms/);
   });
 });
 

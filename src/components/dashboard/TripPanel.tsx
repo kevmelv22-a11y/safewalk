@@ -8,6 +8,8 @@ type Mine = {
   status: string;
   destinationLabel: string;
   expectedArrival: number;
+  kind?: string;
+  shareUntilStop?: boolean;
 };
 
 type Watching = {
@@ -23,16 +25,18 @@ type Props = {
   countdown: string;
   onOpenMine: () => void;
   onStartTrip: () => void;
+  onStartShare?: () => void;
   onOpenWatch: (id: string) => void;
 };
 
 export function TripPanel({
-  mine, watching, contactCount, countdown, onOpenMine, onStartTrip, onOpenWatch,
+  mine, watching, contactCount, countdown, onOpenMine, onStartTrip, onStartShare, onOpenWatch,
 }: Props) {
   const t = useTheme();
   const arrival = mine
     ? new Date(mine.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
     : null;
+  const isShare = mine?.kind === 'share';
 
   return (
     <View style={{ gap: 10 }}>
@@ -42,11 +46,13 @@ export function TripPanel({
           borderColor: mine.status === 'alert' ? 'rgba(239,68,68,0.5)' : t.border,
         }]}>
           <Text style={[styles.kicker, { color: mine.status === 'alert' ? t.red : t.accent }]}>
-            {mine.status === 'alert' ? 'Check-in gemist' : 'Jouw actieve reis'}
+            {mine.status === 'alert' ? 'Check-in gemist' : isShare ? 'Jouw locatie delen' : 'Jouw actieve reis'}
           </Text>
-          <Text style={[styles.title, { color: t.text }]}>Naar {mine.destinationLabel}</Text>
+          <Text style={[styles.title, { color: t.text }]}>{isShare ? mine.destinationLabel : `Naar ${mine.destinationLabel}`}</Text>
           <Text style={[styles.meta, { color: t.muted }]}>
-            Verwachte aankomst {arrival} · nog {countdown}
+            {isShare
+              ? (mine.shareUntilStop ? `Tot jij stopt, uiterlijk ${arrival} · nog ${countdown}` : `Tot ${arrival} · nog ${countdown}`)
+              : `Verwachte aankomst ${arrival} · nog ${countdown}`}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -76,6 +82,16 @@ export function TripPanel({
               Veilig naar huis – start reis
             </Text>
           </Pressable>
+          {!!onStartShare && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Locatie delen tot 24 uur"
+              onPress={onStartShare}
+              style={({ pressed }) => [styles.cta, { backgroundColor: t.blobA, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
+            >
+              <Text style={[styles.ctaText, { color: t.accent }]}>Locatie delen (1–24 uur)</Text>
+            </Pressable>
+          )}
         </View>
       )}
 

@@ -10,6 +10,7 @@ import { DashboardShell } from '../src/components/dashboard/DashboardShell';
 import { DashboardHeader } from '../src/components/dashboard/DashboardHeader';
 import { StatusPanel } from '../src/components/dashboard/StatusPanel';
 import { TripPanel } from '../src/components/dashboard/TripPanel';
+import { OfflineSmsPrompt } from '../src/components/OfflineSmsPrompt';
 import { NavGrid } from '../src/components/dashboard/NavGrid';
 import { useContacts, useSessions } from '../src/lib/queries';
 import { formatCountdown, pinErrorNl } from '../src/lib/safety';
@@ -157,12 +158,15 @@ export default function Dashboard() {
       {err && !safeOpen && <Notice kind="danger">{err}</Notice>}
       {msg && <Notice kind="ok">{msg}</Notice>}
 
+      <OfflineSmsPrompt />
       <TripPanel
         mine={mine ? {
           _id: mine._id,
           status: mine.status,
           destinationLabel: mine.destinationLabel,
           expectedArrival: mine.expectedArrival,
+          kind: mine.kind,
+          shareUntilStop: mine.shareUntilStop,
         } : null}
         watching={watching.map((s) => ({
           _id: s._id,
@@ -173,6 +177,7 @@ export default function Dashboard() {
         countdown={countdown}
         onOpenMine={() => router.push(`/session/${mine!._id}`)}
         onStartTrip={() => router.push('/session/new')}
+        onStartShare={() => router.push('/session/delen')}
         onOpenWatch={(id) => router.push(`/watch/${id}`)}
       />
 

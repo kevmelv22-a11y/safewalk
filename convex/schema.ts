@@ -52,7 +52,7 @@ export default defineSchema({
     // Toestelstatus tijdens een actieve reis (gewist bij einde reis): batterij 0–100 en laatste contact met de server.
     batteryPct: v.optional(v.number()), batteryAt: v.optional(v.number()), lastSeenAt: v.optional(v.number()),
     // 'timer' = sessie zonder bestemming (bv. date, "30 min lopen"). Afwezig = reis.
-    kind: v.optional(v.union(v.literal('trip'), v.literal('timer'))),
+    kind: v.optional(v.union(v.literal('trip'), v.literal('timer'), v.literal('share'))),
     // Privacy-check-in: kijkers zien alleen de status; locatie/batterij/route pas bij gemiste check-in of SOS.
     privacyMode: v.optional(v.boolean()),
     // Signalen naar kijkers (elk hooguit beperkt per reis): batterij bijna leeg, niet meer live, SOS tijdens de reis.
@@ -64,6 +64,8 @@ export default defineSchema({
     rideVehicle: v.optional(v.string()),
     // Kindermodus: reis die aan een ouder-kindkoppeling hangt (ouder is kijker).
     childLinkId: v.optional(v.id('childLinks')),
+    // Langdurig locatie delen zonder check-in: "tot ik stop" heeft een serverlimiet van 24 uur (daarna verlengen).
+    shareUntilStop: v.optional(v.boolean()),
   }).index('by_user', ['userId']).index('by_open', ['endedAt']).index('by_child_link', ['childLinkId']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),

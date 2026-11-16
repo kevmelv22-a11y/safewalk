@@ -8,6 +8,7 @@ import { applyAudioMode } from '../src/lib/audioMode';
 import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
 import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
+import { OfflineSmsPrompt } from '../src/components/OfflineSmsPrompt';
 import { ConnectionBanner } from '../src/components/ConnectionBanner';
 import { PinPad } from '../src/components/PinPad';
 import { startAlarm } from '../src/lib/dangerAlarm';
@@ -200,6 +201,7 @@ export default function Danger() {
 
   return (
     <Screen ambient={false} backgroundColor="#1a0505">
+      <OfflineSmsPrompt />
       <View style={{ flex: 1, backgroundColor: '#1a0505', margin: -20, padding: 20, gap: 14, borderTopWidth: 3, borderTopColor: CRITICAL_ACTIONS.red }}>
         <ConnectionBanner />
         <H1>{silent ? 'STIL ALARM ACTIEF' : 'GEVAARMODUS ACTIEF'}</H1>

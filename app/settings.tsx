@@ -51,6 +51,8 @@ export default function Settings() {
       <Card>
         <P>Delen & opnames</P>
         <Button title="Meekijklink (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
+        <Button title="Automatische sms bij geen internet" variant="secondary" onPress={() => router.push('/settings/auto-sms')}
+          hint="Alleen Android, uit standaard. Kan geld kosten." />
         <Button title="Telefooncontacten kiezen" variant="secondary" onPress={() => router.push('/device-contacts')} />
         <Button title="Audio-opnames" variant="secondary" onPress={() => router.push('/recordings')} />
       </Card>
