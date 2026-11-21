@@ -3,20 +3,24 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-import { Card, Notice, Disclaimer } from '../src/components/ui';
+import { Card, Notice, Disclaimer, Button } from '../src/components/ui';
 import { ActionButtons } from '../src/components/ActionButtons';
 import { PinPad } from '../src/components/PinPad';
 import { DashboardShell } from '../src/components/dashboard/DashboardShell';
 import { DashboardHeader } from '../src/components/dashboard/DashboardHeader';
 import { StatusPanel } from '../src/components/dashboard/StatusPanel';
 import { TripPanel } from '../src/components/dashboard/TripPanel';
+import { OfflineSmsPrompt } from '../src/components/OfflineSmsPrompt';
 import { NavGrid } from '../src/components/dashboard/NavGrid';
+import { HomeCheckInDash } from '../src/components/HomeCheckInViews';
+import { HomeCheckInBoundary } from '../src/lib/homeCheckInKeeper';
 import { useContacts, useSessions } from '../src/lib/queries';
-import { formatCountdown } from '../src/lib/safety';
+import { formatCountdown, pinErrorNl } from '../src/lib/safety';
 import { useNow } from '../src/lib/useLiveLocations';
 import { getConsentedLocation } from '../src/lib/locationOnce';
-import { errorNl } from '../src/lib/convex';
+import { errorCode, errorNl } from '../src/lib/convex';
 import { onPressOpen112 } from '../src/lib/dial112';
+import { stopSharing } from '../src/lib/location';
 
 function clientRef(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -35,7 +39,7 @@ export default function Dashboard() {
   const mine = sessions?.mine;
   const watching = sessions?.watching ?? [];
   const myContacts = contacts?.mine ?? [];
-  const [busy, setBusy] = useState<'unsafe' | 'come' | 'safe' | null>(null);
+  const [busy, setBusy] = useState<'unsafe' | 'silent' | 'come' | 'safe' | 'live' | null>(null);
   const [safeOpen, setSafeOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -54,17 +58,17 @@ export default function Dashboard() {
 
   const withLoc = async () => getConsentedLocation();
 
-  const onUnsafe = async () => {
+  const startDanger = async (opts: { silent: boolean; busy: 'unsafe' | 'silent' }) => {
     if (!pinStatus?.pinSet) return router.push('/onboarding/pin');
-    setBusy('unsafe'); setErr(null); setMsg(null);
+    setBusy(opts.busy); setErr(null); setMsg(null);
     try {
       const loc = await withLoc();
       const r = await startUnsafe({
-        clientRef: clientRef('unsafe'),
+        clientRef: clientRef(opts.silent ? 'silent' : 'unsafe'),
         sessionId: mine?._id,
-        torchRequested: !!pinStatus.torchStrobeOptIn,
+        torchRequested: opts.silent ? false : !!pinStatus.torchStrobeOptIn,
         createTrackingLink: !!loc.locationConsent,
-        shareRecordingScope: true, // scope alleen; opname start na mic-consent op /danger
+        shareRecordingScope: opts.silent ? false : true,
         ...loc,
       });
       router.push({
@@ -72,12 +76,15 @@ export default function Dashboard() {
         params: {
           incidentId: r.incidentId ?? '',
           ...(r.sharePath ? { sharePath: r.sharePath } : {}),
+          ...(opts.silent ? { silent: '1' } : {}),
         },
       });
     } catch (e) {
       setErr(errorNl(e));
     } finally { setBusy(null); }
   };
+  const onUnsafe = () => startDanger({ silent: false, busy: 'unsafe' });
+  const onSilent = () => startDanger({ silent: true, busy: 'silent' });
 
   const onCome = async () => {
     setBusy('come'); setErr(null); setMsg(null);
@@ -97,14 +104,14 @@ export default function Dashboard() {
   };
 
   const onLiveNow = async () => {
-    setBusy('come'); setErr(null); setMsg(null);
+    setBusy('live'); setErr(null); setMsg(null);
     try {
       const loc = await withLoc();
       if (!loc.locationConsent) { setErr('Locatietoestemming nodig om nu te delen.'); return; }
       const r = await sendLiveNow({ ...loc, sessionId: mine?._id });
       setMsg(r.recipients
-        ? `Live locatie naar ${r.recipients} contact(en) gestuurd (in-app push).`
-        : 'Locatie geregistreerd. Voeg vertrouwde contacten toe voor pushes.');
+        ? `Je locatie is als pushmelding naar ${r.recipients} ${r.recipients === 1 ? 'contact' : 'contacten'} gestuurd. Aflevering is niet gegarandeerd.`
+        : 'Niemand heeft iets gekregen: je hebt nog geen vertrouwde contacten. Voeg ze toe bij Contacten.');
     } catch (e) { setErr(errorNl(e)); }
     finally { setBusy(null); }
   };
@@ -115,10 +122,11 @@ export default function Dashboard() {
       const loc = await withLoc();
       const res = await verifyPin({ pin, purpose: 'arrived_safe', sessionId: mine?._id, ...loc });
       if (!res.ok) { setErr('Onjuiste code. Probeer opnieuw.'); return; }
+      await stopSharing().catch(() => {});
       setSafeOpen(false);
       setMsg('Veilig aangekomen bevestigd. Eventueel alarm is gestopt.');
     } catch (e) {
-      setErr(errorNl(e).includes('RATE') ? 'Te veel pogingen. Wacht even.' : 'Onjuiste code. Probeer opnieuw.');
+      setErr(pinErrorNl(errorCode(e)));
     } finally { setBusy(null); }
   };
 
@@ -138,7 +146,9 @@ export default function Dashboard() {
       />
 
       <View style={{ gap: 8 }}>
-        <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy} disabled={!!busy} />
+        <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy === 'live' || busy === 'silent' ? null : busy} disabled={!!busy} />
+        <Button title="Stil alarm (geen geluid of licht)" variant="secondary" onPress={onSilent} loading={busy === 'silent'} disabled={!!busy}
+          hint="Deelt stil je locatie en waarschuwt contacten. Geen alarmgeluid, geen zaklamp, geen opname." />
       </View>
 
       {safeOpen && (
@@ -150,12 +160,18 @@ export default function Dashboard() {
       {err && !safeOpen && <Notice kind="danger">{err}</Notice>}
       {msg && <Notice kind="ok">{msg}</Notice>}
 
+      <HomeCheckInBoundary>
+        <HomeCheckInDash now={now} />
+      </HomeCheckInBoundary>
+      <OfflineSmsPrompt />
       <TripPanel
         mine={mine ? {
           _id: mine._id,
           status: mine.status,
           destinationLabel: mine.destinationLabel,
           expectedArrival: mine.expectedArrival,
+          kind: mine.kind,
+          shareUntilStop: mine.shareUntilStop,
         } : null}
         watching={watching.map((s) => ({
           _id: s._id,
@@ -166,6 +182,7 @@ export default function Dashboard() {
         countdown={countdown}
         onOpenMine={() => router.push(`/session/${mine!._id}`)}
         onStartTrip={() => router.push('/session/new')}
+        onStartShare={() => router.push('/session/delen')}
         onOpenWatch={(id) => router.push(`/watch/${id}`)}
       />
 
@@ -179,6 +196,10 @@ export default function Dashboard() {
         onAssistant={() => router.push('/assistant')}
         onPremium={() => router.push('/premium')}
         onSettings={() => router.push('/settings')}
+        onFakeCall={() => router.push('/fake-call')}
+        onCheckIn={() => router.push('/check-in')}
+        onHulplijnen={() => router.push('/hulplijnen')}
+        onSafePlaces={() => router.push('/veilige-plekken')}
       />
 
       <Disclaimer />

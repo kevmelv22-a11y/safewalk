@@ -5,9 +5,20 @@ export const OFFERING_TIMEOUT_MS = 12_000;
 export type OfferingShape<P> = {
   current: null | {
     monthly: P | null;
+    annual?: P | null;
     availablePackages: readonly P[];
   };
 };
+
+/**
+ * Maand- en jaarpakket uit het huidige aanbod. Ontbreekt het jaarpakket (nog niet aangemaakt in RevenueCat/Play),
+ * dan is annual null en toont de app gewoon alleen het maandabonnement.
+ */
+export function selectPlans<P>(offerings: OfferingShape<P>): { monthly: P | null; annual: P | null } {
+  const c = offerings.current;
+  if (!c) return { monthly: null, annual: null };
+  return { monthly: c.monthly ?? null, annual: c.annual ?? null };
+}
 
 export type OfferingLoad<P> =
   | { state: 'ready'; pkg: P }
@@ -33,7 +44,7 @@ export function sanitizeStoreError(error: unknown): string {
   return raw.replace(/\b(?:test|goog|appl)_[A-Za-z0-9]+\b/g, '…').replace(/\s+/g, ' ').trim().slice(0, 160);
 }
 
-export function classifyStoreError(error: unknown): OfferingLoad<never> {
+export function classifyStoreError(error: unknown): Extract<OfferingLoad<never>, { state: 'error' }> {
   const msg = error instanceof Error ? error.message : String(error ?? '');
   if (msg === 'OFFERING_TIMEOUT' || /timeout|timed out/i.test(msg)) {
     return { state: 'error', reason: 'timeout', detail: 'Het laden duurde te lang.' };

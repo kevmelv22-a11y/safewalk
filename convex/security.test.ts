@@ -137,3 +137,79 @@ describe('veiligheids-PIN', () => {
     await expect(a.as.mutation(api.security.setPin, { pin: 'ab!', confirmPin: 'ab!', currentPin: 'Abcdefgh' })).rejects.toThrow(/PIN_INVALID/);
   });
 });
+
+describe('dwangcode', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  test('instellen vereist veiligheidscode, hash lekt niet, zelfde code wordt geweigerd', async () => {
+    const t = convexTest(schema, modules);
+    const a = await user(t, 'anna');
+    await a.as.mutation(api.security.setPin, { pin: 'Safe12', confirmPin: 'Safe12' });
+    await expect(a.as.mutation(api.security.setDuress, { currentPin: 'Safe12', duressPin: 'Safe12', confirmPin: 'Safe12' })).rejects.toThrow(/DURESS_SAME_AS_PIN/);
+    await a.as.mutation(api.security.setDuress, { currentPin: 'Safe12', duressPin: 'Help99', confirmPin: 'Help99' });
+    const st = await a.as.query(api.security.pinStatus, {});
+    expect(st?.duressSet).toBe(true);
+    const me = await a.as.query(api.profiles.me, {});
+    expect((me as { duressHash?: string; duressCloakAt?: number }).duressHash).toBeUndefined();
+    expect((me as { duressCloakAt?: number }).duressCloakAt).toBeUndefined();
+    expect((me as { duressSet?: boolean }).duressSet).toBe(true);
+    const raw = await t.run(async (ctx) => ctx.db.query('profiles').collect());
+    expect(raw[0].duressHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(raw[0].duressHash).not.toContain('Help99');
+    await expect(a.as.mutation(api.security.setPin, { pin: 'Help99', confirmPin: 'Help99', currentPin: 'Safe12' })).rejects.toThrow(/PIN_SAME_AS_DURESS/);
+  });
+
+  test('dwangcode bij unlock: lijkt ok, stuurt SOS, geen “alarm gestopt”, incident verdwijnt voor de eigenaar', async () => {
+    const t = convexTest(schema, modules);
+    const a = await user(t, 'anna');
+    const b = await user(t, 'bram');
+    const token = await a.as.mutation(api.contacts.createInvitation, {});
+    await b.as.mutation(api.contacts.respondInvitation, { token, accept: true });
+    await a.as.mutation(api.security.setPin, { pin: '1111', confirmPin: '1111' });
+    await a.as.mutation(api.security.setDuress, { currentPin: '1111', duressPin: '2222', confirmPin: '2222' });
+    const started = await a.as.mutation(api.incidents.startUnsafe, { clientRef: 'duress-inc', locationConsent: false, torchRequested: false });
+    const now = Date.now();
+    const res = await a.as.mutation(api.security.verifyPin, {
+      pin: '2222', purpose: 'unlock_danger', incidentId: started.incidentId!,
+      locationConsent: true, lat: 52.37, lng: 4.89, accuracyM: 8, locationAt: now,
+    });
+    expect(res).toEqual({ ok: true });
+    expect(await a.as.query(api.incidents.active, {})).toBeNull();
+    const alerts = await t.run((ctx) => ctx.db.query('alerts').collect());
+    expect(alerts.some((x) => x.kind === 'sos' && x.lat === 52.37)).toBe(true);
+    const pushes = await t.run((ctx) => ctx.db.query('pushMessages').collect());
+    expect(pushes.some((p) => p.kind === 'sos' && p.recipientId === b.id)).toBe(true);
+    expect(pushes.some((p) => p.body.includes('alarm gestopt'))).toBe(false);
+    expect(JSON.stringify(pushes)).not.toMatch(/2222|duressHash|dwangcode/i);
+  });
+
+  test('dwangcode bij veilig aangekomen: SOS, reis blijft voor kijkers, verdwijnt op eigen overzicht', async () => {
+    const t = convexTest(schema, modules);
+    const a = await user(t, 'anna');
+    const b = await user(t, 'bram');
+    const token = await a.as.mutation(api.contacts.createInvitation, {});
+    await b.as.mutation(api.contacts.respondInvitation, { token, accept: true });
+    await a.as.mutation(api.security.setPin, { pin: 'Abcd1', confirmPin: 'Abcd1' });
+    await a.as.mutation(api.security.setDuress, { currentPin: 'Abcd1', duressPin: 'XyZ9', confirmPin: 'XyZ9' });
+    const sessionId = await a.as.mutation(api.sessions.start, {
+      destination: 'Huis', expectedArrival: Date.now() + 20 * 60_000, viewerIds: [b.id],
+    });
+    const res = await a.as.mutation(api.security.verifyPin, {
+      pin: 'XyZ9', purpose: 'arrived_safe', sessionId,
+      locationConsent: true, lat: 51.9, lng: 4.5, accuracyM: 12, locationAt: Date.now(),
+    });
+    expect(res).toEqual({ ok: true });
+    const overviewA = await a.as.query(api.sessions.overview, {});
+    expect(overviewA.mine).toBeNull();
+    const overviewB = await b.as.query(api.sessions.overview, {});
+    expect(overviewB.watching.some((s) => s._id === sessionId && s.endedAt === undefined)).toBe(true);
+    const alerts = await t.run((ctx) => ctx.db.query('alerts').collect());
+    expect(alerts.some((x) => x.kind === 'sos')).toBe(true);
+    expect(alerts.some((x) => x.kind === 'arrived_safe')).toBe(false);
+  });
+});

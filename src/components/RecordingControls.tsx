@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Platform } from 'react-native';
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
+import { applyAudioMode } from '../lib/audioMode';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Button, Notice } from './ui';
@@ -38,7 +39,7 @@ export function RecordingControls() {
       setErr('Microfoon geweigerd. Geen stille opname.');
       return;
     }
-    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true, allowsBackgroundRecording: await getBackgroundRecordingOptIn() });
+    await applyAudioMode({ allowsRecording: true, playsInSilentMode: true, allowsBackgroundRecording: await getBackgroundRecordingOptIn() });
     await recorder.prepareToRecordAsync();
     recorder.record();
     setActive(true);

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { applyAudioMode } from './audioMode';
 
 export type ActiveRecording = {
   stopAndRead: () => Promise<{ blob: Blob; mime: string; durationMs: number; byteSize: number }>;
@@ -30,7 +31,7 @@ export async function startConsentedRecording(): Promise<ActiveRecording | { err
     const audio = await import('expo-audio');
     const perm = await audio.requestRecordingPermissionsAsync();
     if (!perm.granted) return { error: 'Microfoon geweigerd. Geen stille opname.' };
-    await audio.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+    await applyAudioMode({ allowsRecording: true, playsInSilentMode: true });
     const RecorderCtor = (audio as unknown as {
       AudioRecorder: new (o: unknown) => {
         prepareToRecordAsync: () => Promise<void>;

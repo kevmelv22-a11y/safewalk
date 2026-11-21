@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { alarmService } from './alarmService';
+import { applyAudioMode } from './audioMode';
 
 type Player = { stop: () => Promise<void> };
 
@@ -31,8 +32,9 @@ export async function startAlarm(): Promise<Player> {
     return { stop: async () => { stopped = true; try { osc?.stop(); await ctx.close(); } catch { /* */ } } };
   }
   try {
-    const { createAudioPlayer, setAudioModeAsync } = await import('expo-audio');
-    await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' });
+    const { createAudioPlayer } = await import('expo-audio');
+    // Samenvoegen i.p.v. overschrijven: een lopende opname blijft gewoon doorgaan.
+    await applyAudioMode({ playsInSilentMode: true });
     const player = createAudioPlayer(require('../../assets/sounds/alarm.wav'));
     player.loop = true;
     player.volume = 1;

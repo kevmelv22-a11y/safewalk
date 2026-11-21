@@ -25,9 +25,12 @@ async function setup() {
   };
   const [owner, friend, stranger, c3, c4, admin] = await Promise.all(['owner', 'friend', 'stranger', 'c3', 'c4', 'admin'].map(mk));
   await t.run((ctx) => ctx.db.insert('admins', { userId: admin.id }));
-  const connect = async (from: typeof owner, to: typeof owner) => {
+  // Standaard zonder uitnodigingsbeloning, zodat gratis-/Premium-tests hun bedoeling houden (zie 'vrienden uitnodigen').
+  const connect = async (from: typeof owner, to: typeof owner, opts: { keepReward?: boolean } = {}) => {
     const token = await from.as.mutation(api.contacts.createInvitation, {});
-    await to.as.mutation(api.contacts.respondInvitation, { token, accept: true });
+    const res = await to.as.mutation(api.contacts.respondInvitation, { token, accept: true });
+    if (!opts.keepReward) await t.run(async (ctx) => { for (const g of await ctx.db.query('premiumGrants').collect()) await ctx.db.delete(g._id); });
+    return res;
   };
   const startTrip = (viewers: Id<'users'>[], minutes = 30) =>
     owner.as.mutation(api.sessions.start, { destination: 'Thuis', expectedArrival: Date.now() + minutes * MIN, viewerIds: viewers });

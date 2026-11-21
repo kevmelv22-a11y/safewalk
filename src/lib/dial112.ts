@@ -102,6 +102,45 @@ export async function open112Dialer(deps?: Partial<Dial112Deps>): Promise<Dial11
   }
 }
 
+
+/**
+ * Opent de telefoon-UI met een nummer vooringevuld. Alleen na een tik van de gebruiker.
+ * Voor 112 op Android blijft de native ACTION_DIAL-module de voorkeur (zie open112Dialer).
+ */
+export async function openTelDialer(telUri: string, deps?: Partial<Dial112Deps>): Promise<Dial112Result> {
+  if (!/^tel:\+?\d{3,15}$/.test(telUri)) {
+    return { ok: false, reason: 'failed', message: 'Ongeldig telefoonnummer.' };
+  }
+  if (telUri === TEL_112) return open112Dialer(deps);
+  const platform = deps?.platform ?? Platform.OS;
+  const openURL = deps?.openURL ?? ((url: string) => Linking.openURL(url));
+  const canOpenURL = deps?.canOpenURL ?? ((url: string) => Linking.canOpenURL(url));
+  const failed = { ok: false as const, reason: 'failed' as const, message: COPY.failed.replace('112', telUri.slice(4)) };
+  const unsupported = { ok: false as const, reason: 'unsupported' as const, message: COPY.webUnsupported.replaceAll('112', telUri.slice(4)) };
+  try {
+    if (platform === 'android' || platform === 'ios') {
+      await openURL(telUri);
+      return { ok: true, method: platform === 'ios' ? 'ios_tel' : 'tel_fallback' };
+    }
+    let can = false;
+    try { can = await canOpenURL(telUri); } catch { can = false; }
+    if (!can) return unsupported;
+    await openURL(telUri);
+    return { ok: true, method: 'web_tel' };
+  } catch {
+    return failed;
+  }
+}
+
+export async function onPressOpenTel(telUri: string, title: string, deps?: Partial<Dial112Deps>): Promise<Dial112Result> {
+  const result = await openTelDialer(telUri, deps);
+  if (!result.ok) {
+    const alert = deps?.alert ?? ((t: string, message: string) => Alert.alert(t, message));
+    alert(title, result.message);
+  }
+  return result;
+}
+
 /** Knop-handler: toont Alert bij falen; opent nooit stil “succes” zonder dialer. */
 export async function onPressOpen112(deps?: Partial<Dial112Deps>): Promise<Dial112Result> {
   const result = await open112Dialer(deps);

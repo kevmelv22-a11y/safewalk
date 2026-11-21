@@ -45,7 +45,7 @@ Verzameld: ja. Verkoop: nee. Advertenties: nee.
 
 | Type | Verzameld | Gedeeld | Verplicht of optioneel | Doel |
 |---|---|---|---|---|
-| Precieze locatie, ook achtergrond tijdens een gestarte reis | Ja | Met gekozen contacten en met wie een geldige link heeft | Optioneel, uit onder 16 | App-functionaliteit |
+| Precieze locatie tijdens een gestarte reis, alleen terwijl de app open is (geen achtergrondlocatie sinds versionCode 3) | Ja | Met gekozen contacten en met wie een geldige link heeft | Optioneel, uit onder 16 | App-functionaliteit |
 | Naam, e-mail | Ja | Verwerker Convex; code-mail via Resend als die aan staat | Nodig voor account | Accountbeheer |
 | Geboortejaar en -maand | Ja | Convex | Nodig om verder te gaan | Accountbeheer |
 | Opname | Ja, ciphertext | Convex; gekozen contact met sleutel; optioneel via link | Optioneel | App-functionaliteit |

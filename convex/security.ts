@@ -5,6 +5,7 @@ import { getAuthUserId } from '@convex-dev/auth/server';
 import { audit, displayName, fail, rateLimit, requireAdult, requireUser, sha256Hex } from './lib';
 import { queuePush, mapsLink } from './notify';
 import { isValidSafetyCode } from './safetyCode';
+import { emitSos } from './sos';
 
 const PBKDF2_ITERS = 210_000;
 
@@ -44,6 +45,7 @@ export const pinStatus = query({
     if (!p) return null;
     return {
       pinSet: Boolean(p.pinHash && p.pinSalt),
+      duressSet: Boolean(p.duressHash && p.duressSalt),
       torchStrobeOptIn: !!p.torchStrobeOptIn,
       pinSetAt: p.pinSetAt ?? null,
     };
@@ -69,6 +71,10 @@ export const setPin = mutation({
       const cur = await derivePinHash(a.currentPin!, profile.pinSalt);
       if (!timingSafeEqualHex(cur, profile.pinHash)) fail('PIN_WRONG');
     }
+    if (profile.duressHash && profile.duressSalt) {
+      const asDuress = await derivePinHash(a.pin, profile.duressSalt);
+      if (timingSafeEqualHex(asDuress, profile.duressHash)) fail('PIN_SAME_AS_DURESS');
+    }
     const salt = newSaltHex();
     const hash = await derivePinHash(a.pin, salt);
     await ctx.db.patch(profile._id, { pinHash: hash, pinSalt: salt, pinSetAt: Date.now() });
@@ -84,6 +90,53 @@ export const setTorchOptIn = mutation({
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
     if (!p) fail('NOT_FOUND');
     await ctx.db.patch(p!._id, { torchStrobeOptIn: optIn });
+    return { ok: true as const };
+  },
+});
+
+
+/**
+ * Stelt of wijzigt de dwangcode. Vereist de echte veiligheidscode.
+ * Mag niet gelijk zijn aan de veiligheidscode. Alleen hash+salt op de server.
+ */
+export const setDuress = mutation({
+  args: { currentPin: v.string(), duressPin: v.string(), confirmPin: v.string() },
+  handler: async (ctx, a) => {
+    const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
+    await rateLimit(ctx, `duress-set:${uid}`, 5, 60 * 60_000);
+    if (!isValidPin(a.duressPin) || a.duressPin !== a.confirmPin) fail('PIN_INVALID');
+    if (!isValidPin(a.currentPin)) fail('PIN_REQUIRED');
+    if (a.duressPin === a.currentPin) fail('DURESS_SAME_AS_PIN');
+    const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+    if (!p || p.restricted) fail('FORBIDDEN');
+    const profile = p!;
+    if (!profile.pinHash || !profile.pinSalt) fail('PIN_NOT_SET');
+    const cur = await derivePinHash(a.currentPin, profile.pinSalt!);
+    if (!timingSafeEqualHex(cur, profile.pinHash!)) fail('PIN_WRONG');
+    const salt = newSaltHex();
+    const hash = await derivePinHash(a.duressPin, salt);
+    await ctx.db.patch(profile._id, { duressHash: hash, duressSalt: salt, duressSetAt: Date.now() });
+    await audit(ctx, uid, 'security.duress_set');
+    return { ok: true as const };
+  },
+});
+
+export const clearDuress = mutation({
+  args: { currentPin: v.string() },
+  handler: async (ctx, a) => {
+    const uid = await requireUser(ctx);
+    await requireAdult(ctx, uid);
+    await rateLimit(ctx, `duress-set:${uid}`, 5, 60 * 60_000);
+    if (!isValidPin(a.currentPin)) fail('PIN_REQUIRED');
+    const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+    if (!p || p.restricted) fail('FORBIDDEN');
+    const profile = p!;
+    if (!profile.pinHash || !profile.pinSalt) fail('PIN_NOT_SET');
+    const cur = await derivePinHash(a.currentPin, profile.pinSalt!);
+    if (!timingSafeEqualHex(cur, profile.pinHash!)) fail('PIN_WRONG');
+    await ctx.db.patch(profile._id, { duressHash: undefined, duressSalt: undefined, duressSetAt: undefined });
+    await audit(ctx, uid, 'security.duress_cleared');
     return { ok: true as const };
   },
 });
@@ -112,10 +165,64 @@ export const verifyPin = mutation({
     if (!isValidPin(a.pin)) return { ok: false as const, reason: 'invalid' as const };
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
     if (!p?.pinHash || !p.pinSalt) fail('PIN_NOT_SET');
-    const salt = p!.pinSalt!;
-    const expected = p!.pinHash!;
+    const profile = p!;
+    const salt = profile.pinSalt!;
+    const expected = profile.pinHash!;
     const hash = await derivePinHash(a.pin, salt);
     const match = timingSafeEqualHex(hash, expected);
+    let duressMatch = false;
+    if (profile.duressHash && profile.duressSalt) {
+      const duressHash = await derivePinHash(a.pin, profile.duressSalt);
+      duressMatch = timingSafeEqualHex(duressHash, profile.duressHash);
+    }
+    if (!match && duressMatch) {
+      const rand = new Uint8Array(6);
+      crypto.getRandomValues(rand);
+      const ref = `d:${uid}:${Date.now()}:${[...rand].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+      const fresh = a.locationConsent === true
+        && a.lat !== undefined && a.lng !== undefined
+        && a.locationAt !== undefined
+        && Date.now() - a.locationAt < 5 * 60_000;
+      try {
+        await emitSos(ctx, uid, {
+          clientRef: ref,
+          sessionId: a.sessionId,
+          lat: fresh ? a.lat : undefined,
+          lng: fresh ? a.lng : undefined,
+          accuracyM: fresh ? a.accuracyM : undefined,
+          locationAt: fresh ? a.locationAt : undefined,
+        }, { skipRateLimit: true, auditAction: 'security.duress_used' });
+      } catch { /* SOS best effort; de UI moet nog steeds "gestopt" lijken */ }
+
+      if (a.purpose === 'unlock_danger') {
+        if (a.incidentId) {
+          const raw = await ctx.db.get(a.incidentId);
+          if (raw && raw.userId !== uid) fail('FORBIDDEN');
+        }
+        const open = await ctx.db.query('incidents').withIndex('by_user_status', (q) => q.eq('userId', uid).eq('status', 'active')).collect();
+        const clearedIds = open.map((i) => i._id);
+        for (const inc of open) {
+          await ctx.db.patch(inc._id, { status: 'resolved', resolvedAt: Date.now() });
+          if (inc.alertId) {
+            const al = await ctx.db.get(inc.alertId);
+            if (al && al.status === 'open') await ctx.db.patch(inc.alertId, { status: 'resolved' });
+          }
+        }
+        if (clearedIds.length) {
+          await ctx.scheduler.runAfter(0, internal.tracking.revokeForIncidents, { userId: uid, incidentIds: clearedIds });
+        }
+      }
+      if (a.purpose === 'arrived_safe') {
+        const openInc = await ctx.db.query('incidents').withIndex('by_user_status', (q) => q.eq('userId', uid).eq('status', 'active')).collect();
+        const clearedIds = openInc.map((i) => i._id);
+        for (const inc of openInc) await ctx.db.patch(inc._id, { status: 'resolved', resolvedAt: Date.now() });
+        if (clearedIds.length) {
+          await ctx.scheduler.runAfter(0, internal.tracking.revokeForIncidents, { userId: uid, incidentIds: clearedIds });
+        }
+        await ctx.db.patch(profile._id, { duressCloakAt: Date.now() });
+      }
+      return { ok: true as const };
+    }
     if (!match) {
       // Stil alarm: push naar contacten, generieke fout voor de gebruiker
       const fresh = a.locationConsent === true

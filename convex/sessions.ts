@@ -1,23 +1,40 @@
 import { mutation, query, MutationCtx } from './_generated/server';
 import { v } from 'convex/values';
 import { getAuthUserId } from '@convex-dev/auth/server';
-import type { Id } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import { queuePush } from './notify';
 import { haversineMeters, ALMOST_ARRIVED_M } from './geo';
-import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireAdult, requireUser, sessionOpen } from './lib';
+import { normalizeBatteryPct } from './deviceStatus';
+import { acceptedContact, audit, canViewSession, displayName, fail, isPremium, rateLimit, requireAdult, requireAdultOrLinkedChild, requireUser, sessionOpen } from './lib';
+import { applyChildGeofences } from './childGeo';
+import { notifyLinkViewers } from './viewerAlerts';
+import { revealDetails, sessionWhat, shouldSignalLowBattery } from './liveShare';
+import { extendArrivalLinks, insertTripLink } from './tracking';
+import { parseRideShare } from './rideShare';
+import { SHARE_MAX_MS, SHARE_DEFAULT_LABEL, clampShareEnd } from './longShare';
+
+const activeViewerIds = async (ctx: MutationCtx, sessionId: Id<'sessions'>) =>
+  (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
 
 const H = 3600_000;
 
 async function closeSession(ctx: MutationCtx, id: Id<'sessions'>, status: 'ended' | 'expired', reason: 'stopped' | 'arrived' | 'expired' | 'replaced' = status === 'expired' ? 'expired' : 'stopped') {
   const now = Date.now();
   const s = await ctx.db.get(id);
+  if (!s) return;
   const active = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
-  if (s && active.length && reason !== 'replaced') {
+  if (active.length && reason !== 'replaced') {
     const name = await displayName(ctx, s.userId);
-    const body = { arrived: `${name} heeft bevestigd veilig te zijn aangekomen.`, stopped: `${name} heeft het delen van de reis gestopt.`, expired: `De reis van ${name} is verlopen; locatie wordt niet meer gedeeld.` }[reason];
-    await queuePush(ctx, { kind: 'trip_ended', sessionId: id, recipients: active, title: 'Reis beëindigd', body });
+    const share = s.kind === 'share';
+    const body = share
+      ? { arrived: `${name} heeft het delen gestopt.`, stopped: `${name} heeft het delen van de locatie gestopt.`, expired: `Het locatie delen van ${name} is verlopen.` }[reason]
+      : { arrived: `${name} heeft bevestigd veilig te zijn aangekomen.`, stopped: `${name} heeft het delen van de reis gestopt.`, expired: `De reis van ${name} is verlopen; locatie wordt niet meer gedeeld.` }[reason];
+    await queuePush(ctx, { kind: 'trip_ended', sessionId: id, recipients: active, title: share ? 'Delen gestopt' : s.kind === 'timer' ? 'Timer beëindigd' : 'Reis beëindigd', body });
   }
-  await ctx.db.patch(id, { status, endedAt: now });
+  // Kijkers met alleen een link (e-mail): aankomst of gestopt. Laatste e-mail; daarna wordt hun adres gewist.
+  if (reason !== 'replaced') await notifyLinkViewers(ctx, id, reason === 'arrived' ? 'arrived' : 'ended', { what: sessionWhat(s), at: now });
+  // Toestelstatus en signalen zijn alleen nodig tijdens de reis: direct wissen.
+  await ctx.db.patch(id, { status, endedAt: now, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, lowBatteryAt: undefined, notLiveAt: undefined, ridePlate: undefined, rideDriverName: undefined, rideVehicle: undefined });
   for (const c of await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
     if (c.status === 'pending') await ctx.db.patch(c._id, { status: 'cancelled' });
   for (const vw of await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', id)).collect())
@@ -25,35 +42,114 @@ async function closeSession(ctx: MutationCtx, id: Id<'sessions'>, status: 'ended
 }
 export { closeSession };
 
+type StartInput = {
+  kind?: 'trip' | 'timer' | 'share'; destination: string; destLat?: number; destLng?: number; expectedArrival: number;
+  viewerIds: Id<'users'>[]; graceMinutes?: number; privacyMode?: boolean; linkOnlyAllowed?: boolean;
+  ridePlate?: string; rideDriverName?: string; rideVehicle?: string;
+  shareUntilStop?: boolean;
+};
+
+/** Gedeelde start-logica voor een reis of timer. Zonder kijkers alleen als er meteen een link bij komt (linkOnlyAllowed). */
+async function startCore(ctx: MutationCtx, uid: Id<'users'>, a: StartInput) {
+  await requireAdult(ctx, uid);
+  await rateLimit(ctx, `session:${uid}`, 30, H);
+  const now = Date.now();
+  const kind = a.kind ?? 'trip';
+  const dest = (a.destination.trim() || (kind === 'share' ? SHARE_DEFAULT_LABEL : '')).slice(0, 120);
+  if (!dest) fail('BAD_REQUEST');
+  if ((kind === 'timer' || kind === 'share') && (a.destLat !== undefined || a.destLng !== undefined)) fail('BAD_REQUEST');
+  if ((a.destLat === undefined) !== (a.destLng === undefined)) fail('BAD_REQUEST');
+  if (a.destLat !== undefined && a.destLng !== undefined && (Math.abs(a.destLat) > 90 || Math.abs(a.destLng) > 180 || !Number.isFinite(a.destLat) || !Number.isFinite(a.destLng))) fail('BAD_REQUEST');
+  if ((kind === 'timer' || kind === 'share') && (a.ridePlate || a.rideDriverName || a.rideVehicle)) fail('BAD_REQUEST');
+  const maxMs = kind === 'share' ? SHARE_MAX_MS : 12 * H;
+  if (a.expectedArrival <= now || a.expectedArrival > now + maxMs) fail(kind === 'share' ? 'INVALID_SHARE' : 'INVALID_ARRIVAL');
+  if (a.viewerIds.length > 20) fail('NO_VIEWERS');
+  if (a.viewerIds.length === 0 && !a.linkOnlyAllowed) fail('NO_VIEWERS');
+  for (const vid of a.viewerIds) if (!(await acceptedContact(ctx, uid, vid))) fail('VIEWER_NOT_TRUSTED');
+  // maximaal één open sessie
+  for (const s of await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).collect())
+    if (s.endedAt === undefined) await closeSession(ctx, s._id, 'ended', 'replaced');
+  const profile = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+  if (profile?.restricted) fail('RESTRICTED');
+  const premium = await isPremium(ctx, uid);
+  if (a.graceMinutes !== undefined && a.graceMinutes !== 5 && !premium) fail('PREMIUM_REQUIRED');
+  const grace = Math.min(30, Math.max(1, a.graceMinutes ?? (premium ? profile?.defaultGraceMinutes : 5) ?? 5));
+  const ride = kind === 'trip' ? { ...(a.ridePlate ? { ridePlate: a.ridePlate } : {}), ...(a.rideDriverName ? { rideDriverName: a.rideDriverName } : {}), ...(a.rideVehicle ? { rideVehicle: a.rideVehicle } : {}) } : {};
+  const endsAt = kind === 'share' ? clampShareEnd(a.expectedArrival, now) : a.expectedArrival;
+  const expiresAt = kind === 'share' ? endsAt : endsAt + 2 * H;
+  const id = await ctx.db.insert('sessions', { userId: uid, destinationLabel: dest, destinationLat: a.destLat, destinationLng: a.destLng,
+    expectedArrival: endsAt, status: 'active', expiresAt,
+    ...(kind === 'timer' || kind === 'share' ? { kind } : {}), ...(a.privacyMode ? { privacyMode: true } : {}),
+    ...(kind === 'share' && a.shareUntilStop ? { shareUntilStop: true } : {}), ...ride });
+  for (const vid of new Set(a.viewerIds)) await ctx.db.insert('sessionViewers', { sessionId: id, viewerId: vid });
+  // Langdurig delen heeft geen check-in/escalatie: het stopt op de gekozen tijd of wanneer de gebruiker stopt.
+  if (kind !== 'share') {
+    await ctx.db.insert('checkIns', { sessionId: id, userId: uid, dueAt: endsAt, graceMinutes: grace, extensions: 0, status: 'pending' });
+  }
+  const name = await displayName(ctx, uid);
+  const at = new Date(endsAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' });
+  const privacyNote = a.privacyMode ? ' Je ziet alleen de status; locatie pas bij een gemiste check-in of SOS.' : ' Je kunt de locatie volgen tot het delen eindigt.';
+  const rideNote = !a.privacyMode && (a.ridePlate || a.rideDriverName || a.rideVehicle)
+    ? ` Rit: ${[a.ridePlate && `kenteken ${a.ridePlate}`, a.rideDriverName && `chauffeur ${a.rideDriverName}`, a.rideVehicle].filter(Boolean).join(' · ')}.`
+    : '';
+  if (a.viewerIds.length) await queuePush(ctx, { kind: 'trip_started', sessionId: id, recipients: a.viewerIds,
+    title: kind === 'share' ? `${name} deelt nu locatie` : kind === 'timer' ? `${name} heeft een timer gestart` : `${name} deelt een reis met je`,
+    body: kind === 'share'
+      ? `${name} deelt locatie tot ${at}${a.shareUntilStop ? ' (of eerder als diegene stopt; daarna eventueel verlengen)' : ''}.${privacyNote}`
+      : kind === 'timer' ? `${name}: ${dest} (tot ${at}).${privacyNote}` : `${name} is onderweg naar ${dest} (verwacht ${at}).${privacyNote}${rideNote}` });
+  await audit(ctx, uid, 'session.started', id, { viewers: a.viewerIds.length, kind, privacy: !!a.privacyMode, untilStop: !!a.shareUntilStop });
+  return id;
+}
+
 export const start = mutation({
   args: { destination: v.string(), destLat: v.optional(v.number()), destLng: v.optional(v.number()), expectedArrival: v.number(), viewerIds: v.array(v.id('users')), graceMinutes: v.optional(v.number()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
-    await requireAdult(ctx, uid);
-    await rateLimit(ctx, `session:${uid}`, 30, H);
-    const now = Date.now();
-    const dest = a.destination.trim();
-    if (!dest || dest.length > 120) fail('BAD_REQUEST');
-    if (a.expectedArrival <= now || a.expectedArrival > now + 12 * H) fail('INVALID_ARRIVAL');
-    if (a.viewerIds.length === 0 || a.viewerIds.length > 20) fail('NO_VIEWERS');
-    for (const vid of a.viewerIds) if (!(await acceptedContact(ctx, uid, vid))) fail('VIEWER_NOT_TRUSTED');
-    // maximaal één open sessie
-    for (const s of await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).collect())
-      if (s.endedAt === undefined) await closeSession(ctx, s._id, 'ended', 'replaced');
-    const profile = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
-    if (profile?.restricted) fail('RESTRICTED');
-    const premium = await isPremium(ctx, uid);
-    if (a.graceMinutes !== undefined && a.graceMinutes !== 5 && !premium) fail('PREMIUM_REQUIRED');
-    const grace = Math.min(30, Math.max(1, a.graceMinutes ?? (premium ? profile?.defaultGraceMinutes : 5) ?? 5));
-    const id = await ctx.db.insert('sessions', { userId: uid, destinationLabel: dest, destinationLat: a.destLat, destinationLng: a.destLng,
-      expectedArrival: a.expectedArrival, status: 'active', expiresAt: a.expectedArrival + 2 * H });
-    for (const vid of new Set(a.viewerIds)) await ctx.db.insert('sessionViewers', { sessionId: id, viewerId: vid });
-    await ctx.db.insert('checkIns', { sessionId: id, userId: uid, dueAt: a.expectedArrival, graceMinutes: grace, extensions: 0, status: 'pending' });
-    const name = await displayName(ctx, uid);
-    await queuePush(ctx, { kind: 'trip_started', sessionId: id, recipients: a.viewerIds, title: `${name} deelt een reis met je`,
-      body: `${name} is onderweg naar ${dest} (verwacht ${new Date(a.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Amsterdam' })}). Je kunt de locatie volgen tot de reis eindigt.` });
-    await audit(ctx, uid, 'session.started', id, { viewers: a.viewerIds.length });
-    return id;
+    return await startCore(ctx, uid, a);
+  },
+});
+
+/**
+ * Reis of timer starten, met kijkers in de app en/of meteen een meekijklink (ook zonder app-contact).
+ * Geeft het token van de link één keer terug (en de toegangscode als die gevraagd is).
+ */
+export const begin = mutation({
+  args: {
+    kind: v.optional(v.union(v.literal('trip'), v.literal('timer'), v.literal('share'))),
+    destination: v.string(), destLat: v.optional(v.number()), destLng: v.optional(v.number()),
+    expectedArrival: v.number(), viewerIds: v.array(v.id('users')), graceMinutes: v.optional(v.number()),
+    privacyMode: v.optional(v.boolean()),
+    shareUntilStop: v.optional(v.boolean()),
+    ridePlate: v.optional(v.string()),
+    rideDriverName: v.optional(v.string()),
+    rideVehicle: v.optional(v.string()),
+    link: v.optional(v.object({
+      duration: v.optional(v.union(v.literal('15m'), v.literal('1h'), v.literal('arrival'), v.literal('8h'))),
+      withCode: v.optional(v.boolean()),
+      locationConsent: v.boolean(),
+    })),
+  },
+  handler: async (ctx, { link, ...a }) => {
+    const uid = await requireUser(ctx);
+    if (link && !link.locationConsent) fail('LOCATION_CONSENT_REQUIRED');
+    const ride = parseRideShare({ plate: a.ridePlate, driverName: a.rideDriverName, vehicle: a.rideVehicle });
+    if (!ride.ok) fail('BAD_REQUEST');
+    const rideValue = ride.ok ? ride.value : undefined;
+    const sessionId = await startCore(ctx, uid, {
+      ...a,
+      linkOnlyAllowed: !!link,
+      ridePlate: rideValue?.plate,
+      rideDriverName: rideValue?.driverName,
+      rideVehicle: rideValue?.vehicle,
+    });
+    let created: Awaited<ReturnType<typeof insertTripLink>> | null = null;
+    if (link) {
+      await rateLimit(ctx, `share-create:${uid}`, 20, 60 * 60_000);
+      const session = await ctx.db.get(sessionId);
+      if (!session) fail('SESSION_NOT_FOUND');
+      created = await insertTripLink(ctx, uid, session!, { duration: link.duration, withCode: link.withCode });
+    }
+    return { sessionId, link: created };
   },
 });
 
@@ -63,6 +159,23 @@ export const end = mutation({ args: { sessionId: v.id('sessions') }, handler: as
   if (!s || s.userId !== uid) fail('SESSION_NOT_FOUND');
   if (s!.endedAt === undefined) await closeSession(ctx, sessionId, 'ended');
   await audit(ctx, uid, 'session.ended', sessionId);
+} });
+
+/** Alleen bij "tot ik stop": verleng de lopende deelperiode met maximaal 24 uur vanaf nu. */
+export const renewShare = mutation({ args: { sessionId: v.id('sessions') }, handler: async (ctx, { sessionId }) => {
+  const uid = await requireUser(ctx);
+  await requireAdult(ctx, uid);
+  const s = await ctx.db.get(sessionId);
+  if (!s || s.userId !== uid) fail('SESSION_NOT_FOUND');
+  if (s!.kind !== 'share' || !s!.shareUntilStop || s!.endedAt !== undefined) fail('BAD_REQUEST');
+  if (!sessionOpen(s!)) fail('SESSION_NOT_FOUND');
+  await rateLimit(ctx, `share-renew:${uid}`, 10, 24 * H);
+  const now = Date.now();
+  const endsAt = clampShareEnd(now + SHARE_MAX_MS, now);
+  await ctx.db.patch(sessionId, { expectedArrival: endsAt, expiresAt: endsAt, status: 'active' });
+  await extendArrivalLinks(ctx, sessionId, endsAt);
+  await audit(ctx, uid, 'session.renewed', sessionId, { until: endsAt });
+  return { endsAt };
 } });
 
 export const revokeViewer = mutation({ args: { sessionId: v.id('sessions'), viewerId: v.id('users') }, handler: async (ctx, a) => {
@@ -87,7 +200,9 @@ export const respondCheckIn = mutation({ args: { sessionId: v.id('sessions'), ex
     if (![10, 20].includes(a.extendMinutes) && !(await isPremium(ctx, uid))) fail('PREMIUM_REQUIRED'); // aanpasbare check-ins = premium
     const due = Math.max(c!.dueAt, Date.now()) + a.extendMinutes * 60_000;
     await ctx.db.patch(c!._id, { dueAt: due, extensions: c!.extensions + 1, status: 'pending', reminderSentAt: undefined });
-    await ctx.db.patch(s!._id, { expectedArrival: due, expiresAt: Math.max(s!.expiresAt, due + 2 * H), status: 'active' });
+    const expiresAt = Math.max(s!.expiresAt, due + 2 * H);
+    await ctx.db.patch(s!._id, { expectedArrival: due, expiresAt, status: 'active' });
+    await extendArrivalLinks(ctx, s!._id, expiresAt);
     await audit(ctx, uid, 'check_in.extended', a.sessionId, { minutes: a.extendMinutes });
     return due;
   }
@@ -98,25 +213,105 @@ export const respondCheckIn = mutation({ args: { sessionId: v.id('sessions'), ex
 } });
 
 export const addLocation = mutation({
-  args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number() },
-  handler: async (ctx, a) => {
+  args: { sessionId: v.id('sessions'), lat: v.number(), lng: v.number(), accuracyM: v.optional(v.number()), recordedAt: v.number(), batteryPct: v.optional(v.number()), clientId: v.optional(v.string()) },
+  handler: async (ctx, { batteryPct, clientId, ...a }) => {
     const uid = await requireUser(ctx);
-    await requireAdult(ctx, uid);
+    await requireAdultOrLinkedChild(ctx, uid);
     const s = await ctx.db.get(a.sessionId);
     if (!s || s.userId !== uid || !sessionOpen(s)) fail('SESSION_CLOSED');
     if (Math.abs(a.lat) > 90 || Math.abs(a.lng) > 180 || (a.accuracyM ?? 0) < 0) fail('BAD_REQUEST');
+    if (clientId) {
+      const dup = await ctx.db.query('locations').withIndex('by_session_client', (q) => q.eq('sessionId', a.sessionId).eq('clientId', clientId)).first();
+      if (dup) return;
+    }
     await rateLimit(ctx, `loc:${uid}`, 240, H);
-    await ctx.db.insert('locations', { ...a, userId: uid, recordedAt: Math.min(a.recordedAt, Date.now()) });
+    const recordedAt = Math.min(a.recordedAt, Date.now());
+    await ctx.db.insert('locations', { ...a, userId: uid, recordedAt, ...(clientId ? { clientId } : {}) });
+    // Laatst online = wanneer de server dit punt ontving. Batterij alleen als het toestel hem meegeeft (0–100).
+    const pct = normalizeBatteryPct(batteryPct);
+    const lowBattery = shouldSignalLowBattery(s!, pct);
+    // Weer live: het signaal "niet meer live" vervalt (kan daarna opnieuw, max. MAX_NOT_LIVE_SIGNALS per reis).
+    await ctx.db.patch(s!._id, { lastSeenAt: Date.now(), ...(pct !== undefined ? { batteryPct: pct, batteryAt: recordedAt } : {}),
+      ...(s!.notLiveAt !== undefined ? { notLiveAt: undefined } : {}), ...(lowBattery ? { lowBatteryAt: Date.now() } : {}) });
+    if (lowBattery) {
+      const name = await displayName(ctx, uid);
+      await queuePush(ctx, { kind: 'low_battery', sessionId: s!._id, recipients: await activeViewerIds(ctx, s!._id), title: `🔋 Batterij van ${name} bijna leeg`,
+        body: `${name} heeft nog ${pct}% batterij. Valt de telefoon uit, dan stopt de live locatie.` });
+      await notifyLinkViewers(ctx, s!._id, 'low_battery', { what: sessionWhat(s!), at: Date.now(), batteryPct: pct });
+    }
     if (s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.startDistanceM === undefined)
       await ctx.db.patch(s!._id, { startDistanceM: haversineMeters(a, { lat: s!.destinationLat, lng: s!.destinationLng }) });
-    // Bijna aangekomen (eenmalig per sessie)
-    if (s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.almostNotifiedAt === undefined &&
+    // Bijna aangekomen (eenmalig per sessie; niet in privacymodus, want dat verraadt de plek)
+    if (!s!.privacyMode && s!.destinationLat !== undefined && s!.destinationLng !== undefined && s!.almostNotifiedAt === undefined &&
         haversineMeters(a, { lat: s!.destinationLat, lng: s!.destinationLng }) <= ALMOST_ARRIVED_M) {
       await ctx.db.patch(s!._id, { almostNotifiedAt: Date.now() });
       const viewers = (await ctx.db.query('sessionViewers').withIndex('by_session', (q) => q.eq('sessionId', s!._id)).collect()).filter((x) => x.revokedAt === undefined).map((x) => x.viewerId);
       const name = await displayName(ctx, uid);
       await queuePush(ctx, { kind: 'almost_arrived', sessionId: s!._id, recipients: viewers, title: `${name} is bijna aangekomen`, body: `${name} is minder dan ${ALMOST_ARRIVED_M} m van ${s!.destinationLabel}.` });
     }
+    if (s!.childLinkId) {
+      await applyChildGeofences(ctx, { childId: uid, linkId: s!.childLinkId, lat: a.lat, lng: a.lng, recordedAt, sessionId: s!._id });
+    }
+  },
+});
+
+const locPoint = v.object({
+  sessionId: v.id('sessions'), clientId: v.string(), lat: v.number(), lng: v.number(),
+  accuracyM: v.optional(v.number()), recordedAt: v.number(), batteryPct: v.optional(v.number()),
+});
+
+/**
+ * Batch locatiepunten (offline wachtrij). Idempotent via clientId per sessie.
+ * status: ok | duplicate | rejected | closed
+ */
+export const addLocations = mutation({
+  args: { points: v.array(locPoint) },
+  handler: async (ctx, { points }) => {
+    const uid = await requireUser(ctx);
+    await requireAdultOrLinkedChild(ctx, uid);
+    if (points.length === 0) return { results: [] as { clientId: string; status: string }[] };
+    if (points.length > 40) fail('BAD_REQUEST');
+    await rateLimit(ctx, `locbatch:${uid}`, 120, H);
+    const results: { clientId: string; status: string }[] = [];
+    const sessionCache = new Map<string, Doc<'sessions'> | null>();
+    for (const p of points) {
+      let s = sessionCache.get(p.sessionId);
+      if (s === undefined) {
+        const row = await ctx.db.get(p.sessionId);
+        s = row && row.userId === uid ? row : null;
+        sessionCache.set(p.sessionId, s);
+      }
+      if (!s || !sessionOpen(s)) { results.push({ clientId: p.clientId, status: 'closed' }); continue; }
+      if (Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180 || (p.accuracyM ?? 0) < 0) {
+        results.push({ clientId: p.clientId, status: 'rejected' }); continue;
+      }
+      const dup = await ctx.db.query('locations').withIndex('by_session_client', (q) => q.eq('sessionId', p.sessionId).eq('clientId', p.clientId)).first();
+      if (dup) { results.push({ clientId: p.clientId, status: 'duplicate' }); continue; }
+      const recordedAt = Math.min(p.recordedAt, Date.now());
+      await ctx.db.insert('locations', {
+        sessionId: p.sessionId, userId: uid, lat: p.lat, lng: p.lng,
+        accuracyM: p.accuracyM, recordedAt, clientId: p.clientId,
+      });
+      const pct = normalizeBatteryPct(p.batteryPct);
+      const lowBattery = shouldSignalLowBattery(s, pct);
+      await ctx.db.patch(s._id, { lastSeenAt: Date.now(), ...(pct !== undefined ? { batteryPct: pct, batteryAt: recordedAt } : {}),
+        ...(s.notLiveAt !== undefined ? { notLiveAt: undefined } : {}), ...(lowBattery ? { lowBatteryAt: Date.now() } : {}) });
+      if (lowBattery) {
+        const name = await displayName(ctx, uid);
+        await queuePush(ctx, { kind: 'low_battery', sessionId: s._id, recipients: await activeViewerIds(ctx, s._id), title: `🔋 Batterij van ${name} bijna leeg`,
+          body: `${name} heeft nog ${pct}% batterij. Valt de telefoon uit, dan stopt de live locatie.` });
+        await notifyLinkViewers(ctx, s._id, 'low_battery', { what: sessionWhat(s), at: Date.now(), batteryPct: pct });
+        sessionCache.set(p.sessionId, { ...s, lowBatteryAt: Date.now(), lastSeenAt: Date.now(), ...(pct !== undefined ? { batteryPct: pct } : {}) });
+      } else {
+        sessionCache.set(p.sessionId, { ...s, lastSeenAt: Date.now(), notLiveAt: undefined, ...(pct !== undefined ? { batteryPct: pct, batteryAt: recordedAt } : {}) });
+      }
+      const fresh = sessionCache.get(p.sessionId)!;
+      if (fresh.childLinkId) {
+        await applyChildGeofences(ctx, { childId: uid, linkId: fresh.childLinkId, lat: p.lat, lng: p.lng, recordedAt, sessionId: fresh._id });
+      }
+      results.push({ clientId: p.clientId, status: 'ok' });
+    }
+    return { results };
   },
 });
 
@@ -131,12 +326,16 @@ export const deleteMyHistory = mutation({ args: {}, handler: async (ctx) => {
 // ───────── Queries (reactief) ─────────
 export const overview = query({ args: {}, handler: async (ctx) => {
   const uid = await getAuthUserId(ctx); if (!uid) return { mine: null, watching: [] };
-  const mine = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => s.endedAt === undefined) ?? null;
+  const profile = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
+  const mineRaw = (await ctx.db.query('sessions').withIndex('by_user', (q) => q.eq('userId', uid)).order('desc').take(5)).find((s) => s.endedAt === undefined) ?? null;
+  const mine = mineRaw && profile?.duressCloakAt !== undefined && mineRaw._creationTime <= profile.duressCloakAt ? null : mineRaw;
   const watching = [];
   for (const vw of await ctx.db.query('sessionViewers').withIndex('by_viewer', (q) => q.eq('viewerId', uid)).order('desc').take(50)) {
     if (vw.revokedAt !== undefined) continue;
     const s = await canViewSession(ctx, vw.sessionId, uid);
-    if (s) watching.push({ ...s, ownerName: await displayName(ctx, s.userId) });
+    if (!s) continue;
+    const hide = !revealDetails(s, null);
+    watching.push({ ...s, ...(hide ? { batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, destinationLat: undefined, destinationLng: undefined, ridePlate: undefined, rideDriverName: undefined, rideVehicle: undefined } : {}), ownerName: await displayName(ctx, s.userId) });
   }
   return { mine, watching };
 } });
@@ -152,13 +351,18 @@ export const get = query({ args: { sessionId: v.id('sessions') }, handler: async
   const notifications = isOwner ? await Promise.all((await ctx.db.query('pushMessages').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect())
     .filter((m) => m.recipientId !== uid).map(async (m) => ({ id: m._id, kind: m.kind, status: m.status, name: await displayName(ctx, m.recipientId) }))) : [];
   const signals = isOwner ? (await ctx.db.query('motionSignals').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).filter((x) => x.status === 'open') : [];
-  return { session: s, isOwner, signals, ownerName: await displayName(ctx, s.userId), checkIn, viewers, notifications };
+  // Privacy-check-in: kijkers zien batterij/laatst online/bestemmingspunt pas bij gemiste check-in of SOS.
+  const revealed = revealDetails(s, checkIn?.status ?? null);
+  const session: Doc<'sessions'> = isOwner || revealed ? s : { ...s, batteryPct: undefined, batteryAt: undefined, lastSeenAt: undefined, destinationLat: undefined, destinationLng: undefined, startDistanceM: undefined, ridePlate: undefined, rideDriverName: undefined, rideVehicle: undefined };
+  return { session, isOwner, signals, ownerName: await displayName(ctx, s.userId), checkIn, viewers, notifications, privacy: { mode: !!s.privacyMode, revealed: !!s.privacyMode && revealed } };
 } });
 
 /** Live locaties; lege lijst als geen toegang. Admins krijgen GEEN uitzondering. */
 export const locations = query({ args: { sessionId: v.id('sessions') }, handler: async (ctx, { sessionId }) => {
   const uid = await getAuthUserId(ctx); if (!uid) return [];
-  if (!(await canViewSession(ctx, sessionId, uid))) return [];
+  const s = await canViewSession(ctx, sessionId, uid);
+  if (!s) return [];
+  if (s.userId !== uid && !revealDetails(s, (await ctx.db.query('checkIns').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).collect()).pop()?.status ?? null)) return [];
   const rows = await ctx.db.query('locations').withIndex('by_session', (q) => q.eq('sessionId', sessionId)).order('desc').take(500);
   return rows.reverse().map((r) => ({ lat: r.lat, lng: r.lng, accuracyM: r.accuracyM ?? null, recordedAt: r.recordedAt }));
 } });

@@ -96,14 +96,14 @@ describe('composer (user-confirmed only)', () => {
 
 describe('app config', () => {
   const base = appJson.expo;
-  test('no literal maps placeholder; key only from env', () => {
+  test('no Google Maps key is written, even if the env is set', () => {
     expect(JSON.stringify(appJson)).not.toContain('${GOOGLE_MAPS');
     const without = buildConfig(base, {});
     expect(without.android.config?.googleMaps).toBeUndefined();
-    expect(without.extra.mapsConfigured.android).toBe(false);
+    expect(without.extra.mapsConfigured).toBeUndefined();
     const withKey = buildConfig(base, { GOOGLE_MAPS_ANDROID_API_KEY: 'k' });
-    expect(withKey.android.config.googleMaps.apiKey).toBe('k');
-    expect(mapsAvailable('android', without.extra)).toBe(false);
+    expect(withKey.android.config?.googleMaps).toBeUndefined();
+    expect(mapsAvailable('android', without.extra)).toBe(true);
     expect(mapsAvailable('android', withKey.extra)).toBe(true);
     expect(mapsAvailable('ios', without.extra)).toBe(true);
   });

@@ -15,10 +15,19 @@ describe('juridische teksten', () => {
   it('bedrijfsgegevens ingevuld, geen placeholders of conceptbanners', () => {
     for (const md of [PRIVACY_MD, TERMS_MD]) {
       expect(md).toMatch(/Vonk Byte/); expect(md).toMatch(/support@vonkbyte\.nl/);
-      expect(md).toMatch(/31 oktober 2026|10 november 2026/);
+      expect(md).toMatch(/31 oktober 2026|10 november 2026|13 november 2026|14 november 2026|15 november 2026|16 november 2026|21 november 2026/);
       expect(md).toMatch(/KvK-nummer volgt \(inschrijving januari 2027\)/);
       expect(md).not.toMatch(/\[[^\]]*\]|CONCEPT|Concept/);
     }
+  });
+  it('privacy noemt batterij/laatst online, meekijklink en uitnodigingsbeloning', () => {
+    expect(PRIVACY_MD).toMatch(/Batterijpercentage en laatst-online-tijd/);
+    expect(PRIVACY_MD).toMatch(/Gewist zodra de reis eindigt/);
+    expect(PRIVACY_MD).toMatch(/meekijklink voor een reis/i);
+    expect(PRIVACY_MD).toMatch(/locatie delen voor een gekozen duur/);
+    expect(PRIVACY_MD).toMatch(/automatische sms-updates/);
+    expect(PRIVACY_MD).toMatch(/via je mobiele operator, niet via de servers van SafeWalk/);
+    expect(PRIVACY_MD).toMatch(/Uitnodigingsbeloning/);
   });
   it('parser herkent koppen, lijsten, tabellen en slaat scheidingsregels over', () => {
     const b = parseMarkdown('# T\n\n## Kop\n- a\n1. b\n| x | y |\n|---|---|\n| 1 | 2 |\n> let op\ntekst');

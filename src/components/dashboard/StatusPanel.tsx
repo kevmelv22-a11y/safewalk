@@ -23,10 +23,10 @@ export function StatusPanel({ sharing, destinationLabel, alert, contactCount }: 
   const body = alert
     ? 'Open je sessie om te bevestigen of te stoppen.'
     : sharing
-      ? 'Vertrouwde contacten kunnen je reis volgen tot je stopt of aankomt.'
+      ? 'Je kijkers kunnen je reis volgen tot je stopt of aankomt.'
       : contactCount === 0
-        ? 'Nog geen vertrouwde contacten. Voeg er een toe voordat je een reis start.'
-        : `${contactCount} vertrouwd contact${contactCount === 1 ? '' : 'en'} klaar · start een reis om te delen.`;
+        ? 'Nog geen vertrouwde contacten in de app. Je kunt een reis ook delen met alleen een meekijklink.'
+        : `${contactCount} ${contactCount === 1 ? 'vertrouwd contact' : 'vertrouwde contacten'} klaar · start een reis om te delen.`;
 
   return (
     <View

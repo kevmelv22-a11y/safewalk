@@ -12,8 +12,15 @@ import { stopSharing } from '../src/lib/location';
 import { resetPurchases } from '../src/lib/purchases';
 import { ThemePicker } from '../src/components/ThemePicker';
 import { applyThemeSkinFromQuery } from '../src/store/theme';
-import { maybePromptQsTile, getNativeCapabilitiesSafe } from '../src/lib/nativeEntryPoints';
+import { maybePromptQsTile } from '../src/lib/nativeEntryPoints';
+import { QUICK_LOCATION } from '../src/content/quickLocation';
+import { pushResultNl, tileResultNl } from '../src/lib/settingsCopy';
 import { registerPush } from '../src/lib/notifications';
+import { Toggle } from '../src/components/Choice';
+import { getShakeOptIn, setShakeOptIn } from '../src/lib/shake';
+import { getFallOptIn, setFallOptIn } from '../src/lib/fallDetect';
+import { SHAKE } from '../src/content/liveSharing';
+import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../src/lib/batteryOptimization';
 
 export default function Settings() {
   const params = useLocalSearchParams<{ theme?: string | string[] }>();
@@ -24,6 +31,10 @@ export default function Settings() {
   const deleteHistory = useMutation(api.sessions.deleteMyHistory);
   const deleteAccount = useMutation(api.account.deleteAccount);
   const [msg, setMsg] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
+  const [fall, setFall] = useState(false);
+  useEffect(() => { void getShakeOptIn().then(setShake); }, []);
+  useEffect(() => { void getFallOptIn().then(setFall); }, []);
   const blocked = useQuery(api.contacts.blocked) ?? [];
   const unblock = useMutation(api.contacts.unblock);
   const confirmDelete = () => confirmAction('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', 'Definitief verwijderen', async () => {
@@ -39,24 +50,45 @@ export default function Settings() {
       <SafetySettingsForm />
       <Card>
         <P>Delen & opnames</P>
-        <Button title="Tracking-link (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
+        <Button title="Meekijklink (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
+        <Button title="Automatische sms bij geen internet" variant="secondary" onPress={() => router.push('/settings/auto-sms')}
+          hint="Alleen Android, uit standaard. Kan geld kosten." />
         <Button title="Telefooncontacten kiezen" variant="secondary" onPress={() => router.push('/device-contacts')} />
         <Button title="Audio-opnames" variant="secondary" onPress={() => router.push('/recordings')} />
       </Card>
+      {Platform.OS !== 'web' && (
+        <Card>
+          <Toggle value={shake} onChange={(v) => { setShake(v); void setShakeOptIn(v); }} title={SHAKE.title} hint={SHAKE.hint} />
+          <Toggle value={fall} onChange={(v) => { setFall(v); void setFallOptIn(v); }} title="Valdetectie"
+            hint="Uit standaard. Bij een scherpe schok gevolgd door stilte vraagt de app 10 seconden “Alles goed?”. Alleen terwijl de app open is; er gaan geen bewegingsgegevens naar SafeWalk. Kan vals afgaan, bijvoorbeeld bij sport." />
+        </Card>
+      )}
       <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
-        <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} /></Card>
+        <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} />
+        <Button title="Dwangcode instellen" variant="secondary" onPress={() => router.push('/settings/dwangcode')} />
+        <Button title="Kinderen koppelen" variant="secondary" onPress={() => router.push('/settings/kinderen')}
+          hint="Voor een kind van 13 tot 15 jaar. Jij geeft toestemming in dit account." /></Card>
       <Card>
-        <P>Snelkoppelingen (native)</P>
-        <P muted>Android Quick Settings-tegel en iOS Home Screen Quick Actions openen “Stuur live locatie”. Volume×2 alleen Android-foreground na development build. Geen background torch. Power-off/force-stop stopt alles.</P>
-        <Button title="Open live-locatie scherm" variant="secondary" onPress={() => router.push('/quick-ping')} />
+        <P>Hulp</P>
+        <Button title="Hulplijnen" variant="secondary" onPress={() => router.push('/hulplijnen')} />
+        <Button title="Noodinfo op dit toestel" variant="secondary" onPress={() => router.push('/noodinfo')} />
+        <Button title="Plekken in de buurt" variant="secondary" onPress={() => router.push('/veilige-plekken')} />
+      </Card>
+      <Card>
+        <P>Snelkoppelingen</P>
+        <P muted>{QUICK_LOCATION.shortcuts}</P>
+        {Platform.OS === 'android' && <P muted>{QUICK_LOCATION.volumeAndroid}</P>}
+        <P muted>Zaklamp-strobe werkt alleen met SafeWalk open. Telefoon uit of de app geforceerd stoppen stopt alarm en delen.</P>
+        <P muted>{BATTERY_HINT_NL}</P>
+        {Platform.OS !== 'web' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
+        <Button title={`Open “${QUICK_LOCATION.title}”`} variant="secondary" onPress={() => router.push('/quick-ping')} />
         {Platform.OS === 'android' && (
-          <Button title="Android: tegel toevoegen (prompt)" variant="secondary" onPress={async () => setMsg('Tegel: ' + await maybePromptQsTile())} />
+          <Button title="Snelinstellingentegel toevoegen" variant="secondary" onPress={async () => setMsg(tileResultNl(await maybePromptQsTile()))} />
         )}
-        <Button title="Push opnieuw registreren" variant="secondary" onPress={async () => {
+        <Button title="Meldingen opnieuw aanzetten" variant="secondary" onPress={async () => {
           const r = await registerPush();
-          setMsg(r.ok ? 'Push-token opgeslagen.' : `Push niet gereed: ${r.reason}${r.detail ? ' — ' + r.detail : ''}`);
+          setMsg(r.ok ? 'Meldingen staan aan op dit toestel.' : pushResultNl(r.reason, r.detail));
         }} />
-        <P muted style={{ fontSize: 12 }}>{getNativeCapabilitiesSafe()}</P>
       </Card>
       <Card>
         <P>Geblokkeerde personen</P>

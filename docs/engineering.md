@@ -57,7 +57,7 @@ docs/engineering.md     # dit document
 | 3 | PIN onboarding; stop/veilig alleen met PIN | **Server-autoritatief** | `security.setPin/verifyPin`, `onboarding/pin`, `settings/pin` |
 | 4 | Stil alarm bij verkeerd wachtwoord | **Geïmplementeerd**; exacte NL-tekst | `security.verifyPin` → push body |
 | 5 | Live locatie zonder app (tracking-link) | **Geïmplementeerd** OSM+Leaflet SRI; live alleen met updater+verse ping | `tracking`, `/track/*`, `share-link`, auto in `startUnsafe` |
-| 6 | Volume 2× = live locatie | **Niet als native background**; **wel** foreground: knop + `quick-ping` deep link | `sendLiveLocationNow`, `dashboard`, `quick-ping` |
+| 6 | Volume-omhoog 2× = locatie sturen | **Alleen Android, alleen met SafeWalk open op het scherm** (niet op achtergrond/scherm uit/iOS). Stuurt één push met de huidige locatie (momentopname, geen doorlopend delen) naar geaccepteerde app-contacten; standaard opent het eerst `quick-ping` ter bevestiging. Knop, tegel en snelkoppeling sturen nooit vanzelf | `sendLiveLocationNow`, `dashboard`, `quick-ping`, `src/content/quickLocation.ts` |
 | 7 | Geen auto-112 | **Geïmplementeerd** | Expliciete knop → Android `ACTION_DIAL` (`openEmergencyDialer`), iOS/public `tel:112`; gebruiker bevestigt zelf; nooit vanuit SOS/gevaar-start |
 | 8 | Audio bij “niet veilig” | **Geïmplementeerd** na mic-consent; zichtbare status; TLS+ACL; **kan alarmgeluid bevatten** | `danger` + `recordings` |
 
@@ -187,10 +187,21 @@ Onmogelijk zonder user-gevraagde native/EAS build op echte telefoons. Web/Metro 
 |---|---|---|
 | Danger PIN unlock | `src/lib/dangerUnlock.ts`: server verifies PIN **first**. Wrong PIN, offline or error → alarm and recording keep running. Correct PIN → recorder stops locally, alarm stops, upload runs in the background (never blocks unlock). | Requires network for unlock (no offline unlock). |
 | Build profiles | `eas.json`: development → dev deployment (hidden-ferret-142); preview/production/adhoc → prod (agile-capybara-401), both `.convex.cloud` and `.convex.site`. | **Prod has not been deployed with the latest Convex code**; it needs a deploy (and `RESEND_API_KEY`) before a build against prod works. |
-| Google Maps Android | `app.config.ts` only sets `googleMaps.apiKey` from env `GOOGLE_MAPS_ANDROID_API_KEY`; without a key the Android app shows an address-search fallback instead of a map (`src/lib/mapsAvailability.ts`). | Key must come from Kevin. |
+| Android map (no Google key) | Android (and web) render a keyless OpenStreetMap map via `react-native-webview` + MapLibre GL JS + OpenFreeMap styles (`src/components/OsmMap.tsx`). iOS keeps Apple Maps via `react-native-maps`. `app.config.ts` never injects `googleMaps.apiKey`. If the WebView or tiles fail, the existing no-map fallback stays. | Needs a new native build (new WebView dependency). OpenFreeMap is a public instance; tiles need a network connection. No offline tiles. |
 | iOS ad-hoc tile | With `SAFEWALK_IOS_ADHOC=1`, `react-native-quick-settings-tile` gets `ios.delegateToAppleTargets: false` → no extension target (existing single-target profile). Bundle IDs unchanged. Android tile untouched. | No Control Center control in the ad-hoc build. `targets/` is generated output (plugin). |
 | Android package | `nl.safewalk.native` → `nl.safewalk.nativehelpers` (Java reserved word). | Uncompiled until native build. |
 | Background recording | Config `enableBackgroundRecording: true` (iOS audio background mode, Android foreground service `microphone`) is only a capability. Runtime `allowsBackgroundRecording` only with a separate opt-in (Recordings screen, default OFF). | The OS can still interrupt recording; iOS shows the mic indicator, Android a notification. Untested on device. |
 | Phone contacts (SMS/WhatsApp) | `ContactComposer`: user ticks contacts, SafeWalk opens the SMS composer (one message, max 10 recipients) or one WhatsApp chat per tap with the tracking link. User presses Send themselves. | No automatic sending; WhatsApp has no multi-recipient link. |
 | Share-link consent | `share-link.tsx` no longer hard-codes `locationConsent=true`; it asks for/checks location permission first. | — |
 | Volume 2× | Android, foreground only. Default: opens `/quick-ping` (tap to confirm). With an explicit opt-in (quick-ping screen): sends immediately to app contacts, max 1×/minute, with visible confirmation. Deep links/tile/shortcuts **never** send automatically. | iOS: impossible (no volume API). |
+
+## 12. Afmaakronde 13 november 2026 (branch `cursor/safewalk-afmaken`, basis c40f124)
+| Onderdeel | Wat | Status |
+|---|---|---|
+| Delen na herstart | `SharingKeeper` (`src/lib/sharingKeeper.tsx`) hervat het delen voor een lopende reis als de app opnieuw start of terugkomt op de voorgrond, alleen met al gegeven toestemming; stopt het delen als de reis elders is beëindigd. Watcher-start/stop loopt serieel (geen dubbele watchers). | Unit-getest; niet op toestel getest |
+| Stilstaand delen | `distanceInterval: 0` zodat ook stilstaand elke ~30 s een punt komt (meekijkers zagen anders "verouderd"). | Unit-getest; batterij-impact niet gemeten |
+| Reisscherm | Eerlijke deelstatus (wel/niet gedeeld, leeftijd laatste punt) + knop "Locatie delen hervatten". Reis beëindigen faalt → reis/delen blijven lopen en de fout is zichtbaar (voorheen stopte de app lokaal terwijl de server-check-in doorliep). | Webrender met testdata |
+| Veiligheidscode | Netwerkfout ≠ "Onjuiste code" (dashboard + gevaarmodus). | Unit-getest |
+| SOS | Alleen déze SOS wordt verstuurd; "in wachtrij" alleen bij geen verbinding; serverweigering wordt getoond i.p.v. eindeloos herhaald. Annuleren zonder vorige pagina gaat naar het dashboard. | Unit-getest |
+| Meldingen | Titel per soort (voorheen was alles behalve SOS "Check-in gemist"). Pushtoken wordt na inloggen stil ververst (zonder toestemmingsvraag). | Unit-getest; push op toestel niet getest (emulator heeft geen token) |
+| Teksten | Volume-omhoog/locatie-sturen eerlijk; technische codes uit Instellingen; Engelse server-/netwerkfouten → Nederlands. | Unit-getest |

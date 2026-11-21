@@ -11,6 +11,7 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   const del = async (rows: { _id: any }[]) => { for (const r of rows) await ctx.db.delete(r._id); };
   const q = <T extends TableNames>(t: T) => ctx.db.query(t);
   await del(await q('locations').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  await del(await q('homeCheckIns').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   for (const s of await q('sessions').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
     await del(await q('sessionViewers').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
     await del(await q('checkIns').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
@@ -31,6 +32,10 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   await del(await q('pushTokens').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   await del(await q('profiles').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   await del(await q('subscriptions').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  await del(await q('premiumGrants').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  // Uitnodigingsbeloningen die jij gaf: weg. Waar jij de genodigde was, blijft alleen een losse (niet meer herleidbare) id
+  // tot 365 dagen staan, zodat de jaarlimiet van de ander niet te omzeilen is door accounts te verwijderen.
+  await del(await q('referrals').withIndex('by_inviter', (x) => x.eq('inviterId', uid)).collect());
   await del(await q('abuseReports').withIndex('by_reporter', (x) => x.eq('reporterId', uid)).collect());
   // Recordings + E2E envelopes/keys (storage blobs)
   for (const rec of await q('recordings').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
@@ -40,11 +45,22 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   }
   await del(await q('recordingKeyEnvelopes').withIndex('by_recipient', (x) => x.eq('recipientId', uid)).collect());
   await del(await q('deviceCryptoKeys').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  // E-mailadressen van kijkers zonder app en kijkerssleutels van jouw links.
+  await del(await q('viewerSubscriptions').withIndex('by_owner', (x) => x.eq('ownerId', uid)).collect());
   for (const link of await q('shareLinks').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
+    await del(await q('linkGrants').withIndex('by_link', (x) => x.eq('linkId', link._id)).collect());
     if (!link.revokedAt) await ctx.db.patch(link._id, { revokedAt: Date.now() });
     await ctx.db.delete(link._id);
   }
   await del(await q('deviceContacts').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  for (const link of [...await q('childLinks').withIndex('by_parent', (x) => x.eq('parentId', uid)).collect(),
+    ...await q('childLinks').withIndex('by_child', (x) => x.eq('childId', uid)).collect()]) {
+    await del(await q('geofences').withIndex('by_link', (x) => x.eq('linkId', link._id)).collect());
+    if (link.status !== 'revoked') await ctx.db.patch(link._id, { status: 'revoked', revokedAt: Date.now(), inviteHash: undefined, inviteExpiresAt: undefined });
+    await ctx.db.delete(link._id);
+  }
+  await del(await q('geofences').withIndex('by_child', (x) => x.eq('childId', uid)).collect());
+
   const incidentRows = [
     ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'active')).collect(),
     ...await q('incidents').withIndex('by_user_status', (x) => x.eq('userId', uid).eq('status', 'resolved')).collect(),

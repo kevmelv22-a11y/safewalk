@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 import { ThemeBackdrop } from './ThemeBackdrop';
+import { ConnectionBanner } from './ConnectionBanner';
 
 export function Screen({
   children, scroll = true, ambient = true, backgroundColor,
@@ -14,7 +15,7 @@ export function Screen({
 }) {
   const t = useTheme();
   const bg = backgroundColor ?? t.bg;
-  const inner = <View style={{ padding: 20, gap: 14 }}>{children}</View>;
+  const inner = <View style={{ padding: 20, gap: 14 }}><ConnectionBanner />{children}</View>;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>
       {ambient ? <ThemeBackdrop /> : null}

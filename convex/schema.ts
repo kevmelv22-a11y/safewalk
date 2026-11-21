@@ -17,6 +17,12 @@ export default defineSchema({
     pinHash: v.optional(v.string()),
     pinSalt: v.optional(v.string()),
     pinSetAt: v.optional(v.number()),
+    // Dwangcode: tweede code, alleen hash+salt. Bij gebruik lijkt de app gestopt; contacten krijgen stil een SOS.
+    duressHash: v.optional(v.string()),
+    duressSalt: v.optional(v.string()),
+    duressSetAt: v.optional(v.number()),
+    // Verbergt de open reis op het eigen dashboard na gebruik van de dwangcode bij "veilig aangekomen".
+    duressCloakAt: v.optional(v.number()),
     torchStrobeOptIn: v.optional(v.boolean()), // fotosensitiviteitswaarschuwing expliciet geaccepteerd
     // Eigen verklaring, geen volledige geboortedatum. Afwezig = leeftijd onbekend.
     birthYear: v.optional(v.number()),
@@ -43,13 +49,31 @@ export default defineSchema({
     expectedArrival: v.number(),
     status: v.union(v.literal('active'), v.literal('ended'), v.literal('expired'), v.literal('alert')),
     endedAt: v.optional(v.number()), expiresAt: v.number(), almostNotifiedAt: v.optional(v.number()), startDistanceM: v.optional(v.number()),
-  }).index('by_user', ['userId']).index('by_open', ['endedAt']),
+    // Toestelstatus tijdens een actieve reis (gewist bij einde reis): batterij 0–100 en laatste contact met de server.
+    batteryPct: v.optional(v.number()), batteryAt: v.optional(v.number()), lastSeenAt: v.optional(v.number()),
+    // 'timer' = sessie zonder bestemming (bv. date, "30 min lopen"). Afwezig = reis.
+    kind: v.optional(v.union(v.literal('trip'), v.literal('timer'), v.literal('share'))),
+    // Privacy-check-in: kijkers zien alleen de status; locatie/batterij/route pas bij gemiste check-in of SOS.
+    privacyMode: v.optional(v.boolean()),
+    // Signalen naar kijkers (elk hooguit beperkt per reis): batterij bijna leeg, niet meer live, SOS tijdens de reis.
+    lowBatteryAt: v.optional(v.number()), notLiveAt: v.optional(v.number()), notLiveCount: v.optional(v.number()),
+    sosAt: v.optional(v.number()),
+    // Optionele ritgegevens (taxi/rit delen), alleen als de gebruiker ze invult. Worden bij het einde van de reis gewist.
+    ridePlate: v.optional(v.string()),
+    rideDriverName: v.optional(v.string()),
+    rideVehicle: v.optional(v.string()),
+    // Kindermodus: reis die aan een ouder-kindkoppeling hangt (ouder is kijker).
+    childLinkId: v.optional(v.id('childLinks')),
+    // Langdurig locatie delen zonder check-in: "tot ik stop" heeft een serverlimiet van 24 uur (daarna verlengen).
+    shareUntilStop: v.optional(v.boolean()),
+  }).index('by_user', ['userId']).index('by_open', ['endedAt']).index('by_child_link', ['childLinkId']),
   sessionViewers: defineTable({ sessionId: v.id('sessions'), viewerId: v.id('users'), revokedAt: v.optional(v.number()) })
     .index('by_session', ['sessionId']).index('by_viewer', ['viewerId']).index('by_session_viewer', ['sessionId', 'viewerId']),
   locations: defineTable({
     sessionId: v.id('sessions'), userId: v.id('users'), lat: v.number(), lng: v.number(),
     accuracyM: v.optional(v.number()), recordedAt: v.number(),
-  }).index('by_session', ['sessionId', 'recordedAt']).index('by_user', ['userId']),
+    clientId: v.optional(v.string()),
+  }).index('by_session', ['sessionId', 'recordedAt']).index('by_user', ['userId']).index('by_session_client', ['sessionId', 'clientId']),
   checkIns: defineTable({
     sessionId: v.id('sessions'), userId: v.id('users'), dueAt: v.number(), graceMinutes: v.number(), extensions: v.number(),
     status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('missed'), v.literal('cancelled')),
@@ -60,15 +84,21 @@ export default defineSchema({
     kind: v.union(
       v.literal('sos'), v.literal('missed_check_in'),
       v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
+      v.literal('child_arrived'), v.literal('geofence_enter'), v.literal('geofence_leave'),
     ), clientRef: v.optional(v.string()),
     lat: v.optional(v.number()), lng: v.optional(v.number()), accuracyM: v.optional(v.number()), locationAt: v.optional(v.number()),
+    // Alleen bij gemiste check-in: batterij en laatst-online op het moment van escaleren (na 30 dagen gewist, net als de locatie).
+    batteryPct: v.optional(v.number()), batteryAt: v.optional(v.number()), lastSeenAt: v.optional(v.number()),
     status: v.union(v.literal('open'), v.literal('cancelled'), v.literal('resolved')),
   }).index('by_client_ref', ['clientRef']).index('by_user', ['userId']),
   pushMessages: defineTable({
     recipientId: v.id('users'),
     kind: v.union(v.literal('sos'), v.literal('missed_check_in'), v.literal('trip_started'), v.literal('almost_arrived'),
       v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check'),
-      v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin')),
+      v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
+      v.literal('low_battery'), v.literal('not_live'),
+      v.literal('child_arrived'), v.literal('geofence_enter'), v.literal('geofence_leave'),
+      v.literal('home_checked_in')),
     alertId: v.optional(v.id('alerts')), sessionId: v.optional(v.id('sessions')),
     title: v.string(), body: v.string(), data: v.optional(v.any()),
     // queued → sent (ticket ok) → delivered (receipt ok: overgedragen aan Apple/Google) | failed | no_token | unknown
@@ -80,6 +110,17 @@ export default defineSchema({
     kind: v.union(v.literal('stationary'), v.literal('deviation'), v.literal('no_data')),
     status: v.union(v.literal('open'), v.literal('acknowledged')),
   }).index('by_session', ['sessionId']),
+  // Vrienden uitnodigen: één regel per beloonde (of afgewezen) nieuwe vertrouwde-contactrelatie.
+  referrals: defineTable({
+    inviterId: v.id('users'), inviteeId: v.id('users'), invitationId: v.id('invitations'),
+    status: v.union(v.literal('rewarded'), v.literal('not_eligible')),
+    reason: v.optional(v.string()), createdAt: v.number(),
+  }).index('by_inviter', ['inviterId', 'createdAt']).index('by_invitee', ['inviteeId']),
+  // Premium buiten de winkel om (nu alleen: beloning voor uitnodigen). Geen betaling, geen RevenueCat.
+  premiumGrants: defineTable({
+    userId: v.id('users'), source: v.literal('referral'), referralId: v.id('referrals'),
+    startsAt: v.number(), expiresAt: v.number(),
+  }).index('by_user', ['userId', 'expiresAt']),
   billingEvents: defineTable({ eventId: v.string(), type: v.string(), userId: v.optional(v.id('users')) }).index('by_event', ['eventId']),
   errorLogs: defineTable({ source: v.string(), message: v.string(), userId: v.optional(v.id('users')) }),
   pushTokens: defineTable({ userId: v.id('users'), token: v.string(), platform: v.optional(v.string()) })
@@ -115,7 +156,26 @@ export default defineSchema({
     expiresAt: v.number(),
     revokedAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']).index('by_incident', ['incidentId']),
+    // Gekozen duur in de app ('arrival' = tot de reis eindigt/verloopt, max. 24 u).
+    duration: v.optional(v.union(v.literal('15m'), v.literal('1h'), v.literal('arrival'), v.literal('8h'))),
+    // Optionele toegangscode (PBKDF2-hash + salt; de code zelf nooit opgeslagen). Na te veel foute pogingen geblokkeerd.
+    codeHash: v.optional(v.string()), codeSalt: v.optional(v.string()),
+    codeFailures: v.optional(v.number()), codeLockedAt: v.optional(v.number()),
+  }).index('by_hash', ['tokenHash']).index('by_user', ['userId']).index('by_incident', ['incidentId']).index('by_session', ['sessionId']),
+  // Ontgrendeling van een link met toegangscode: kortlevende kijkerssleutel (alleen hash), geldig tot de link verloopt.
+  linkGrants: defineTable({ linkId: v.id('shareLinks'), grantHash: v.string(), expiresAt: v.number() })
+    .index('by_hash', ['grantHash']).index('by_link', ['linkId']),
+  // E-mailmeldingen voor kijkers zonder app (dubbele opt-in). Adres alleen zolang de link bestaat; daarna gewist.
+  viewerSubscriptions: defineTable({
+    linkId: v.id('shareLinks'), ownerId: v.id('users'), sessionId: v.optional(v.id('sessions')),
+    email: v.string(), emailHash: v.string(),
+    status: v.union(v.literal('pending'), v.literal('active'), v.literal('unsubscribed'), v.literal('ended')),
+    confirmHash: v.string(), unsubToken: v.string(),
+    createdAt: v.number(), confirmedAt: v.optional(v.number()), expiresAt: v.number(),
+    sent: v.array(v.string()), // dedupe-sleutels van verstuurde meldingen
+    lastError: v.optional(v.string()),
+  }).index('by_link', ['linkId']).index('by_confirm', ['confirmHash']).index('by_unsub', ['unsubToken'])
+    .index('by_session', ['sessionId']).index('by_owner', ['ownerId']).index('by_expires', ['expiresAt']),
   // Locatie-updates tijdens incident (aparte bron als er geen trip-sessie is)
   incidentLocations: defineTable({
     incidentId: v.id('incidents'),
@@ -124,7 +184,8 @@ export default defineSchema({
     lng: v.number(),
     accuracyM: v.optional(v.number()),
     recordedAt: v.number(),
-  }).index('by_incident', ['incidentId', 'recordedAt']),
+    clientId: v.optional(v.string()),
+  }).index('by_incident', ['incidentId', 'recordedAt']).index('by_incident_client', ['incidentId', 'clientId']),
   // Geselecteerde telefooncontacten (minimaal: naam + genormaliseerd telefoonnummer); geen volledige adresboek-dump
   deviceContacts: defineTable({
     userId: v.id('users'),
@@ -172,5 +233,54 @@ export default defineSchema({
     storageId: v.optional(v.id('_storage')),
     createdAt: v.number(),
   }).index('by_created', ['createdAt']),
+  // Ouder-kindkoppeling. Toestemming staat op het ouderaccount (geen vinkje van het kind).
+  childLinks: defineTable({
+    parentId: v.id('users'),
+    childId: v.optional(v.id('users')),
+    status: v.union(v.literal('pending'), v.literal('active'), v.literal('revoked')),
+    inviteHash: v.optional(v.string()),
+    inviteExpiresAt: v.optional(v.number()),
+    consentAt: v.optional(v.number()),
+    consentVersion: v.string(),
+    createdAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    contactIds: v.optional(v.array(v.id('users'))),
+  }).index('by_parent', ['parentId']).index('by_child', ['childId']).index('by_invite', ['inviteHash'])
+    .index('by_parent_status', ['parentId', 'status']).index('by_child_status', ['childId', 'status']),
+  geofences: defineTable({
+    linkId: v.id('childLinks'),
+    parentId: v.id('users'),
+    childId: v.id('users'),
+    kind: v.union(v.literal('home'), v.literal('school')),
+    label: v.string(),
+    lat: v.number(),
+    lng: v.number(),
+    radiusM: v.number(),
+    lastInside: v.optional(v.boolean()),
+    lastEventAt: v.optional(v.number()),
+  }).index('by_link', ['linkId']).index('by_child', ['childId']).index('by_link_kind', ['linkId', 'kind']),
+  // Thuis-check-in ("ik ben om 23:30 thuis"), los van een reis. Meerdere tegelijk, met een maximum.
+  // Locatie is optioneel: ontbreekt die, dan zegt de melding eerlijk dat de plek onbekend is.
+  homeCheckIns: defineTable({
+    userId: v.id('users'),
+    label: v.string(),
+    dueAt: v.number(),
+    graceMinutes: v.number(),
+    extensions: v.number(),
+    generation: v.number(),
+    status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('cancelled'), v.literal('missed')),
+    viewerIds: v.array(v.id('users')),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+    accuracyM: v.optional(v.number()),
+    locationAt: v.optional(v.number()),
+    remindedGeneration: v.optional(v.number()),
+    reminderJobId: v.optional(v.id('_scheduled_functions')),
+    escalateJobId: v.optional(v.id('_scheduled_functions')),
+    escalatedAt: v.optional(v.number()),
+    respondedAt: v.optional(v.number()),
+    alertId: v.optional(v.id('alerts')),
+  }).index('by_user', ['userId']).index('by_status_due', ['status', 'dueAt']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });

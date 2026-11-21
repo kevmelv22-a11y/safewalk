@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import Purchases, { LOG_LEVEL, PurchasesPackage } from 'react-native-purchases';
-import { classifyOfferings, classifyStoreError, OFFERING_TIMEOUT_MS, withTimeout } from './offeringLoad';
+import { classifyOfferings, classifyStoreError, OFFERING_TIMEOUT_MS, selectPlans, withTimeout } from './offeringLoad';
 import { resolvePurchaseKey } from './purchaseKey';
 
 const decision = resolvePurchaseKey({
@@ -45,7 +45,7 @@ export async function resetPurchases() {
 
 export type PremiumOfferingResult =
   | { state: 'disabled'; reason: 'web' | 'no_key' | 'test_opt_in_without_key' | 'test_key_rejected' }
-  | { state: 'ready'; pkg: PurchasesPackage; testStore: boolean }
+  | { state: 'ready'; pkg: PurchasesPackage; monthly: PurchasesPackage | null; annual: PurchasesPackage | null; testStore: boolean }
   | { state: 'empty'; reason: 'no_current_offering' | 'no_packages'; testStore: boolean }
   | { state: 'error'; reason: 'timeout' | 'not_configured' | 'failed'; detail: string; testStore: boolean };
 
@@ -58,8 +58,9 @@ export async function loadPremiumOffering(userId: string): Promise<PremiumOfferi
   try {
     await configurePurchases(userId);
     const offerings = await withTimeout(Purchases.getOfferings(), OFFERING_TIMEOUT_MS);
-    const classified = classifyOfferings(offerings);
-    return { ...classified, testStore };
+    const classified = classifyOfferings<PurchasesPackage>(offerings);
+    if (classified.state !== 'ready') return { ...classified, testStore };
+    return { ...classified, ...selectPlans<PurchasesPackage>(offerings), testStore };
   } catch (error) {
     return { ...classifyStoreError(error), testStore };
   }

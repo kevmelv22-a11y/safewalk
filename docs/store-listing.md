@@ -43,4 +43,4 @@ Important: SafeWalk is not an emergency service and never calls 112/911 automati
 **Ontwikkelaar / Developer:** Vonk Byte · **Support / contact:** support@vonkbyte.nl · **Privacybeleid-URL:** (volgt; tekst = docs/privacybeleid.md)
 **Categorie / Category:** Lifestyle (of Navigation) · **Leeftijd / Age rating:** 12+ (iOS), Everyone/PEGI 12 (Play)
 **Screenshots nodig:** dashboard met SOS, reis starten, live kaart (kijker), check-in “Alles goed?”, SOS-status per contact, privacy-instellingen.
-**Review-notities (Apple):** Achtergrondlocatie wordt alleen gebruikt tijdens een door de gebruiker gestarte reis (zichtbare indicator, stopknop). Testaccount: [e-mail/wachtwoord] met een tweede account als contact.
+**Review-notities (Apple):** Locatie wordt alleen gedeeld tijdens een door de gebruiker gestarte reis en alleen terwijl de app open is (zichtbare status, stopknop). Geen achtergrondlocatie. (Vóór iOS-indiening eerst de iOS-achtergrondmodus en "Always"-teksten in `app.json` verwijderen, zie data-safety.md.) Testaccount: [e-mail/wachtwoord] met een tweede account als contact.

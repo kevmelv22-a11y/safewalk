@@ -70,7 +70,7 @@ export default function DeviceContactsScreen() {
     <Screen>
       <H1>Telefooncontacten</H1>
       <P muted>We vragen toestemming en bewaren alleen de contacten die jij aanvinkt (naam + telefoonnummer). Geen volledige adresboek-kopie.</P>
-      <Notice kind="warn">Volume 2× voor live locatie is op iOS/Android in de achtergrond niet betrouwbaar in Expo managed. Alternatieven: in-app knop, OS-shortcuts/Quick Settings (zie docs/engineering.md).</Notice>
+      <Notice kind="info">SafeWalk verstuurt zelf geen sms of WhatsApp naar deze nummers. In gevaarmodus kun je een bericht klaarzetten; jij drukt zelf op versturen.</Notice>
       <Button title="Contacten laden (toestemming)" onPress={load} />
       {msg && <Notice kind="ok">{msg}</Notice>}
       {err && <Notice kind="danger">{err}</Notice>}

@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 import { requireNativeModule } from 'expo';
 
-type Caps = { volumeDoublePress: boolean; backgroundTorch: boolean; alarmForegroundService?: boolean; notes: string };
+type Caps = { volumeDoublePress: boolean; backgroundTorch: boolean; alarmForegroundService?: boolean; autoSms?: boolean; notes: string };
+export type NativeSmsResult = { ok: boolean; reason?: string };
 type NativeShape = {
   isVolumeDoublePressSupported(): boolean;
   setVolumeDoublePressEnabled(enabled: boolean): void;
@@ -12,6 +13,9 @@ type NativeShape = {
   startAlarmForegroundService?(): boolean;
   stopAlarmForegroundService?(): boolean;
   isAlarmForegroundServiceRunning?(): boolean;
+  canSendSms?(): boolean;
+  hasSendSmsPermission?(): boolean;
+  sendSms?(phone: string, body: string): Promise<NativeSmsResult>;
   addListener?(event: string, cb: () => void): { remove: () => void };
 };
 
@@ -80,4 +84,27 @@ export function stopAlarmForegroundService(): boolean {
 export function isAlarmForegroundServiceRunning(): boolean {
   if (Platform.OS !== 'android' || !Native?.isAlarmForegroundServiceRunning) return false;
   return Native.isAlarmForegroundServiceRunning();
+}
+
+/**
+ * Android: stuur één sms via SmsManager. Alleen aanroepen na opt-in en runtime-toestemming.
+ * iOS/web/uncompiled: { ok:false, reason:'unsupported' }.
+ * In Jest/tests weigert deze functie altijd (geen echte sms).
+ */
+export async function sendSms(phone: string, body: string): Promise<NativeSmsResult> {
+  if (typeof process !== 'undefined' && (process.env.JEST_WORKER_ID || process.env.VITEST || process.env.SAFEWALK_TEST_SMS === '1')) {
+    return { ok: false, reason: 'test_guard' };
+  }
+  if (Platform.OS !== 'android' || !Native?.sendSms) return { ok: false, reason: 'unsupported' };
+  return Native.sendSms(phone, body);
+}
+
+export function canSendSms(): boolean {
+  if (Platform.OS !== 'android' || !Native?.canSendSms) return false;
+  return Native.canSendSms();
+}
+
+export function hasSendSmsPermission(): boolean {
+  if (Platform.OS !== 'android' || !Native?.hasSendSmsPermission) return false;
+  return Native.hasSendSmsPermission();
 }
