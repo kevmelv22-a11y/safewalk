@@ -14,7 +14,7 @@ import { REFERRAL_COPY } from '../src/lib/referralCopy';
 
 const FREE = ['SOS-knop en "Ik voel me niet veilig"', '2 vertrouwde contacten', 'Reis delen met check-in (+10/+20 min)', 'Meekijklink voor iemand zonder app', 'Nep-oproep: meteen laten bellen'];
 const PREMIUM: [string, string][] = [
-  ['📞', 'Nep-oproep inplannen, met eigen naam en een stem in het gesprek'],
+  ['📞', 'Nep-oproep inplannen (10 seconden, 1 of 5 minuten), met eigen naam en een stem in het gesprek'],
   ['👥', 'Tot 20 vertrouwde contacten (gratis: 2)'],
   ['⏱️', 'Eigen check-in-tijden en respijtperiode'],
   ['🚶', 'Bewegingsdetectie: extra check-in als je lang stilstaat of afwijkt'],

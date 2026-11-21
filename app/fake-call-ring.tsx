@@ -1,60 +1,75 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { formatCallDuration, sanitizeCallerName } from '../src/lib/fakeCall';
+import {
+  answerRing, createRing, declineRing, formatCallDuration, hangUpRing, missRing, type RingState,
+} from '../src/lib/fakeCall';
 import { startRinging, startVoice } from '../src/lib/fakeCallRunner';
+import { screenshotMode } from '../src/lib/screenshotMode';
 
 /** Belscherm van de nep-oproep: inkomend → opgenomen (met timer) → opgehangen. Geen echte oproep. */
 export default function FakeCallRing() {
-  const p = useLocalSearchParams<{ caller?: string; voice?: string }>();
-  const caller = sanitizeCallerName(p.caller);
+  const p = useLocalSearchParams<{ caller?: string; voice?: string; number?: string; staat?: string }>();
   const withVoice = p.voice === '1';
-  const [phase, setPhase] = useState<'ringing' | 'talking'>('ringing');
-  const [startedAt, setStartedAt] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const ring = useRef<{ stop: () => void } | null>(null);
-  const voice = useRef<{ stop: () => void } | null>(null);
+  const frozen = screenshotMode ? p.staat : undefined;
+  const [state, setState] = useState<RingState>(() => {
+    const base = createRing(p.caller, p.number);
+    return frozen === 'talking' ? answerRing(base, 1_000) : base;
+  });
+  const [now, setNow] = useState(frozen === 'talking' ? 8_000 : 0);
 
   useEffect(() => {
+    if (state.phase !== 'ringing' || screenshotMode) return;
     let alive = true;
-    void startRinging().then((r) => { if (alive) ring.current = r; else r.stop(); });
-    // Na 45 s zonder opnemen stopt het overgaan vanzelf (zoals een gemiste oproep).
-    const giveUp = setTimeout(() => close(), 45_000);
-    return () => { alive = false; clearTimeout(giveUp); ring.current?.stop(); voice.current?.stop(); };
-  }, []);
+    let ringer: { stop: () => void } | null = null;
+    void startRinging().then((r) => { if (alive) ringer = r; else r.stop(); });
+    const giveUp = setTimeout(() => setState((s) => missRing(s)), 45_000);
+    return () => { alive = false; clearTimeout(giveUp); ringer?.stop(); };
+  }, [state.phase]);
+
   useEffect(() => {
-    if (phase !== 'talking') return;
+    if (state.phase !== 'talking' || !withVoice || screenshotMode) return;
+    const voice = startVoice();
+    return () => voice.stop();
+  }, [state.phase, withVoice]);
+
+  useEffect(() => {
+    if (state.phase !== 'talking' || screenshotMode) return;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [phase]);
+  }, [state.phase]);
 
-  const answer = () => {
-    ring.current?.stop(); ring.current = null;
-    setStartedAt(Date.now()); setNow(Date.now()); setPhase('talking');
-    if (withVoice) voice.current = startVoice();
-  };
-  function close() {
-    ring.current?.stop(); voice.current?.stop();
-    if (router.canGoBack()) router.back(); else router.replace('/');
-  }
+  useEffect(() => {
+    if (state.phase !== 'closed') return;
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }, [state.phase]);
+
+  const subtitle = state.phase === 'talking' && state.startedAt !== null
+    ? formatCallDuration(now - state.startedAt)
+    : state.phase === 'closed' ? 'Oproep beëindigd' : 'Inkomende oproep';
 
   return (
     <SafeAreaView style={s.root}>
       <View style={s.top}>
-        <Text style={s.sub}>{phase === 'ringing' ? 'Inkomende oproep' : formatCallDuration(now - startedAt)}</Text>
-        <View style={s.avatar}><Text style={s.initial}>{caller.charAt(0).toUpperCase()}</Text></View>
-        <Text style={s.name} numberOfLines={1}>{caller}</Text>
-        <Text style={s.sub}>Mobiel</Text>
+        <Text style={s.sub}>{subtitle}</Text>
+        <View style={s.avatar}><Text style={s.initial}>{state.caller.charAt(0).toUpperCase()}</Text></View>
+        <Text style={s.name} numberOfLines={1}>{state.caller}</Text>
+        <Text style={s.sub}>{state.number || 'Mobiel'}</Text>
       </View>
-      {phase === 'ringing' ? (
+      {state.phase === 'ringing' ? (
         <View style={s.row}>
-          <CallButton label="Weigeren" color="#EF4444" glyph="✕" onPress={close} />
-          <CallButton label="Opnemen" color="#22C55E" glyph="✆" onPress={answer} />
+          <CallButton label="Weigeren" color="#EF4444" glyph="✕" onPress={() => setState((s) => declineRing(s))} />
+          <CallButton label="Opnemen" color="#22C55E" glyph="✆" onPress={() => { const at = Date.now(); setNow(at); setState((s) => answerRing(s, at)); }} />
+        </View>
+      ) : state.phase === 'talking' ? (
+        <View style={s.row}>
+          <CallButton label="Ophangen" color="#EF4444" glyph="✕" onPress={() => setState((s) => hangUpRing(s))} />
         </View>
       ) : (
         <View style={s.row}>
-          <CallButton label="Ophangen" color="#EF4444" glyph="✕" onPress={close} />
+          <CallButton label="Sluiten" color="#64748B" glyph="✕" onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} />
         </View>
       )}
     </SafeAreaView>

@@ -12,6 +12,8 @@ import { StatusPanel } from '../src/components/dashboard/StatusPanel';
 import { TripPanel } from '../src/components/dashboard/TripPanel';
 import { OfflineSmsPrompt } from '../src/components/OfflineSmsPrompt';
 import { NavGrid } from '../src/components/dashboard/NavGrid';
+import { HomeCheckInDash } from '../src/components/HomeCheckInViews';
+import { HomeCheckInBoundary } from '../src/lib/homeCheckInKeeper';
 import { useContacts, useSessions } from '../src/lib/queries';
 import { formatCountdown, pinErrorNl } from '../src/lib/safety';
 import { useNow } from '../src/lib/useLiveLocations';
@@ -158,6 +160,9 @@ export default function Dashboard() {
       {err && !safeOpen && <Notice kind="danger">{err}</Notice>}
       {msg && <Notice kind="ok">{msg}</Notice>}
 
+      <HomeCheckInBoundary>
+        <HomeCheckInDash now={now} />
+      </HomeCheckInBoundary>
       <OfflineSmsPrompt />
       <TripPanel
         mine={mine ? {
@@ -192,6 +197,7 @@ export default function Dashboard() {
         onPremium={() => router.push('/premium')}
         onSettings={() => router.push('/settings')}
         onFakeCall={() => router.push('/fake-call')}
+        onCheckIn={() => router.push('/check-in')}
         onHulplijnen={() => router.push('/hulplijnen')}
         onSafePlaces={() => router.push('/veilige-plekken')}
       />

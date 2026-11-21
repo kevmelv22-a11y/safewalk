@@ -117,7 +117,7 @@ export const deliveryIcon = (s: string) => (s === 'delivered' || s === 'sent' ? 
 export const notificationKindLabel: Record<string, string> = {
   sos: 'SOS', missed_check_in: 'Check-in gemist', trip_started: 'Reis gestart', almost_arrived: 'Bijna aangekomen',
   check_in_required: 'Check-in vereist', trip_ended: 'Reis beëindigd', motion_check: 'Extra check-in',
-  low_battery: 'Batterij bijna leeg', not_live: 'Niet meer live',
+  low_battery: 'Batterij bijna leeg', not_live: 'Niet meer live', home_checked_in: 'Thuis gemeld',
 };
 
 export function mapErrorNl(msg: string | undefined): string {
@@ -143,6 +143,13 @@ export function mapErrorNl(msg: string | undefined): string {
   if (msg.includes('INVALID_ARRIVAL')) return 'Ongeldige aankomsttijd.';
   if (msg.includes('INVALID_SHARE')) return 'Delen duurt per keer maximaal 24 uur.';
   if (msg.includes('EXTENSION_NOT_ALLOWED')) return 'Verlengen is niet meer mogelijk.';
+  if (msg.includes('INVALID_EXTEND')) return 'Verlengen kan met 10 of 20 minuten, hooguit 3 keer.';
+  if (msg.includes('TOO_MANY_CHECKINS')) return 'Je hebt al 3 thuis-check-ins open. Rond er eerst een af of annuleer er een.';
+  if (msg.includes('CHECKIN_NOT_FOUND')) return 'Deze thuis-check-in bestaat niet.';
+  if (msg.includes('CHECKIN_CLOSED')) return 'Deze thuis-check-in is al afgesloten.';
+  if (msg.includes('INVALID_DUE')) return 'Kies een tijdstip in de toekomst, maximaal 18 uur vooruit.';
+  if (msg.includes('INVALID_LABEL')) return 'Vul een korte omschrijving in, bijvoorbeeld Thuis.';
+  if (msg.includes('INVALID_LOCATION')) return 'Die locatie is ongeldig. Je kunt de check-in ook zonder locatie starten.';
   if (msg.includes('EMAIL_NOT_CONFIGURED')) return 'E-mailverificatie is momenteel niet beschikbaar. Probeer het later opnieuw.';
   if (msg.includes('EMAIL_SEND_FAILED')) return 'De e-mail kon niet worden verstuurd. Probeer het later opnieuw.';
   if (msg.includes('AGE_REQUIRED')) return 'Vul eerst je geboortejaar en -maand in. Zonder leeftijd blijven delen, opnames, contacten, aankopen en de assistent uit.';
@@ -216,7 +223,9 @@ export function sharingStatus(watching: boolean, lastAt: number | null, now = Da
 export function alertTitle(kind: string, clientRef?: string | null): { title: string; explain: string } {
   switch (kind) {
     case 'sos': return { title: '🆘 SOS-melding', explain: 'Deze persoon heeft op SOS gedrukt.' };
-    case 'missed_check_in': return { title: '⚠️ Check-in gemist', explain: 'Deze persoon heeft niet op tijd bevestigd veilig te zijn aangekomen.' };
+    case 'missed_check_in':
+      if (clientRef?.startsWith('home-')) return { title: '⚠️ Thuiskomst niet bevestigd', explain: 'Deze persoon heeft niet op tijd aangegeven thuis te zijn. Als er een locatie bij staat, is dat de laatst bekende en die kan verouderd zijn.' };
+      return { title: '⚠️ Check-in gemist', explain: 'Deze persoon heeft niet op tijd bevestigd veilig te zijn aangekomen.' };
     case 'unsafe': return { title: '🚨 Voelt zich niet veilig', explain: 'Deze persoon heeft gevaarmodus aangezet: er klinkt een alarm op de telefoon.' };
     case 'wrong_pin': return { title: '🔴 Stil alarm', explain: 'Er is een verkeerde veiligheidscode ingevoerd. Dat kan betekenen dat iemand diegene dwingt het alarm te stoppen.' };
     case 'come_quick':

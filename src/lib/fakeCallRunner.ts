@@ -89,16 +89,18 @@ export function openRingOnce(open: () => void, now = Date.now()): boolean {
  * Plant een nep-oproep in. Als de app open blijft, opent het belscherm zelf (onDueInApp).
  * Daarnaast een lokale melding met beltoon voor als de app op de achtergrond staat of het scherm uit is.
  */
-export async function scheduleFakeCall(opts: { caller: string; voice: boolean; delayMin: number; onDueInApp: () => void }): Promise<{ at: number; notification: boolean }> {
+export async function scheduleFakeCall(opts: { caller: string; number: string; voice: boolean; delayMs: number; onDueInApp: () => void }): Promise<{ at: number; notification: boolean }> {
   await cancelFakeCall();
-  const at = Date.now() + opts.delayMin * 60_000;
+  const seconds = Math.round(opts.delayMs / 1000);
+  if (!Number.isFinite(seconds) || seconds < 1) return { at: Date.now(), notification: false };
+  const at = Date.now() + seconds * 1000;
   inAppTimer = setTimeout(() => {
     inAppTimer = null;
     // Alleen als de app nu echt voorop staat en de timer niet (door slapen op de achtergrond) veel te laat is.
     if (AppState.currentState !== 'active' || Date.now() - at > 30_000) return;
     void Notifications.cancelScheduledNotificationAsync(FAKE_CALL_NOTIFICATION_ID).catch(() => undefined);
     openRingOnce(opts.onDueInApp);
-  }, opts.delayMin * 60_000);
+  }, seconds * 1000);
   let notification = false;
   if (Platform.OS !== 'web') {
     try {
@@ -113,8 +115,8 @@ export async function scheduleFakeCall(opts: { caller: string; voice: boolean; d
       if (granted) {
         await Notifications.scheduleNotificationAsync({
           identifier: FAKE_CALL_NOTIFICATION_ID,
-          content: { ...fakeCallNotification(opts.caller, opts.voice), priority: Notifications.AndroidNotificationPriority.MAX },
-          trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: opts.delayMin * 60, channelId: FAKE_CALL_CHANNEL },
+          content: { ...fakeCallNotification(opts.caller, opts.voice, opts.number), priority: Notifications.AndroidNotificationPriority.MAX },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, channelId: FAKE_CALL_CHANNEL },
         });
         notification = true;
       }

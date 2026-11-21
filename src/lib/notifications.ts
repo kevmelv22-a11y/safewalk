@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { convex } from './convex';
 import { api } from '../../convex/_generated/api';
+import { localReminderAt } from './homeCheckIn';
 
 Notifications.setNotificationHandler({
   // Nep-oproep terwijl de app open is: geen banner, het belscherm opent zelf (zie _layout).
@@ -105,6 +106,43 @@ export async function scheduleCheckInReminder(dueAt: Date) {
     },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at },
   });
+}
+
+const HOME_REMINDER_PREFIX = 'safewalk-home-checkin-';
+
+/**
+ * Lokale herinnering per thuis-check-in. De server blijft de echte bewaking;
+ * op web is een lokale herinnering niet beschikbaar.
+ */
+export async function syncHomeCheckInReminders(items: { id: string; dueAt: number }[]) {
+  if (Platform.OS === 'web') return;
+  const all = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  const want = new Set(items.map((i) => `${HOME_REMINDER_PREFIX}${i.id}`));
+  for (const n of all) {
+    const type = (n.content.data as { type?: string } | null)?.type;
+    if (type === 'home_check_in' && !want.has(n.identifier)) await Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => undefined);
+  }
+  const perm = await Notifications.getPermissionsAsync().catch(() => null);
+  if (!perm || perm.status !== 'granted') return;
+  const now = Date.now();
+  for (const item of items) {
+    const at = localReminderAt(item.dueAt, now);
+    const identifier = `${HOME_REMINDER_PREFIX}${item.id}`;
+    if (at === null) {
+      await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => undefined);
+      continue;
+    }
+    await Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title: 'Thuis-check-in',
+        body: 'Je tijd is bijna. Bevestig in SafeWalk dat je thuis bent, of verleng.',
+        data: { type: 'home_check_in', homeCheckInId: item.id },
+        categoryIdentifier: 'safety',
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at) },
+    }).catch(() => undefined);
+  }
 }
 
 export const localNotify = (title: string, body: string) =>

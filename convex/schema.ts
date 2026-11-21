@@ -97,7 +97,8 @@ export default defineSchema({
       v.literal('check_in_required'), v.literal('trip_ended'), v.literal('motion_check'),
       v.literal('unsafe'), v.literal('come_quick'), v.literal('arrived_safe'), v.literal('wrong_pin'),
       v.literal('low_battery'), v.literal('not_live'),
-      v.literal('child_arrived'), v.literal('geofence_enter'), v.literal('geofence_leave')),
+      v.literal('child_arrived'), v.literal('geofence_enter'), v.literal('geofence_leave'),
+      v.literal('home_checked_in')),
     alertId: v.optional(v.id('alerts')), sessionId: v.optional(v.id('sessions')),
     title: v.string(), body: v.string(), data: v.optional(v.any()),
     // queued → sent (ticket ok) → delivered (receipt ok: overgedragen aan Apple/Google) | failed | no_token | unknown
@@ -259,5 +260,27 @@ export default defineSchema({
     lastInside: v.optional(v.boolean()),
     lastEventAt: v.optional(v.number()),
   }).index('by_link', ['linkId']).index('by_child', ['childId']).index('by_link_kind', ['linkId', 'kind']),
+  // Thuis-check-in ("ik ben om 23:30 thuis"), los van een reis. Meerdere tegelijk, met een maximum.
+  // Locatie is optioneel: ontbreekt die, dan zegt de melding eerlijk dat de plek onbekend is.
+  homeCheckIns: defineTable({
+    userId: v.id('users'),
+    label: v.string(),
+    dueAt: v.number(),
+    graceMinutes: v.number(),
+    extensions: v.number(),
+    generation: v.number(),
+    status: v.union(v.literal('pending'), v.literal('confirmed'), v.literal('cancelled'), v.literal('missed')),
+    viewerIds: v.array(v.id('users')),
+    lat: v.optional(v.number()),
+    lng: v.optional(v.number()),
+    accuracyM: v.optional(v.number()),
+    locationAt: v.optional(v.number()),
+    remindedGeneration: v.optional(v.number()),
+    reminderJobId: v.optional(v.id('_scheduled_functions')),
+    escalateJobId: v.optional(v.id('_scheduled_functions')),
+    escalatedAt: v.optional(v.number()),
+    respondedAt: v.optional(v.number()),
+    alertId: v.optional(v.id('alerts')),
+  }).index('by_user', ['userId']).index('by_status_due', ['status', 'dueAt']),
   rateLimits: defineTable({ key: v.string(), windowStart: v.number(), hits: v.number() }).index('by_key', ['key']),
 });
