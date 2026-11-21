@@ -11,6 +11,7 @@ export const deleteAccount = mutation({ args: { confirm: v.string() }, handler: 
   const del = async (rows: { _id: any }[]) => { for (const r of rows) await ctx.db.delete(r._id); };
   const q = <T extends TableNames>(t: T) => ctx.db.query(t);
   await del(await q('locations').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
+  await del(await q('homeCheckIns').withIndex('by_user', (x) => x.eq('userId', uid)).collect());
   for (const s of await q('sessions').withIndex('by_user', (x) => x.eq('userId', uid)).collect()) {
     await del(await q('sessionViewers').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());
     await del(await q('checkIns').withIndex('by_session', (x) => x.eq('sessionId', s._id)).collect());

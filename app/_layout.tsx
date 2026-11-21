@@ -23,6 +23,7 @@ import { ShakeSosListener } from '../src/components/ShakeSosListener';
 import { registerPush } from '../src/lib/notifications';
 import { paramsFromNotificationData } from '../src/lib/fakeCall';
 import { openRingOnce } from '../src/lib/fakeCallRunner';
+import { HomeCheckInBoundary, HomeCheckInKeeper } from '../src/lib/homeCheckInKeeper';
 
 function PurchasesBootstrap() {
   const status = useQuery(api.billing.status);
@@ -54,11 +55,12 @@ export default function RootLayout() {
     });
     void vol;
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const d = r.notification.request.content.data as { type?: string; sessionId?: string; alertId?: string };
+      const d = r.notification.request.content.data as { type?: string; sessionId?: string; alertId?: string; homeCheckInId?: string };
       const action = r.actionIdentifier;
       if (action === 'QUICK_PING') { openQuickPing(); return; }
       const fake = paramsFromNotificationData(d);
       if (fake) { openRingOnce(() => router.push({ pathname: '/fake-call-ring', params: fake })); return; }
+      if (typeof d.homeCheckInId === 'string' && d.homeCheckInId) { router.push(`/check-in/${d.homeCheckInId}`); return; }
       if ((d.type === 'sos' || d.type === 'missed_check_in') && d.alertId) router.push(`/alert/${d.alertId}`);
       else if (d.type === 'check_in' && d.sessionId) router.push(`/session/${d.sessionId}`);
       else if (d.type === 'unsafe' || d.type === 'wrong_pin' || d.type === 'come_quick') {
@@ -80,6 +82,9 @@ export default function RootLayout() {
         <SharingKeeper />
         <AutoSmsKeeper />
         <ShakeSosListener />
+        <HomeCheckInBoundary>
+          <HomeCheckInKeeper />
+        </HomeCheckInBoundary>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -123,6 +128,9 @@ export default function RootLayout() {
           <Stack.Screen name="quick-ping" options={{ title: "Locatie sturen" }} />
           <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
           <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
+          <Stack.Screen name="check-in/index" options={{ title: 'Thuis-check-in' }} />
+          <Stack.Screen name="check-in/nieuw" options={{ title: 'Check-in instellen' }} />
+          <Stack.Screen name="check-in/[id]" options={{ title: 'Check-in' }} />
           <Stack.Screen name="fake-call" options={{ title: 'Nep-oproep' }} />
           <Stack.Screen name="fake-call-ring" options={{ title: 'Oproep', presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="kind" options={{ title: 'Kindermodus', headerBackVisible: false }} />

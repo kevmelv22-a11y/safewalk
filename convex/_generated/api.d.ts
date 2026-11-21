@@ -25,6 +25,7 @@ import type * as deviceCrypto from "../deviceCrypto.js";
 import type * as deviceStatus from "../deviceStatus.js";
 import type * as geo from "../geo.js";
 import type * as geofence from "../geofence.js";
+import type * as homeCheckIn from "../homeCheckIn.js";
 import type * as http from "../http.js";
 import type * as incidents from "../incidents.js";
 import type * as lib from "../lib.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   deviceStatus: typeof deviceStatus;
   geo: typeof geo;
   geofence: typeof geofence;
+  homeCheckIn: typeof homeCheckIn;
   http: typeof http;
   incidents: typeof incidents;
   lib: typeof lib;

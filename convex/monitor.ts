@@ -6,6 +6,7 @@ import { deviceStatusLine } from './deviceStatus';
 import { audit, displayName, isPremium, RETENTION_AFTER_END_MS, RETENTION_MAX_MS } from './lib';
 import { notifyLinkViewers, purgeViewerData } from './viewerAlerts';
 import { sessionWhat, shouldSignalNotLive } from './liveShare';
+import { sweepHomeCheckIns } from './homeCheckIn';
 
 /** Elke minuut (cron): verlopen sessies sluiten en gemiste check-ins escaleren — onafhankelijk van de app. */
 export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) => {
@@ -73,6 +74,8 @@ export const checkDeadlines = internalMutation({ args: {}, handler: async (ctx) 
       body: `Sinds ${since} komt er geen nieuwe locatie binnen. Dat kan door geen bereik, een lege batterij of een uitgezette telefoon.` });
     await notifyLinkViewers(ctx, s._id, 'not_live', { what: sessionWhat(s), at: s.lastSeenAt! }, `not_live:${count}`);
   }
+  // Thuis-check-in: de geplande functies zijn leidend; deze minuut-cron vangt een gemiste job op.
+  await sweepHomeCheckIns(ctx, now);
   return escalated;
 } });
 
@@ -109,5 +112,14 @@ export const purge = internalMutation({ args: {}, handler: async (ctx) => {
   const yearAgo = now - 365 * 24 * 3600_000;
   for (const row of await ctx.db.query('errorLogs').collect()) if (row._creationTime < yearAgo) await ctx.db.delete(row._id);
   for (const row of await ctx.db.query('auditLogs').collect()) if (row._creationTime < yearAgo) await ctx.db.delete(row._id);
+  // Thuis-check-in: coördinaten na 30 dagen weg, de rij zelf na 90 dagen (alleen als die niet meer loopt).
+  const monthAgo = now - 30 * 24 * 3600_000;
+  for (const c of await ctx.db.query('homeCheckIns').collect()) {
+    if (c.status === 'pending') continue;
+    if (c._creationTime < monthAgo && c.lat !== undefined) {
+      await ctx.db.patch(c._id, { lat: undefined, lng: undefined, accuracyM: undefined, locationAt: undefined });
+    }
+    if (c._creationTime < now - 90 * 24 * 3600_000) await ctx.db.delete(c._id);
+  }
   return n;
 } });

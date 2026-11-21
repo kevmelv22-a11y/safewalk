@@ -1,4 +1,4 @@
-import { effectiveCaller, fakeCallAllowed, fakeCallNotification, formatCallDuration, isScheduleDelay, paramsFromNotificationData, sanitizeCallerName, DEFAULT_CALLER, FAKE_CALL_SOUND } from '../src/lib/fakeCall';
+import { effectiveCaller, fakeCallAllowed, fakeCallDelayMs, fakeCallNotification, formatCallDuration, paramsFromNotificationData, sanitizeCallerName, DEFAULT_CALLER, FAKE_CALL_SOUND } from '../src/lib/fakeCall';
 import { ARRIVAL_PROMPT_M, shouldAskArrived } from '../src/lib/arrival';
 import { recordSafeArrival, shouldPromptReview } from '../src/lib/reviewPrompt';
 import { annualSavingsPct, ctaLabel, defaultPlan, freeTrialDays, renewalNote, trialLabel } from '../src/lib/paywall';
@@ -24,13 +24,17 @@ describe('nep-oproep', () => {
     expect(effectiveCaller('Sam', true)).toBe('Sam');
   });
   it('inplan-opties, timer en melding-data', () => {
-    expect(isScheduleDelay(5)).toBe(true); expect(isScheduleDelay(3)).toBe(false);
+    expect(fakeCallDelayMs('now')).toBe(0);
+    expect(fakeCallDelayMs('10s')).toBe(10_000);
+    expect(fakeCallDelayMs('1m')).toBe(60_000);
+    expect(fakeCallDelayMs('5m')).toBe(5 * 60_000);
+    expect(fakeCallDelayMs('15m')).toBeNull();
     expect(formatCallDuration(7_400)).toBe('0:07'); expect(formatCallDuration(750_000)).toBe('12:30');
     const n = fakeCallNotification('Mama', true);
-    expect(n).toMatchObject({ title: 'Mama', sound: FAKE_CALL_SOUND, data: { type: 'fake_call', caller: 'Mama', voice: '1' } });
-    expect(paramsFromNotificationData(n.data)).toEqual({ caller: 'Mama', voice: '1' });
+    expect(n).toMatchObject({ title: 'Mama', sound: FAKE_CALL_SOUND, data: { type: 'fake_call', caller: 'Mama', voice: '1', number: '' } });
+    expect(paramsFromNotificationData(n.data)).toEqual({ caller: 'Mama', voice: '1', number: '' });
     expect(paramsFromNotificationData({ type: 'sos' })).toBeNull();
-    expect(paramsFromNotificationData({ type: 'fake_call', caller: 42 })).toEqual({ caller: DEFAULT_CALLER, voice: '0' });
+    expect(paramsFromNotificationData({ type: 'fake_call', caller: 42 })).toEqual({ caller: DEFAULT_CALLER, voice: '0', number: '' });
   });
 });
 
