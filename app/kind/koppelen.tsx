@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Redirect, router } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../convex/_generated/api';
 import { Screen, H1, P, Button, Field, Notice } from '../../src/components/ui';
 import { useProfile } from '../../src/lib/queries';
 import { errorNl } from '../../src/lib/convex';
 
 export default function KindKoppelen() {
+  const { t } = useTranslation();
   const profile = useProfile();
   const link = useQuery(api.childLinks.myLink);
   const accept = useMutation(api.childLinks.acceptInvite);
@@ -28,13 +30,13 @@ export default function KindKoppelen() {
 
   return (
     <Screen>
-      <H1>Koppelen aan een ouder</H1>
-      <P>Vraag je ouder of voogd om in de eigen SafeWalk-app (16+) bij Instellingen → Kinderen een koppelcode te maken en de toestemming te geven. Jij vult hier alleen die code in. Een zelfverzonnen code of vinkje telt niet als ouder.</P>
-      <Notice kind="info">SafeWalk controleert niet of iemand echt je ouder is. Onder 13 jaar kun je niet koppelen. Opnames, aankopen en de assistent blijven uit.</Notice>
-      <Field label="Koppelcode" value={code} onChangeText={(v) => setCode(v.toUpperCase())} autoCapitalize="characters" maxLength={12} />
-      <Button title="Koppelen" onPress={submit} loading={busy} disabled={code.trim().length < 6} />
+      <H1>{t('flow.kind.linkTitle')}</H1>
+      <P>{t('flow.kind.linkBody')}</P>
+      <Notice kind="info">{t('flow.kind.linkInfo')}</Notice>
+      <Field label={t('flow.kind.code')} value={code} onChangeText={(v) => setCode(v.toUpperCase())} autoCapitalize="characters" maxLength={12} />
+      <Button title={t('flow.kind.linkBtn')} onPress={submit} loading={busy} disabled={code.trim().length < 6} />
       {err && <Notice kind="danger">{err}</Notice>}
-      <Button title="Terug" variant="secondary" onPress={() => router.replace('/age')} />
+      <Button title={t('common.back')} variant="secondary" onPress={() => router.replace('/age')} />
     </Screen>
   );
 }

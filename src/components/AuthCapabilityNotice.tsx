@@ -1,5 +1,6 @@
 import React from 'react';
 import { Notice } from './ui';
+import { i18n } from '../i18n';
 
 export type AuthProvidersStatus = {
   google?: boolean;
@@ -20,7 +21,7 @@ export function authCapabilityMessages(providers: AuthProvidersStatus): AuthCapa
   if (!providers) return [];
   const out: AuthCapabilityMessage[] = [];
   if (!providers.google) {
-    out.push({ key: 'g', kind: 'info', text: 'Inloggen met Google is hier niet beschikbaar.' });
+    out.push({ key: 'g', kind: 'info', text: i18n.t('flow.auth.googleOff') });
   }
   if (providers.emailDelivery) {
     // real delivery — no email banner
@@ -28,13 +29,13 @@ export function authCapabilityMessages(providers: AuthProvidersStatus): AuthCapa
     out.push({
       key: 'e',
       kind: 'warn',
-      text: 'Lokale/testomgeving: bevestigingscodes worden niet naar je e-mailbox gestuurd. E-mailbezorging staat hier uit.',
+      text: i18n.t('flow.auth.emailTest'),
     });
   } else {
     out.push({
       key: 'e',
       kind: 'warn',
-      text: 'E-mailverificatie is momenteel niet beschikbaar. Account aanmaken, inloggen met nieuwe accounts of wachtwoord resetten lukt hier nu niet.',
+      text: i18n.t('flow.auth.emailOff'),
     });
   }
   return out;
@@ -55,7 +56,7 @@ export function AuthCapabilityNotice({ providers }: { providers: AuthProvidersSt
 
 export function mapAuthEmailError(code: string): string | null {
   if (code === 'EMAIL_NOT_CONFIGURED' || code === 'EMAIL_SEND_FAILED') {
-    return 'E-mailverificatie is momenteel niet beschikbaar. Probeer het later opnieuw.';
+    return i18n.t('flow.auth.emailLater');
   }
   return null;
 }

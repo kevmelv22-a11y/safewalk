@@ -1,4 +1,5 @@
 import type { Catalog } from './nl';
+import { flowByLang } from './flow';
 
 export const es: Catalog = {
   common: {
@@ -325,4 +326,5 @@ export const es: Catalog = {
     t7: 'Edad. SafeWalk es a partir de los 13. Menos de 13 se rechaza. De los 13 a los 15 inclusive, las grabaciones, compras, contactos propios y el asistente siguen cerrados. La ubicación y el SOS solo son posibles entonces en modo infantil, tras el consentimiento de un padre, madre o tutor en una cuenta de 16 años o más. SafeWalk no comprueba si esa persona es de verdad el padre, la madre o el tutor.',
     t8: 'Contacto: support@vonkbyte.nl. Siempre puedes eliminar tu cuenta en la app.',
   },
+  flow: flowByLang.es,
 };

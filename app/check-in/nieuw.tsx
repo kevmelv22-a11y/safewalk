@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation } from 'convex/react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { CheckInAdultGate, HomeCheckInSetupView, previewSetupNow } from '../../src/components/HomeCheckInViews';
@@ -48,6 +49,7 @@ function LiveSetup() {
   const [picked, setPicked] = useState<Id<'users'>[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const { t } = useTranslation();
   const selected = picked ?? contacts.map((c) => c.userId);
   const toggle = (id: string) => {
     const base = picked ?? contacts.map((c) => c.userId);
@@ -55,8 +57,8 @@ function LiveSetup() {
   };
   const submit = async (dueAt: number) => {
     const name = cleanLabel(label);
-    if (!name) return setErr('Vul een korte omschrijving in, bijvoorbeeld Thuis.');
-    if (selected.length === 0) return setErr('Kies minstens één vertrouwd contact.');
+    if (!name) return setErr(t('flow.home.needLabel'));
+    if (selected.length === 0) return setErr(t('flow.home.noContacts'));
     setBusy(true); setErr(null);
     try {
       const loc = await getConsentedLocation();
@@ -82,10 +84,11 @@ function LiveSetup() {
 }
 
 export default function NewCheckIn() {
+  const { t } = useTranslation();
   const preview = useLocalSearchParams<{ preview?: string }>().preview;
   if (screenshotMode && preview === '1') return <PreviewSetup />;
   return (
-    <HomeCheckInBoundary fallback={<Screen><H1>Thuis-check-in</H1><Notice kind="warn">De thuis-check-in staat op deze server nog niet aan.</Notice></Screen>}>
+    <HomeCheckInBoundary fallback={<Screen><H1>{t('checkin.title')}</H1><Notice kind="warn">{t('flow.home.serverOff')}</Notice></Screen>}>
       <LiveSetup />
     </HomeCheckInBoundary>
   );

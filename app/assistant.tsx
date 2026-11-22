@@ -6,11 +6,15 @@ import { api } from '../convex/_generated/api';
 import { Screen, H1, P, Button, Field, Notice, Card } from '../src/components/ui';
 import { errorNl } from '../src/lib/convex';
 import { useTheme } from '../src/lib/theme';
+import { useTranslation } from 'react-i18next';
 import { EmergencyButton } from '../src/components/EmergencyButton';
+import { useLocale } from '../src/i18n/provider';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 export default function Assistant() {
-  const t = useTheme();
+  const theme = useTheme();
+  const { t: tr } = useTranslation();
+  const { emergencyDigits } = useLocale();
   const avail = useQuery(api.assistant.availability);
   const ask = useAction(api.assistant.ask);
   const [msgs, setMsgs] = useState<Msg[]>([]); const [input, setInput] = useState('');
@@ -27,15 +31,15 @@ export default function Assistant() {
   };
   return (
     <Screen>
-      <H1>Veiligheidsassistent</H1>
-      <Notice kind="warn">De assistent geeft algemene tips en is geen hulpdienst. Hij kan geen noodsituaties beoordelen en belt niemand. Bij gevaar: bel zelf 112 of gebruik SOS.</Notice>
+      <H1>{tr('screens.assistant')}</H1>
+      <Notice kind="warn">{tr('legal.t4')} {tr('common.disclaimer', { number: emergencyDigits })}</Notice>
       <EmergencyButton />
       {avail && !avail.enabled && <Notice kind="info">De AI-assistent is (nog) niet beschikbaar.</Notice>}
       {avail && avail.enabled && !avail.premium && <><Notice kind="info">De assistent is onderdeel van Premium.</Notice><Button title="Bekijk Premium" variant="secondary" onPress={() => router.push('/premium')} /></>}
       {notice && <Notice kind="danger">{notice}</Notice>}
       {msgs.map((m, i) => (
         <View key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%' }}>
-          <Card style={m.role === 'user' ? { backgroundColor: t.purple, borderColor: t.purple } : undefined}><P style={m.role === 'user' ? { color: '#fff' } : undefined}>{m.content}</P></Card>
+          <Card style={m.role === 'user' ? { backgroundColor: theme.purple, borderColor: theme.purple } : undefined}><P style={m.role === 'user' ? { color: '#fff' } : undefined}>{m.content}</P></Card>
         </View>
       ))}
       {err && <Notice kind="danger">{err}</Notice>}

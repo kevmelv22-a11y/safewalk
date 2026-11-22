@@ -70,42 +70,42 @@ export default function Sos() {
     <Screen>
       {phase === 'countdown' && (
         <View style={{ alignItems: 'center', gap: 16, paddingTop: 30 }}>
-          {trigger === 'shake' && <Notice kind="warn">{SHAKE.detected}. Per ongeluk? Tik op ANNULEREN.</Notice>}
-          {trigger === 'fall' && <Notice kind="warn">Mogelijke val herkend. Alles goed? Tik op ANNULEREN als het een vergissing is. Anders gaat er over 10 seconden een SOS naar je contacten.</Notice>}
-          <H1>{trigger === 'fall' ? 'Alles goed?' : 'SOS wordt verstuurd over'}</H1>
+          {trigger === 'shake' && <Notice kind="warn">{SHAKE.detected}. {tr('flow.sosx.cancel')}</Notice>}
+          {trigger === 'fall' && <Notice kind="warn">{tr('flow.sosx.fall')}</Notice>}
+          <H1>{trigger === 'fall' ? tr('flow.sosx.allGood') : tr('flow.sosx.sendingIn')}</H1>
           <Text accessibilityLiveRegion="assertive" style={{ fontSize: 120, fontWeight: '900', color: t.red }}>{left ?? '…'}</Text>
-          <P muted>Je vertrouwde contacten krijgen een pushmelding met je laatst bekende locatie.</P>
+          <P muted>{tr('flow.sosx.contactsPush')}</P>
           <View style={{ alignSelf: 'stretch', gap: 12 }}>
-            <Button title="ANNULEREN" variant="secondary" onPress={() => { setPhase('cancelled'); if (router.canGoBack()) router.back(); else router.replace('/dashboard'); }} />
-            <Button title="Nu versturen" variant="danger" onPress={() => setLeft(0)} />
+            <Button title={tr('flow.sosx.cancel')} variant="secondary" onPress={() => { setPhase('cancelled'); if (router.canGoBack()) router.back(); else router.replace('/dashboard'); }} />
+            <Button title={tr('flow.sosx.sendNow')} variant="danger" onPress={() => setLeft(0)} />
           </View>
         </View>
       )}
-      {phase === 'sending' && <H1>Versturen…</H1>}
+      {phase === 'sending' && <H1>{tr('flow.sosx.sending')}</H1>}
       {phase === 'sent' && (<>
-        <H1>SOS geregistreerd</H1>
-        <Notice kind="info">Hieronder zie je per contact of het bericht aan de pushdienst is overgedragen. Aflevering op hun telefoon is niet gegarandeerd. Bel ze eventueel ook zelf.</Notice>
+        <H1>{tr('flow.sosx.registered')}</H1>
+        <Notice kind="info">{tr('flow.sosx.delivery')}</Notice>
         <DeliveryList deliveries={alert?.deliveries ?? []} />
       </>)}
-      {phase === 'queued' && <Notice kind="danger">Geen verbinding: je SOS is opgeslagen en wordt automatisch opnieuw verstuurd zodra er internet is. Er is nog NIEMAND gewaarschuwd. Bel bij direct gevaar zelf 112.</Notice>}
-      {phase === 'error' && <Notice kind="danger">Versturen mislukt: {err} Bel bij direct gevaar zelf 112.</Notice>}
-      {phase === 'cancelled' && <Notice kind="ok">SOS geannuleerd.</Notice>}
+      {phase === 'queued' && <Notice kind="danger">{tr('flow.sosx.queued', { number: emergencyDigits })}</Notice>}
+      {phase === 'error' && <Notice kind="danger">{tr('flow.sosx.failed', { error: err ?? '', number: emergencyDigits })}</Notice>}
+      {phase === 'cancelled' && <Notice kind="ok">{tr('flow.sosx.cancelled')}</Notice>}
       {phase !== 'countdown' && (<>
 
       {(phase === 'queued' || phase === 'error' || phase === 'sent') && (
         <>
           <Notice kind={phase === 'sent' ? 'info' : 'warn'}>
             {phase === 'queued' || phase === 'error'
-              ? 'Geen (stabiele) verbinding? Open je sms-app met je locatie. Jij tikt zelf op versturen. SafeWalk verstuurt geen sms.'
-              : 'Je kunt de locatie ook zelf als sms sturen. Jij tikt op versturen; SafeWalk verstuurt geen sms.'}
+              ? tr('flow.sosx.smsOffline')
+              : tr('flow.sosx.smsAlso')}
           </Notice>
           <ContactComposer message={reserveSmsMessage({ lat: smsLoc.lat, lng: smsLoc.lng, context: 'sos' })} />
         </>
       )}
         <EmergencyButton />
         <P muted>{tr('dial.hint')}. {tr('dial.title', { number: emergencyDigits })}</P>
-        {(phase === 'sent' || phase === 'queued') && <Button title="Vals alarm – ik ben veilig" variant="secondary" onPress={cancelAfter} />}
-        <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />
+        {(phase === 'sent' || phase === 'queued') && <Button title={tr('flow.sosx.falseAlarm')} variant="secondary" onPress={cancelAfter} />}
+        <Button title={tr('flow.sosx.backDash')} variant="secondary" onPress={() => router.replace('/dashboard')} />
       </>)}
     </Screen>
   );

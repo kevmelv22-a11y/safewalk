@@ -1,4 +1,6 @@
 /** Dutch source strings. Other languages must match this shape. */
+import { flowByLang } from './flow';
+
 export const nl = {
   common: {
     back: 'Terug',
@@ -464,6 +466,7 @@ export const nl = {
     t7: 'Leeftijd. SafeWalk is vanaf 13 jaar. Onder 13 wordt geweigerd. Van 13 tot en met 15 blijven opnames, aankopen, eigen contacten en de assistent dicht. Locatie en SOS kunnen dan alleen via kindermodus, na toestemming van een ouder of voogd in een account van 16+. SafeWalk controleert niet of die persoon echt de ouder of voogd is.',
     t8: 'Contact: support@vonkbyte.nl. Je kunt je account altijd in de app verwijderen.',
   },
+  flow: flowByLang.nl,
 } as const;
 
 type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };

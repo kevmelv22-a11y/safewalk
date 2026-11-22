@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useQuery } from 'convex/react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../convex/_generated/api';
 import { Logo } from '../src/components/Logo';
 import { AuthPanel } from '../src/components/AuthPanel';
@@ -11,6 +12,7 @@ import { errorCode } from '../src/lib/convex';
 import { isValidEmail, mapErrorNl } from '../src/lib/safety';
 
 export default function ForgotPassword() {
+  const { t } = useTranslation();
   const { signIn } = useAuthActions();
   const providers = useQuery(api.auth.providers);
   const [email, setEmail] = useState('');
@@ -19,7 +21,7 @@ export default function ForgotPassword() {
   const submit = async () => {
     setErr(null);
     const e = email.trim().toLowerCase();
-    if (!isValidEmail(e)) return setErr('Vul een geldig e-mailadres in.');
+    if (!isValidEmail(e)) return setErr(t('flow.auth.emailInvalid'));
     setBusy(true);
     try {
       await signIn('password', { flow: 'reset', email: e });
@@ -36,13 +38,13 @@ export default function ForgotPassword() {
     <Screen>
       <Logo size="small" />
       <AuthPanel>
-        <H1>Wachtwoord vergeten</H1>
-        <P muted>Vul je e-mailadres in. Als er een account bij hoort, sturen we je een code van 6 cijfers om een nieuw wachtwoord in te stellen.</P>
+        <H1>{t('flow.auth.forgotTitle')}</H1>
+        <P muted>{t('flow.auth.forgotBody')}</P>
         <AuthCapabilityNotice providers={providers} />
-        <Field label="E-mailadres" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+        <Field label={t('flow.auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
         {err && <Notice kind="danger">{err}</Notice>}
-        <Button title="Code versturen" onPress={submit} loading={busy} disabled={!email || !!emailBlocked} />
-        <Button title="Terug naar inloggen" variant="secondary" onPress={() => router.replace('/login')} />
+        <Button title={t('flow.auth.sendCode')} onPress={submit} loading={busy} disabled={!email || !!emailBlocked} />
+        <Button title={t('flow.auth.backLogin')} variant="secondary" onPress={() => router.replace('/login')} />
       </AuthPanel>
     </Screen>
   );

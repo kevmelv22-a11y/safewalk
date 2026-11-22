@@ -1,4 +1,5 @@
 import type { Catalog } from './nl';
+import { flowByLang } from './flow';
 
 export const ar: Catalog = {
   common: {
@@ -316,4 +317,5 @@ export const ar: Catalog = {
     t7: 'العمر. SafeWalk من سن 13. يُرفض من هم دون 13. من 13 حتى 15 تبقى التسجيلات والمشتريات وجهات الاتصال الخاصة والمساعد مغلقة. الموقع ونداء الاستغاثة ممكنان حينها فقط في وضع الطفل، بعد موافقة والد أو وصي في حساب لمن هم 16 فأكثر. لا تتحقق SafeWalk إن كان ذلك الشخص والدًا أو وصيًا فعلًا.',
     t8: 'للتواصل: support@vonkbyte.nl. يمكنك دائمًا حذف حسابك في التطبيق.',
   },
+  flow: flowByLang.ar,
 };

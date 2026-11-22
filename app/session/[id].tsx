@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { useTranslation } from 'react-i18next';
 import { Screen, Button, Card, P, Notice, H1 } from '../../src/components/ui';
 import { LiveMap } from '../../src/components/LiveMap';
 import { SosButton } from '../../src/components/SosButton';
@@ -16,12 +17,11 @@ import { useSharingMode, useSharingSessionId } from '../../src/lib/sharingKeeper
 import { Choice, Toggle } from '../../src/components/Choice';
 import { useLinkCodes } from '../../src/store/linkCodes';
 import { CODE_HINT, LINK_KEY_WARNING, PRIVACY_HINT, VIEWER_ALERTS_HINT } from '../../src/content/liveSharing';
-import { LINK_DURATIONS, LINK_DURATION_LABEL, type LinkDuration } from '../../convex/liveShare';
+import { LINK_DURATIONS, type LinkDuration } from '../../convex/liveShare';
 import { cancelReminders, scheduleCheckInReminder } from '../../src/lib/notifications';
 import { ARRIVAL_PROMPT_M, arrivalDistance, shouldAskArrived } from '../../src/lib/arrival';
 import { recordSafeArrival } from '../../src/lib/reviewPrompt';
 import { reserveSmsMessage, tripLinkMessage } from '../../src/lib/composer';
-import { SHARE_COPY } from '../../src/content/longShare';
 import { shouldPromptRenewal } from '../../convex/longShare';
 import { ContactComposer } from '../../src/components/ContactComposer';
 import { OfflineSmsPrompt } from '../../src/components/OfflineSmsPrompt';
@@ -29,6 +29,7 @@ import { rideShareLine } from '../../src/lib/rideShare';
 import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../../src/lib/batteryOptimization';
 
 export default function MySession() {
+  const { t } = useTranslation();
   const id = useLocalSearchParams<{ id: string }>().id as Id<'sessions'>; const now = useNow(1000);
   const trail = useLiveLocations(id);
   const data = useQuery(api.sessions.get, { sessionId: id });
@@ -53,6 +54,7 @@ export default function MySession() {
   const codes = useLinkCodes((x) => x.codes); const putCode = useLinkCodes((x) => x.put);
   const [duration, setDuration] = useState<LinkDuration>('arrival');
   const [withCode, setWithCode] = useState(false);
+  const linkLabel = (d: LinkDuration) => t(d === '15m' ? 'flow.share.l15' : d === '1h' ? 'flow.share.l1' : d === 'arrival' ? 'flow.share.arrival' : 'flow.share.d8');
   const s = data?.session; const ci = data?.checkIn;
   const ended = !!s && s.endedAt !== undefined;
   const isShare = s?.kind === 'share';
@@ -61,10 +63,10 @@ export default function MySession() {
   if (data === null) return (
     <Screen>
       <Notice kind="info">Deze reis bestaat niet meer of je hebt er geen toegang toe.</Notice>
-      <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />
+      <Button title={t('flow.sosx.backDash')} variant="secondary" onPress={() => router.replace('/dashboard')} />
     </Screen>
   );
-  if (!s) return <Screen><P muted>Reis laden…</P></Screen>;
+  if (!s) return <Screen><P muted>{t('flow.home.loading')}</P></Screen>;
   const share = data.isOwner && !ended ? sharingStatus(sharingId === id, trail.at(-1)?.recordedAt ?? null, now, mode) : null;
   const phase = ci && ci.status !== 'confirmed' && ci.status !== 'cancelled' ? checkInPhase(ci.dueAt, ci.graceMinutes, now) : null;
   const respond = async (extend: number) => {
@@ -108,7 +110,7 @@ export default function MySession() {
     try { await endSession({ sessionId: id }); }
     catch (e) {
       // Niet lokaal stoppen: de reis loopt op de server nog door (check-in kan je contacten waarschuwen).
-      setErr(`Stoppen lukte niet: ${errorNl(e)} Je reis en het delen lopen nog. Probeer het opnieuw als je verbinding hebt.`);
+      setErr(t('flow.session.stopFail', { error: errorNl(e) }));
       setStopping(false);
       return;
     }
@@ -117,31 +119,31 @@ export default function MySession() {
   const resume = async () => {
     setResuming(true); setErr(null);
     try { await startSharing(id, { until: untilFor(s.expiresAt) }); }
-    catch (e) { setErr(String((e as Error).message) + ' Geef toestemming in de instellingen van je telefoon.'); }
+    catch (e) { setErr(t('flow.session.perm', { detail: String((e as Error).message) })); }
     finally { setResuming(false); }
   };
   return (
     <Screen>
       <H1>{isShare ? `📍 ${s.destinationLabel}` : s.kind === 'timer' ? `⏱️ ${s.destinationLabel}` : s.destinationLabel}</H1>
       {isShare && !ended && (
-        <P muted>{s.shareUntilStop ? SHARE_COPY.activeUntilStop : SHARE_COPY.activeUntil}{' '}
+        <P muted>{s.shareUntilStop ? t('flow.share.activeUntilStop') : t('flow.share.activeUntil')}{' '}
           {new Date(s.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
         </P>
       )}
       {!!rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle }) && <Notice kind="info">🚗 {rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle })}</Notice>}
       {s.privacyMode && !ended && <Notice kind="info">🔒 Privacy-check-in staat aan. {PRIVACY_HINT}</Notice>}
-      {ended && <Notice kind="info">{isShare ? 'Dit delen is beëindigd. Locatie wordt niet meer gedeeld.' : 'Deze reis is beëindigd. Locatie wordt niet meer gedeeld.'}</Notice>}
+      {ended && <Notice kind="info">{isShare ? t('flow.session.shareEnded') : t('flow.session.tripEnded')}</Notice>}
       <OfflineSmsPrompt />
       {share && (
         <Notice kind={share.kind}>{share.text}{share.lastAt ? ` Laatste punt: ${timeAgo(share.lastAt, now)}.` : ''}</Notice>
       )}
       {share && !share.live && (
-        <Button title="Locatie delen hervatten" variant="success" loading={resuming} onPress={resume} />
+        <Button title={t('flow.session.resume')} variant="success" loading={resuming} onPress={resume} />
       )}
       {data.isOwner && !ended && share && !share.live && (
         <Card>
-          <P>Sms als reserve</P>
-          <P muted>Geen verbinding of delen staat stil. Open je sms-app met je laatst bekende locatie; jij tikt zelf op versturen. SafeWalk verstuurt geen sms.</P>
+          <P>{t('flow.session.smsTitle')}</P>
+          <P muted>{t('flow.session.smsBody')}</P>
           <ContactComposer message={reserveSmsMessage({
             lat: last?.lat, lng: last?.lng, context: isShare ? 'share' : 'trip', what: s.kind === 'timer' || isShare ? s.destinationLabel : `reis naar ${s.destinationLabel}`,
             ride: { plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle },
@@ -151,84 +153,84 @@ export default function MySession() {
       {data.isOwner && !ended && <Notice kind="info">{BATTERY_HINT_NL}</Notice>}
       {data.isOwner && !ended && isShare && renewDue && (
         <Card>
-          <P>{SHARE_COPY.renewTitle}</P>
-          <P muted>{SHARE_COPY.renewBody}</P>
-          <Button title={SHARE_COPY.renew} variant="success" loading={renewing} onPress={() => {
+          <P>{t('flow.share.renewTitle')}</P>
+          <P muted>{t('flow.share.renewBody')}</P>
+          <Button title={t('flow.share.renew')} variant="success" loading={renewing} onPress={() => {
             setRenewing(true); setErr(null);
             renewShare({ sessionId: id }).catch((e) => setErr(errorNl(e))).finally(() => setRenewing(false));
           }} />
         </Card>
       )}
-      {data.isOwner && !ended && Platform.OS === 'android' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
-      {s.status === 'alert' && !ended && <Notice kind="danger">Je check-in is gemist. Je contacten zijn gewaarschuwd. Bevestig hieronder als alles goed is.</Notice>}
+      {data.isOwner && !ended && Platform.OS === 'android' && <Button title={t('flow.session.battery')} variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
+      {s.status === 'alert' && !ended && <Notice kind="danger">{t('flow.session.missed')}</Notice>}
       {!ended && data.signals.map((sg) => (
         <Card key={sg._id} style={{ borderColor: '#F59E0B', borderWidth: 2 }}>
           <P>{signalText[sg.kind]}</P>
-          <P muted>Dit is alleen een extra vraag; je contacten worden hierdoor niet gewaarschuwd.</P>
-          <Button title="✓ Alles goed" variant="success" onPress={() => acknowledge({ signalId: sg._id })} />
+          <P muted>{t('flow.session.signalNote')}</P>
+          <Button title={t('flow.session.allGood')} variant="success" onPress={() => acknowledge({ signalId: sg._id })} />
         </Card>
       ))}
       {askArrived && (
         <Card style={{ borderColor: '#22C55E', borderWidth: 2 }}>
-          <P style={{ fontSize: 22, fontWeight: '800' }}>Ben je er?</P>
-          <P muted>Je bent op ongeveer {Math.max(5, Math.round((distance ?? ARRIVAL_PROMPT_M) / 5) * 5)} m van {s.destinationLabel}. Bevestig dat je veilig bent aangekomen, dan stopt het delen.</P>
-          <Button title="✓ Ja, ik ben veilig aangekomen" variant="success" onPress={() => respond(0)} />
-          <Button title="Nog niet" variant="secondary" onPress={() => setSnoozedAt(Date.now())} />
+          <P style={{ fontSize: 22, fontWeight: '800' }}>{t('flow.session.thereTitle')}</P>
+          <P muted>{t('flow.session.thereBody', { meters: Math.max(5, Math.round((distance ?? ARRIVAL_PROMPT_M) / 5) * 5), place: s.destinationLabel })}</P>
+          <Button title={t('flow.session.yesArrived')} variant="success" onPress={() => respond(0)} />
+          <Button title={t('flow.session.notYet')} variant="secondary" onPress={() => setSnoozedAt(Date.now())} />
         </Card>
       )}
       {!ended && ci && phase && (
         <Card style={phase !== 'running' ? { borderColor: '#EF4444', borderWidth: 2 } : undefined}>
-          {phase === 'running' ? <P>Check-in over {formatCountdown(ci.dueAt - now)}</P> : <P style={{ fontSize: 22, fontWeight: '800' }}>Alles goed?</P>}
-          {phase === 'grace' && <P muted>Bevestig binnen {formatCountdown(ci.dueAt + ci.graceMinutes * 60_000 - now)}, anders worden je contacten gewaarschuwd.</P>}
-          <Button title="✓ Ik ben veilig aangekomen" variant="success" onPress={() => respond(0)} />
-          <Button title="+10 minuten" variant="secondary" disabled={ci.extensions >= 3} onPress={() => respond(10)} />
-          <Button title="+20 minuten" variant="secondary" disabled={ci.extensions >= 3} onPress={() => respond(20)} />
+          {phase === 'running' ? <P>{t('flow.session.checkinIn', { time: formatCountdown(ci.dueAt - now) })}</P> : <P style={{ fontSize: 22, fontWeight: '800' }}>{t('flow.sosx.allGood')}</P>}
+          {phase === 'grace' && <P muted>{t('flow.session.confirmWithin', { time: formatCountdown(ci.dueAt + ci.graceMinutes * 60_000 - now) })}</P>}
+          <Button title={t('flow.session.arrived')} variant="success" onPress={() => respond(0)} />
+          <Button title={t('flow.session.plus10')} variant="secondary" disabled={ci.extensions >= 3} onPress={() => respond(10)} />
+          <Button title={t('flow.session.plus20')} variant="secondary" disabled={ci.extensions >= 3} onPress={() => respond(20)} />
         </Card>
       )}
       <LiveMap trail={trail} dest={s.destinationLat !== undefined && s.destinationLng !== undefined ? { lat: s.destinationLat, lng: s.destinationLng, label: s.destinationLabel } : null} now={now} />
       <Card>
-        <P>Meekijkers in de app</P>
-        {data.viewers.length === 0 && <P muted>Geen; deze reis wordt alleen via een link gedeeld.</P>}
-        {data.viewers.map((v) => <P key={v.viewerId} muted>{v.revoked ? '⛔' : '👀'} {v.name}{v.revoked ? ' (toegang ingetrokken)' : ''}</P>)}
+        <P>{t('flow.session.viewers')}</P>
+        {data.viewers.length === 0 && <P muted>{t('flow.session.viewersNone')}</P>}
+        {data.viewers.map((v) => <P key={v.viewerId} muted>{v.revoked ? '⛔' : '👀'} {v.name}{v.revoked ? ` ${t('flow.session.revoked')}` : ''}</P>)}
         {!ended && data.viewers.filter((v) => !v.revoked).map((v) => (
-          <Button key={'r' + v.viewerId} title={`Toegang intrekken: ${v.name}`} variant="secondary" onPress={() => revokeViewer({ sessionId: id, viewerId: v.viewerId }).catch((e) => setErr(errorNl(e)))} />
+          <Button key={'r' + v.viewerId} title={t('flow.session.revokeName', { name: v.name })} variant="secondary" onPress={() => revokeViewer({ sessionId: id, viewerId: v.viewerId }).catch((e) => setErr(errorNl(e)))} />
         ))}
       </Card>
       {data.isOwner && !ended && (
         <Card>
-          <P>Meekijklink voor iemand zonder app</P>
-          <P muted style={{ fontSize: 14 }}>Wie de link heeft, ziet in de browser {s.privacyMode ? 'de status van je reis (locatie pas bij een gemiste check-in of SOS)' : 'je live locatie, je recente route, je bestemming en de aftelling'}, met een knop om naar je toe te navigeren. De link verloopt vanzelf en je kunt hem hier intrekken.</P>
-          <P muted>Hoe lang werkt de link?</P>
-          <Choice label="Duur van de link" value={duration} onChange={setDuration} options={LINK_DURATIONS.map((d) => ({ value: d, label: LINK_DURATION_LABEL[d] }))} />
-          <Toggle value={withCode} onChange={setWithCode} title="Toegangscode toevoegen" hint={CODE_HINT} />
+          <P>{t('flow.session.linkTitle')}</P>
+          <P muted style={{ fontSize: 14 }}>{s.privacyMode ? t('flow.session.linkPrivate') : t('flow.session.linkLive')}</P>
+          <P muted>{t('flow.session.linkHow')}</P>
+          <Choice label={t('flow.share.linkDuration')} value={duration} onChange={setDuration} options={LINK_DURATIONS.map((d) => ({ value: d, label: linkLabel(d) }))} />
+          <Toggle value={withCode} onChange={setWithCode} title={t('flow.share.codeToggle')} hint={CODE_HINT} />
           <Notice kind="warn">{LINK_KEY_WARNING}</Notice>
-          <Button title="Meekijklink delen" onPress={shareTripLink} loading={linkBusy} />
+          <Button title={t('flow.session.shareLink')} onPress={shareTripLink} loading={linkBusy} />
           <P muted style={{ fontSize: 14 }}>{VIEWER_ALERTS_HINT}</P>
           {linkMsg && <Notice kind="ok">{linkMsg}</Notice>}
           {linkText && <ContactComposer message={linkText} />}
-          {tripLinks.length > 0 && <P>Actieve links ({tripLinks.length})</P>}
+          {tripLinks.length > 0 && <P>{t('flow.session.activeLinks', { count: tripLinks.length })}</P>}
           {tripLinks.map((l) => (
             <View key={l.id} style={{ gap: 6, paddingVertical: 6 }}>
               <P muted style={{ fontSize: 14 }}>
-                🔗 Tot {new Date(l.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}{l.duration ? ` (${LINK_DURATION_LABEL[l.duration]})` : ''}
-                {l.hasCode ? (codes[l.id] ? ` · code ${codes[l.id].slice(0, 3)} ${codes[l.id].slice(3)}` : ' · met code') : ''}
-                {l.codeLocked ? ' · geblokkeerd na te veel foute codes' : ''}
-                {l.emailSubscribers ? ` · ${l.emailSubscribers} ${l.emailSubscribers === 1 ? 'kijker' : 'kijkers'} met e-mailmeldingen` : ''}
+                🔗 {t('flow.session.until', { time: new Date(l.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) })}{l.duration ? ` (${linkLabel(l.duration)})` : ''}
+                {l.hasCode ? (codes[l.id] ? ` · code ${codes[l.id].slice(0, 3)} ${codes[l.id].slice(3)}` : ` · ${t('flow.session.withCode')}`) : ''}
+                {l.codeLocked ? ` · ${t('flow.session.locked')}` : ''}
+                {l.emailSubscribers ? ` · ${l.emailSubscribers === 1 ? t('flow.session.watchers', { count: l.emailSubscribers }) : t('flow.session.watchersPlural', { count: l.emailSubscribers })}` : ''}
               </P>
-              <Button title="Link intrekken" variant="danger" onPress={() => revokeLink({ id: l.id }).catch((e) => setErr(errorNl(e)))} />
+              <Button title={t('flow.session.revokeLink')} variant="danger" onPress={() => revokeLink({ id: l.id }).catch((e) => setErr(errorNl(e)))} />
             </View>
           ))}
         </Card>
       )}
       {data.notifications.length > 0 && (
         <Card>
-          <P>Meldingen aan je contacten</P>
+          <P>{t('flow.session.notifs')}</P>
           {data.notifications.map((n) => <P key={n.id} muted>{deliveryIcon(n.status)} {notificationKindLabel[n.kind]} → {n.name}: {deliveryLabel[n.status]}</P>)}
         </Card>
       )}
       {err && <Notice kind="danger">{err}</Notice>}
       {!ended && <SosButton sessionId={id} />}
-      {!ended && <Button title={isShare ? SHARE_COPY.stop : "Stop delen en beëindig reis"} variant="danger" loading={stopping} onPress={stop} />}
+      {!ended && <Button title={isShare ? t('flow.share.stop') : t('flow.session.stopTrip')} variant="danger" loading={stopping} onPress={stop} />}
     </Screen>
   );
 }

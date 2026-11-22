@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useQuery } from 'convex/react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../convex/_generated/api';
 import { Logo } from '../src/components/Logo';
 import { GoogleButton } from '../src/components/GoogleButton';
@@ -10,8 +11,11 @@ import { AuthCapabilityNotice, mapAuthEmailError } from '../src/components/AuthC
 import { Screen, H1, P, Button, Field, Notice } from '../src/components/ui';
 import { errorCode } from '../src/lib/convex';
 import { mapErrorNl } from '../src/lib/safety';
+import { useLocale } from '../src/i18n/provider';
 
 export default function Login() {
+  const { t } = useTranslation();
+  const { emergencyDigits } = useLocale();
   const { signIn } = useAuthActions();
   const providers = useQuery(api.auth.providers);
   const [email, setEmail] = useState(''); const [pw, setPw] = useState('');
@@ -26,7 +30,7 @@ export default function Login() {
       else router.replace('/');
     } catch (x) {
       const c = errorCode(x);
-      setErr(mapAuthEmailError(c) ?? (/EMAIL_/.test(c) ? mapErrorNl(c) : 'Inloggen mislukt. Controleer je e-mailadres en wachtwoord.'));
+      setErr(mapAuthEmailError(c) ?? (/EMAIL_/.test(c) ? mapErrorNl(c) : t('flow.auth.loginFail')));
     }
     finally { setBusy(false); }
   };
@@ -34,17 +38,17 @@ export default function Login() {
     <Screen>
       <Logo size="small" />
       <AuthPanel>
-        <H1>Inloggen</H1>
-        <P muted>Log in met je SafeWalk-account. Bij direct gevaar bel je zelf 112 — SafeWalk doet dat niet automatisch.</P>
+        <H1>{t('flow.auth.loginTitle')}</H1>
+        <P muted>{t('flow.auth.loginBody', { number: emergencyDigits })}</P>
         <AuthCapabilityNotice providers={providers} />
         <GoogleButton />
-        {providers?.google ? <P muted style={{ textAlign: 'center' }}>of met e-mail</P> : null}
-        <Field label="E-mailadres" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="naam@voorbeeld.nl" />
-        <Field label="Wachtwoord" value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" placeholder="••••••••••" />
+        {providers?.google ? <P muted style={{ textAlign: 'center' }}>{t('flow.auth.orEmail')}</P> : null}
+        <Field label={t('flow.auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder={t('flow.auth.emailPh')} />
+        <Field label={t('flow.auth.password')} value={pw} onChangeText={setPw} secureTextEntry autoComplete="current-password" placeholder="••••••••••" />
         {err && <Notice kind="danger">{err}</Notice>}
-        <Button title="Inloggen" onPress={submit} loading={busy} disabled={!email || !pw || !!emailBlocked} />
-        <Button title="Wachtwoord vergeten?" variant="secondary" onPress={() => router.push('/forgot-password')} disabled={!!emailBlocked} />
-        <Button title="Account aanmaken" variant="secondary" onPress={() => router.push('/signup')} />
+        <Button title={t('flow.auth.loginTitle')} onPress={submit} loading={busy} disabled={!email || !pw || !!emailBlocked} />
+        <Button title={t('flow.auth.forgot')} variant="secondary" onPress={() => router.push('/forgot-password')} disabled={!!emailBlocked} />
+        <Button title={t('flow.auth.signupTitle')} variant="secondary" onPress={() => router.push('/signup')} />
       </AuthPanel>
     </Screen>
   );

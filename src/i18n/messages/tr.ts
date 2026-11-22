@@ -1,4 +1,5 @@
 import type { Catalog } from './nl';
+import { flowByLang } from './flow';
 
 export const tr: Catalog = {
   common: {
@@ -315,4 +316,5 @@ export const tr: Catalog = {
     t7: 'Yaş. SafeWalk 13 yaşından itibarendir. 13’ten küçükler reddedilir. 13 ile 15 arasında kayıtlar, satın almalar, kendi kişilerin ve asistan kapalı kalır. Konum ve SOS o zaman yalnızca çocuk modunda, bir ebeveyn veya vasinin 16+ hesabında onayından sonra mümkündür. SafeWalk o kişinin gerçekten ebeveyn veya vasi olup olmadığını kontrol etmez.',
     t8: 'İletişim: support@vonkbyte.nl. Hesabını uygulamada her zaman silebilirsin.',
   },
+  flow: flowByLang.tr,
 };

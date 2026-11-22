@@ -6,10 +6,14 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { Screen, H1, P, Notice, Button, Card } from '../../src/components/ui';
 import { DeliveryList } from '../../src/components/DeliveryList';
 import { accuracyLabel, alertTitle, timeAgo } from '../../src/lib/safety';
+import { useTranslation } from 'react-i18next';
 import { EmergencyButton } from '../../src/components/EmergencyButton';
+import { useLocale } from '../../src/i18n/provider';
 import { deviceStatusHint, deviceStatusLine } from '../../convex/deviceStatus';
 
 export default function AlertDetail() {
+  const { t } = useTranslation();
+  const { emergencyDigits } = useLocale();
   const id = useLocalSearchParams<{ id: string }>().id as Id<'alerts'>;
   const data = useQuery(api.sos.get, { alertId: id });
   if (data === undefined) return <Screen><P muted>Melding laden…</P></Screen>;
@@ -37,7 +41,7 @@ export default function AlertDetail() {
       </Card>
       {data.isOwner && <DeliveryList deliveries={data.deliveries} />}
       {a.sessionId && !data.isOwner && <Button title="Live kaart (indien nog gedeeld)" variant="secondary" onPress={() => router.push(`/watch/${a.sessionId}`)} />}
-      <Notice kind="warn">Probeer eerst zelf contact op te nemen. Bel bij direct gevaar 112 – SafeWalk doet dat niet automatisch.</Notice>
+      <Notice kind="warn">{t('common.disclaimer', { number: emergencyDigits })}</Notice>
       <EmergencyButton />
     </Screen>
   );

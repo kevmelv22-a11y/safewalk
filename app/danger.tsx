@@ -25,6 +25,7 @@ import { useAuthToken } from '@convex-dev/auth/react';
 import { errorNl } from '../src/lib/convex';
 import { EmergencyButton } from '../src/components/EmergencyButton';
 import { useTheme } from '../src/lib/theme';
+import { useLocale } from '../src/i18n/provider';
 import { CRITICAL_ACTIONS } from '../src/lib/themeCatalog';
 
 /**
@@ -34,6 +35,7 @@ import { CRITICAL_ACTIONS } from '../src/lib/themeCatalog';
  */
 export default function Danger() {
   const t = useTheme();
+  const { emergencyDigits } = useLocale();
   const { incidentId, sharePath, silent: silentParam } = useLocalSearchParams<{ incidentId?: string; sharePath?: string; silent?: string }>();
   const silent = silentParam === '1';
   const pinStatus = useQuery(api.security.pinStatus);
@@ -192,7 +194,7 @@ export default function Danger() {
   const shareTrack = async () => {
     if (!sharePath) return;
     const site = process.env.EXPO_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, '') ?? '';
-    const text = `SafeWalk-locatielink (tijdelijk): ${site}${sharePath}\nSafeWalk belt niet 112.`;
+    const text = `SafeWalk-locatielink (tijdelijk): ${site}${sharePath}\nSafeWalk belt niet ${emergencyDigits}.`;
     try {
       if (Platform.OS === 'web' && navigator.clipboard) await navigator.clipboard.writeText(text);
       else await Share.share({ message: text });
@@ -206,8 +208,8 @@ export default function Danger() {
         <ConnectionBanner />
         <H1>{silent ? 'STIL ALARM ACTIEF' : 'GEVAARMODUS ACTIEF'}</H1>
         <Notice kind="danger">{silent
-          ? 'Stil alarm: geen geluid, geen zaklamp, geen opname. Contacten krijgen een melding met je locatie. Stoppen kan met je veiligheidscode. SafeWalk belt 112 niet automatisch.'
-          : 'Alarm speelt tot je het stopt met je veiligheidscode (server-check). SafeWalk belt 112 niet automatisch.'}</Notice>
+          ? `Stil alarm: geen geluid, geen zaklamp, geen opname. Contacten krijgen een melding met je locatie. Stoppen kan met je veiligheidscode. SafeWalk belt ${emergencyDigits} niet automatisch.`
+          : `Alarm speelt tot je het stopt met je veiligheidscode (server-check). SafeWalk belt ${emergencyDigits} niet automatisch.`}</Notice>
         {recActive && <Notice kind="danger">🔴 OPNAME BEZIG — alarmgeluid kan in de opname zitten.</Notice>}
         {recNote && <Notice kind="info">{recNote}</Notice>}
         {sharePath && (
