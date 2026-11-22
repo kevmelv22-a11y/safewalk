@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
-import { Stack, router } from 'expo-router';
+import { LocaleProvider as NavigationLocale, Stack, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { LocaleProvider, useLocale } from '../src/i18n/provider';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -39,8 +41,12 @@ function PurchasesBootstrap() {
   return null;
 }
 
-export default function RootLayout() {
-  const t = useTheme(); const isDark = useIsDark();
+function RootNavigation() {
+  const theme = useTheme();
+  const isDark = useIsDark();
+  const { t } = useTranslation();
+  const { language } = useLocale();
+  const direction = language === 'ar' ? 'rtl' : 'ltr';
   useEffect(() => {
     const stopRetry = startOfflineRetry();
     cleanupPlaybackLeftovers(); // only sw-play-* in the app's own playback cache dir
@@ -86,59 +92,71 @@ export default function RootLayout() {
           <HomeCheckInKeeper />
         </HomeCheckInBoundary>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerTintColor: t.text, contentStyle: { backgroundColor: t.bg }, headerBackTitle: 'Terug' }}>
+        <NavigationLocale direction={direction}>
+        <Stack screenOptions={{ headerStyle: { backgroundColor: theme.bg }, headerTintColor: theme.text, contentStyle: { backgroundColor: theme.bg }, headerBackTitle: t('common.back') }}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="age" options={{ title: 'Leeftijd', headerBackVisible: false }} />
+          <Stack.Screen name="age" options={{ title: t('screens.age'), headerBackVisible: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="dashboard" options={{ title: 'SafeWalk', headerBackVisible: false }} />
-          <Stack.Screen name="login" options={{ title: 'Inloggen' }} />
-          <Stack.Screen name="signup" options={{ title: 'Account aanmaken' }} />
-          <Stack.Screen name="forgot-password" options={{ title: 'Wachtwoord vergeten' }} />
-          <Stack.Screen name="reset-password" options={{ title: 'Nieuw wachtwoord' }} />
-          <Stack.Screen name="verify-email" options={{ title: 'E-mail bevestigen' }} />
-          <Stack.Screen name="alert/[id]" options={{ title: 'Melding' }} />
-          <Stack.Screen name="assistant" options={{ title: 'Veiligheidsassistent' }} />
-          <Stack.Screen name="contacts" options={{ title: 'Vertrouwde contacten' }} />
-          <Stack.Screen name="history" options={{ title: 'Reisgeschiedenis' }} />
-          <Stack.Screen name="invite/[token]" options={{ title: 'Uitnodiging' }} />
-          <Stack.Screen name="onboarding/contacts" options={{ title: 'Contacten' }} />
-          <Stack.Screen name="onboarding/location" options={{ title: 'Locatie' }} />
-          <Stack.Screen name="onboarding/notifications" options={{ title: 'Meldingen' }} />
-          <Stack.Screen name="onboarding/pin" options={{ title: 'Veiligheidscode' }} />
-          <Stack.Screen name="onboarding/settings" options={{ title: 'Veiligheid' }} />
-          <Stack.Screen name="premium" options={{ title: 'Premium' }} />
-          <Stack.Screen name="report" options={{ title: 'Misbruik melden' }} />
-          <Stack.Screen name="session/[id]" options={{ title: 'Reis' }} />
-          <Stack.Screen name="session/destination" options={{ title: 'Bestemming' }} />
-          <Stack.Screen name="session/new" options={{ title: 'Reis of timer' }} />
-          <Stack.Screen name="session/delen" options={{ title: 'Locatie delen' }} />
-          <Stack.Screen name="settings" options={{ title: 'Instellingen' }} />
-          <Stack.Screen name="watch/[id]" options={{ title: 'Meekijken' }} />
-          <Stack.Screen name="privacy" options={{ title: 'Privacybeleid' }} />
-          <Stack.Screen name="terms" options={{ title: 'Gebruiksvoorwaarden' }} />
-          <Stack.Screen name="share-link" options={{ title: 'Meekijklink' }} />
-          <Stack.Screen name="device-contacts" options={{ title: 'Telefooncontacten' }} />
-          <Stack.Screen name="recordings" options={{ title: 'Opnames' }} />
-          <Stack.Screen name="settings/pin" options={{ title: 'Code wijzigen' }} />
-          <Stack.Screen name="settings/auto-sms" options={{ title: 'Automatische sms' }} />
-          <Stack.Screen name="settings/dwangcode" options={{ title: 'Dwangcode' }} />
-          <Stack.Screen name="hulplijnen" options={{ title: 'Hulplijnen' }} />
-          <Stack.Screen name="noodinfo" options={{ title: 'Noodinfo' }} />
-          <Stack.Screen name="veilige-plekken" options={{ title: 'Plekken in de buurt' }} />
-          <Stack.Screen name="quick-ping" options={{ title: "Locatie sturen" }} />
-          <Stack.Screen name="danger" options={{ title: "Gevaarmodus", headerShown: false, presentation: "fullScreenModal" }} />
-          <Stack.Screen name="sos" options={{ title: 'SOS', presentation: 'fullScreenModal', headerShown: false }} />
-          <Stack.Screen name="check-in/index" options={{ title: 'Thuis-check-in' }} />
-          <Stack.Screen name="check-in/nieuw" options={{ title: 'Check-in instellen' }} />
-          <Stack.Screen name="check-in/[id]" options={{ title: 'Check-in' }} />
-          <Stack.Screen name="fake-call" options={{ title: 'Nep-oproep' }} />
-          <Stack.Screen name="fake-call-ring" options={{ title: 'Oproep', presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="kind" options={{ title: 'Kindermodus', headerBackVisible: false }} />
-          <Stack.Screen name="kind/koppelen" options={{ title: 'Koppelen aan ouder' }} />
-          <Stack.Screen name="settings/kinderen" options={{ title: 'Kinderen' }} />
-          <Stack.Screen name="ouder/[linkId]" options={{ title: 'Kind volgen' }} />
+          <Stack.Screen name="dashboard" options={{ title: t('screens.dashboard'), headerBackVisible: false }} />
+          <Stack.Screen name="login" options={{ title: t('screens.login') }} />
+          <Stack.Screen name="signup" options={{ title: t('screens.signup') }} />
+          <Stack.Screen name="forgot-password" options={{ title: t('screens.forgot') }} />
+          <Stack.Screen name="reset-password" options={{ title: t('screens.reset') }} />
+          <Stack.Screen name="verify-email" options={{ title: t('screens.verify') }} />
+          <Stack.Screen name="alert/[id]" options={{ title: t('screens.alert') }} />
+          <Stack.Screen name="assistant" options={{ title: t('screens.assistant') }} />
+          <Stack.Screen name="contacts" options={{ title: t('screens.contacts') }} />
+          <Stack.Screen name="history" options={{ title: t('screens.history') }} />
+          <Stack.Screen name="invite/[token]" options={{ title: t('screens.invite') }} />
+          <Stack.Screen name="onboarding/contacts" options={{ title: t('screens.onContacts') }} />
+          <Stack.Screen name="onboarding/location" options={{ title: t('screens.onLocation') }} />
+          <Stack.Screen name="onboarding/notifications" options={{ title: t('screens.onNotifications') }} />
+          <Stack.Screen name="onboarding/pin" options={{ title: t('screens.onPin') }} />
+          <Stack.Screen name="onboarding/settings" options={{ title: t('screens.onSettings') }} />
+          <Stack.Screen name="premium" options={{ title: t('screens.premium') }} />
+          <Stack.Screen name="report" options={{ title: t('screens.report') }} />
+          <Stack.Screen name="session/[id]" options={{ title: t('screens.session') }} />
+          <Stack.Screen name="session/destination" options={{ title: t('screens.destination') }} />
+          <Stack.Screen name="session/new" options={{ title: t('screens.newTrip') }} />
+          <Stack.Screen name="session/delen" options={{ title: t('screens.share') }} />
+          <Stack.Screen name="settings" options={{ title: t('screens.settings') }} />
+          <Stack.Screen name="settings/land" options={{ title: t('screens.country') }} />
+          <Stack.Screen name="watch/[id]" options={{ title: t('screens.watch') }} />
+          <Stack.Screen name="privacy" options={{ title: t('screens.privacy') }} />
+          <Stack.Screen name="terms" options={{ title: t('screens.terms') }} />
+          <Stack.Screen name="share-link" options={{ title: t('screens.shareLink') }} />
+          <Stack.Screen name="device-contacts" options={{ title: t('screens.deviceContacts') }} />
+          <Stack.Screen name="recordings" options={{ title: t('screens.recordings') }} />
+          <Stack.Screen name="settings/pin" options={{ title: t('screens.pin') }} />
+          <Stack.Screen name="settings/auto-sms" options={{ title: t('screens.autoSms') }} />
+          <Stack.Screen name="settings/dwangcode" options={{ title: t('screens.duress') }} />
+          <Stack.Screen name="hulplijnen" options={{ title: t('screens.helplines') }} />
+          <Stack.Screen name="noodinfo" options={{ title: t('screens.ice') }} />
+          <Stack.Screen name="veilige-plekken" options={{ title: t('screens.places') }} />
+          <Stack.Screen name="quick-ping" options={{ title: t('screens.quick') }} />
+          <Stack.Screen name="danger" options={{ title: t('screens.danger'), headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="sos" options={{ title: t('screens.sos'), presentation: 'fullScreenModal', headerShown: false }} />
+          <Stack.Screen name="check-in/index" options={{ title: t('screens.checkin') }} />
+          <Stack.Screen name="check-in/nieuw" options={{ title: t('screens.checkinNew') }} />
+          <Stack.Screen name="check-in/[id]" options={{ title: t('screens.checkinOne') }} />
+          <Stack.Screen name="fake-call" options={{ title: t('screens.fake') }} />
+          <Stack.Screen name="fake-call-ring" options={{ title: t('screens.fakeRing'), presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="kind" options={{ title: t('screens.child'), headerBackVisible: false }} />
+          <Stack.Screen name="kind/koppelen" options={{ title: t('screens.childLink') }} />
+          <Stack.Screen name="settings/kinderen" options={{ title: t('screens.children') }} />
+          <Stack.Screen name="ouder/[linkId]" options={{ title: t('screens.parent') }} />
+          <Stack.Screen name="scherm" options={{ headerShown: false }} />
         </Stack>
+        </NavigationLocale>
       </ConvexAuthProvider>
     </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <LocaleProvider>
+      <RootNavigation />
+    </LocaleProvider>
   );
 }

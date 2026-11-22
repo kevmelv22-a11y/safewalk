@@ -1,9 +1,11 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../lib/theme';
 import { IconChat, IconClock, IconGear, IconPeople, IconPhone, IconPin, IconSos, IconStar } from './icons';
 import { dash } from './tokens';
-import { QUICK_LOCATION } from '../../content/quickLocation';
+import { useLocale } from '../../i18n/provider';
+import { showsDutchHelplines } from '../../i18n/emergency';
 
 type Item = {
   key: string;
@@ -33,22 +35,25 @@ type Props = {
 export function NavGrid({
   onLiveNow, onCall112, onContacts, onHistory, onSos, onAssistant, onPremium, onSettings, onFakeCall, onCheckIn, onHulplijnen, onSafePlaces, disabled,
 }: Props) {
-  const t = useTheme();
-  const icon = t.text;
+  const theme = useTheme();
+  const { t } = useTranslation();
+  const { emergencyDigits, region } = useLocale();
+  const icon = theme.text;
+  const helpHint = showsDutchHelplines(region) ? t('nav.helpHintNl') : t('nav.helpHint', { number: emergencyDigits });
 
   const items: Item[] = [
-    { key: 'live', label: QUICK_LOCATION.title, hint: QUICK_LOCATION.hint, onPress: onLiveNow, icon: <IconPin size={20} color={t.accent} />, wide: true },
-    { key: 'checkin', label: 'Thuis-check-in', hint: 'Ik ben om een bepaalde tijd thuis. Zo niet, dan een seintje naar je contacten', onPress: onCheckIn, icon: <IconClock size={20} color={t.accent} />, wide: true },
-    { key: 'fakecall', label: 'Nep-oproep', hint: 'Laat je telefoon overgaan om weg te komen uit een vervelende situatie', onPress: onFakeCall, icon: <IconPhone size={20} color={t.accent} />, wide: true },
-    { key: '112', label: 'Open 112 in de telefoon-app', hint: 'Je bevestigt zelf; SafeWalk belt niet automatisch', onPress: onCall112, icon: <IconSos size={20} color={t.red} />, wide: true },
-    { key: 'help', label: 'Hulplijnen', hint: '112, politie 0900-8844 en Veilig Thuis 0800-2000', onPress: onHulplijnen, icon: <IconPhone size={20} color={t.red} />, wide: true },
-    { key: 'places', label: 'Plekken in de buurt', hint: 'Politie, ziekenhuis en open plekken op de kaart', onPress: onSafePlaces, icon: <IconPin size={20} color={t.accent} />, wide: true },
-    { key: 'contacts', label: 'Contacten', onPress: onContacts, icon: <IconPeople size={20} color={icon} /> },
-    { key: 'history', label: 'Geschiedenis', onPress: onHistory, icon: <IconClock size={20} color={icon} /> },
-    { key: 'sos', label: 'Klassieke SOS', onPress: onSos, icon: <IconSos size={20} color={icon} /> },
-    { key: 'assistant', label: 'Assistent', onPress: onAssistant, icon: <IconChat size={20} color={icon} /> },
-    { key: 'premium', label: 'Premium', onPress: onPremium, icon: <IconStar size={20} color={icon} /> },
-    { key: 'settings', label: 'Instellingen', onPress: onSettings, icon: <IconGear size={20} color={icon} /> },
+    { key: 'live', label: t('nav.live'), hint: t('nav.liveHint'), onPress: onLiveNow, icon: <IconPin size={20} color={theme.accent} />, wide: true },
+    { key: 'checkin', label: t('nav.checkin'), hint: t('nav.checkinHint'), onPress: onCheckIn, icon: <IconClock size={20} color={theme.accent} />, wide: true },
+    { key: 'fakecall', label: t('nav.fake'), hint: t('nav.fakeHint'), onPress: onFakeCall, icon: <IconPhone size={20} color={theme.accent} />, wide: true },
+    { key: '112', label: t('nav.emergency', { number: emergencyDigits }), hint: t('nav.emergencyHint'), onPress: onCall112, icon: <IconSos size={20} color={theme.red} />, wide: true },
+    { key: 'help', label: t('nav.help'), hint: helpHint, onPress: onHulplijnen, icon: <IconPhone size={20} color={theme.red} />, wide: true },
+    { key: 'places', label: t('nav.places'), hint: t('nav.placesHint'), onPress: onSafePlaces, icon: <IconPin size={20} color={theme.accent} />, wide: true },
+    { key: 'contacts', label: t('nav.contacts'), onPress: onContacts, icon: <IconPeople size={20} color={icon} /> },
+    { key: 'history', label: t('nav.history'), onPress: onHistory, icon: <IconClock size={20} color={icon} /> },
+    { key: 'sos', label: t('nav.sos'), onPress: onSos, icon: <IconSos size={20} color={icon} /> },
+    { key: 'assistant', label: t('nav.assistant'), onPress: onAssistant, icon: <IconChat size={20} color={icon} /> },
+    { key: 'premium', label: t('nav.premium'), onPress: onPremium, icon: <IconStar size={20} color={icon} /> },
+    { key: 'settings', label: t('nav.settings'), onPress: onSettings, icon: <IconGear size={20} color={icon} /> },
   ];
 
   const wide = items.filter((i) => i.wide);
@@ -67,13 +72,13 @@ export function NavGrid({
           onPress={item.onPress}
           style={({ pressed }) => [
             styles.wide,
-            { backgroundColor: t.card, borderColor: t.border, opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
           ]}
         >
-          <View style={[styles.iconBox, { backgroundColor: t.blobA }]}>{item.icon}</View>
+          <View style={[styles.iconBox, { backgroundColor: theme.blobA }]}>{item.icon}</View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: t.text }]}>{item.label}</Text>
-            {!!item.hint && <Text style={[styles.hint, { color: t.muted }]}>{item.hint}</Text>}
+            <Text style={[styles.label, { color: theme.text }]}>{item.label}</Text>
+            {!!item.hint && <Text style={[styles.hint, { color: theme.muted }]}>{item.hint}</Text>}
           </View>
         </Pressable>
       ))}
@@ -87,11 +92,11 @@ export function NavGrid({
             onPress={item.onPress}
             style={({ pressed }) => [
               styles.cell,
-              { backgroundColor: t.card, borderColor: t.border, opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
+              { backgroundColor: theme.card, borderColor: theme.border, opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
             ]}
           >
-            <View style={[styles.iconBox, { backgroundColor: t.card }]}>{item.icon}</View>
-            <Text style={[styles.cellLabel, { color: t.text }]}>{item.label}</Text>
+            <View style={[styles.iconBox, { backgroundColor: theme.card }]}>{item.icon}</View>
+            <Text style={[styles.cellLabel, { color: theme.text }]}>{item.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -127,7 +132,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontSize: 16, fontWeight: '700' },
-  hint: { fontSize: 14, lineHeight: 20, marginTop: 2, fontWeight: '500' },
-  cellLabel: { fontSize: 15, fontWeight: '700' },
+  label: { fontSize: 16, fontWeight: '700', textAlign: 'left' },
+  hint: { fontSize: 14, lineHeight: 20, marginTop: 2, fontWeight: '500', textAlign: 'left' },
+  cellLabel: { fontSize: 15, fontWeight: '700', textAlign: 'left' },
 });

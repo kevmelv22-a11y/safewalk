@@ -23,7 +23,7 @@ import { getBackgroundRecordingOptIn } from '../src/lib/recordingPrefs';
 import { deleteLocalOriginal } from '../src/lib/playbackFile';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { errorNl } from '../src/lib/convex';
-import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
+import { EmergencyButton } from '../src/components/EmergencyButton';
 import { useTheme } from '../src/lib/theme';
 import { CRITICAL_ACTIONS } from '../src/lib/themeCatalog';
 
@@ -237,7 +237,7 @@ export default function Danger() {
             <Button title="Stop met veiligheidscode" onPress={() => setShowPin(true)} />
             {sharePath ? <Button title="Deel tracking-link (jij bevestigt Send)" variant="secondary" onPress={shareTrack} /> : null}
             {sharePath && trackMessage ? <ContactComposer message={trackMessage} /> : null}
-            <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
+            <EmergencyButton />
           </>
         ) : (
           <PinPad

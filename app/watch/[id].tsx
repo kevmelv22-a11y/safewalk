@@ -6,7 +6,7 @@ import { Screen, H1, P, Notice, Button, Card } from '../../src/components/ui';
 import { LiveMap } from '../../src/components/LiveMap';
 import { useLiveLocations, useNow } from '../../src/lib/useLiveLocations';
 import { formatCountdown } from '../../src/lib/safety';
-import { COPY as DialCopy, onPressOpen112 } from '../../src/lib/dial112';
+import { EmergencyButton } from '../../src/components/EmergencyButton';
 import { rideShareLine } from '../../src/lib/rideShare';
 
 export default function Watch() {
@@ -30,7 +30,7 @@ export default function Watch() {
         {!!rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle }) && <P>🚗 {rideShareLine({ plate: s.ridePlate, driverName: s.rideDriverName, vehicle: s.rideVehicle })}</P>}
       </Card>
       <LiveMap trail={trail} dest={s.destinationLat !== undefined && s.destinationLng !== undefined ? { lat: s.destinationLat, lng: s.destinationLng, label: s.destinationLabel } : null} now={now} />
-      <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
+      <EmergencyButton />
     </Screen>
   );
 }

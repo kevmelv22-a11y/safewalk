@@ -1,8 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { IconAlert, IconRush, IconSafe } from './dashboard/icons';
 import { dash } from './dashboard/tokens';
 import { CRITICAL_ACTIONS } from '../lib/themeCatalog';
+import { useLocale } from '../i18n/provider';
 
 type OneProps = {
   title: string;
@@ -38,7 +40,7 @@ function BigAction({ title, subtitle, color, deep, icon, onPress, loading, disab
     >
       <View style={styles.iconBadge}>{icon}</View>
       <View style={styles.copy}>
-        <Text style={styles.title}>{loading ? 'Bezig…' : title}</Text>
+        <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
     </Pressable>
@@ -55,12 +57,15 @@ type Props = {
 
 /** Drie grote éénhands-knoppen (rood / oranje / groen) voor het beginscherm. */
 export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }: Props) {
+  const { t } = useTranslation();
+  const { emergencyDigits } = useLocale();
+  const busyLabel = t('common.busy');
   return (
     <View style={styles.stack}>
       <BigAction
         testID="btn-unsafe"
-        title="Ik voel me niet veilig"
-        subtitle="Alarm + melding naar contacten · belt niet 112"
+        title={busy === 'unsafe' ? busyLabel : t('dashboard.unsafeTitle')}
+        subtitle={t('dashboard.unsafeSub', { number: emergencyDigits })}
         color={CRITICAL_ACTIONS.red}
         deep='#B91C1C'
         icon={<IconAlert size={26} color="#fff" />}
@@ -70,8 +75,8 @@ export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }:
       />
       <BigAction
         testID="btn-come"
-        title="Kom snel"
-        subtitle="Waarschuwt contacten om naar je toe te komen"
+        title={busy === 'come' ? busyLabel : t('dashboard.comeTitle')}
+        subtitle={t('dashboard.comeSub')}
         color={CRITICAL_ACTIONS.orange}
         deep='#C2410C'
         icon={<IconRush size={26} color="#fff" />}
@@ -81,8 +86,8 @@ export function ActionButtons({ onUnsafe, onComeQuick, onSafe, disabled, busy }:
       />
       <BigAction
         testID="btn-safe"
-        title="Ik ben veilig aangekomen"
-        subtitle="Alleen met je veiligheidscode · stopt alarm"
+        title={busy === 'safe' ? busyLabel : t('dashboard.safeTitle')}
+        subtitle={t('dashboard.safeSub')}
         color={CRITICAL_ACTIONS.green}
         deep='#15803D'
         icon={<IconSafe size={26} color="#fff" />}
@@ -119,6 +124,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   copy: { flex: 1, gap: 4 },
-  title: { color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.2 },
-  subtitle: { color: 'rgba(255,255,255,0.95)', fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  title: { color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: -0.2, textAlign: 'left' },
+  subtitle: { color: 'rgba(255,255,255,0.95)', fontSize: 14, lineHeight: 20, fontWeight: '600', textAlign: 'left' },
 });

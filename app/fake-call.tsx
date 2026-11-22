@@ -3,11 +3,13 @@ import { Pressable, Switch, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import { useTranslation } from 'react-i18next';
 import { Screen, H1, P, Button, Card, Field, Notice } from '../src/components/ui';
+import { useLocale } from '../src/i18n/provider';
 import { useTheme } from '../src/lib/theme';
 import { useProfile } from '../src/lib/queries';
 import {
-  callerNumberIssue, effectiveCaller, FAKE_CALL_DELAYS, fakeCallAllowed, FREE_CALLERS, MAX_CALLER_LENGTH, MAX_NUMBER_LENGTH, sanitizeCallerNumber,
+  callerNumberIssue, effectiveCaller, fakeCallAllowed, FREE_CALLERS, MAX_CALLER_LENGTH, MAX_NUMBER_LENGTH, sanitizeCallerNumber,
 } from '../src/lib/fakeCall';
 import { cancelFakeCall, scheduleFakeCall } from '../src/lib/fakeCallRunner';
 import { screenshotMode } from '../src/lib/screenshotMode';
@@ -19,6 +21,9 @@ import { screenshotMode } from '../src/lib/screenshotMode';
  */
 function FakeCallForm({ premium, adult, initialNumber = '' }: { premium: boolean; adult: boolean; initialNumber?: string }) {
   const t = useTheme();
+  const { t: tr } = useTranslation();
+  const { emergencyDigits } = useLocale();
+  const presets = [tr('fake.mom'), tr('fake.dad'), tr('fake.housemate')];
   const [preset, setPreset] = useState<string>(FREE_CALLERS[0]);
   const [custom, setCustom] = useState('');
   const [numberRaw, setNumberRaw] = useState(initialNumber);
@@ -26,8 +31,17 @@ function FakeCallForm({ premium, adult, initialNumber = '' }: { premium: boolean
   const [scheduled, setScheduled] = useState<{ at: number; caller: string; notification: boolean } | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const caller = effectiveCaller(premium && custom.trim() ? custom : preset, premium);
-  const numberIssue = callerNumberIssue(numberRaw);
+  const chosen = presets.includes(preset) ? preset : presets[0];
+  const caller = effectiveCaller(premium && custom.trim() ? custom : chosen, premium);
+  const numberIssue = (() => {
+    const issue = callerNumberIssue(numberRaw);
+    if (!issue) return null;
+    if (tr('fake.title') === 'Nep-oproep') return issue;
+    const digits = numberRaw.replace(/\D/g, '');
+    if (digits.length > 0 && digits.length < 3) return tr('fake.numberShort');
+    if (digits.length > 15) return tr('fake.numberLong');
+    return tr('fake.numberEmergency');
+  })();
   const number = numberIssue ? '' : sanitizeCallerNumber(numberRaw);
   const useVoice = voice && fakeCallAllowed('voice', premium);
   const params = { caller, voice: useVoice ? '1' : '0', number } as const;
@@ -46,7 +60,7 @@ function FakeCallForm({ premium, adult, initialNumber = '' }: { premium: boolean
         onDueInApp: () => router.push({ pathname: '/fake-call-ring', params }),
       });
       setScheduled({ at: r.at, caller, notification: r.notification });
-    } catch { setErr('Inplannen lukte niet. Probeer het opnieuw.'); }
+    } catch { setErr(tr('fake.scheduleFailed')); }
   };
   const cancel = async () => { await cancelFakeCall(); setScheduled(null); };
 
@@ -62,56 +76,60 @@ function FakeCallForm({ premium, adult, initialNumber = '' }: { premium: boolean
 
   return (
     <Screen>
-      <H1>Nep-oproep</H1>
-      <P>Laat je telefoon overgaan met een echt lijkend gesprek, zodat je makkelijker weg kunt uit een vervelende situatie. Er wordt niemand gebeld en er gaat niets naar je contacten.</P>
+      <H1>{tr('fake.title')}</H1>
+      <P>{tr('fake.intro')}</P>
 
       <Card>
-        <P>Wie belt er?</P>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{FREE_CALLERS.map(chip)}</View>
+        <P>{tr('fake.who')}</P>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{presets.map(chip)}</View>
         {premium ? (
-          <Field label="Of een eigen naam" value={custom} onChangeText={setCustom} maxLength={MAX_CALLER_LENGTH} placeholder="Bijv. Sam" />
+          <Field label={tr('fake.custom')} value={custom} onChangeText={setCustom} maxLength={MAX_CALLER_LENGTH} placeholder={tr('fake.customPh')} />
         ) : (
-          <P muted style={{ fontSize: 13 }}>Een eigen naam kiezen is Premium.</P>
+          <P muted style={{ fontSize: 13 }}>{tr('fake.customLocked')}</P>
         )}
-        <Field label="Nummer op het scherm (optioneel)" value={numberRaw} onChangeText={setNumberRaw} maxLength={MAX_NUMBER_LENGTH} keyboardType="phone-pad" placeholder="Bijv. 06 12345678" />
-        <P muted style={{ fontSize: 13 }}>Dit nummer wordt alleen getoond. SafeWalk belt het niet, ook niet als het op een echt nummer lijkt.</P>
+        <Field label={tr('fake.number')} value={numberRaw} onChangeText={setNumberRaw} maxLength={MAX_NUMBER_LENGTH} keyboardType="phone-pad" placeholder={tr('fake.numberPh')} />
+        <P muted style={{ fontSize: 13 }}>{tr('fake.numberHint')}</P>
         {numberIssue && <Notice kind="warn">{numberIssue}</Notice>}
       </Card>
 
-      <Button title={`Laat ${caller} nu bellen`} variant="success" onPress={ringNow} />
+      <Button title={tr('fake.callNow', { name: caller })} variant="success" onPress={ringNow} />
 
       <Card>
-        <P>Later laten bellen</P>
-        <P muted style={{ fontSize: 14 }}>Plan de oproep en stop je telefoon weg. Op dit scherm kies je nu, over 10 seconden, over 1 minuut of over 5 minuten.</P>
+        <P>{tr('fake.later')}</P>
+        <P muted style={{ fontSize: 14 }}>{tr('fake.laterHint')}</P>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {FAKE_CALL_DELAYS.filter((d) => d.ms > 0).map((d) => (
-            <View key={d.id} style={{ flexGrow: 1, minWidth: 150 }}>
-              <Button title={d.label} variant="secondary" disabled={!fakeCallAllowed('schedule', premium)} onPress={() => { void schedule(d.ms); }} />
+          {([
+            ['10s', tr('fake.delay10'), 10_000],
+            ['1m', tr('fake.delay1'), 60_000],
+            ['5m', tr('fake.delay5'), 5 * 60_000],
+          ] as const).map(([id, label, ms]) => (
+            <View key={id} style={{ flexGrow: 1, minWidth: 150 }}>
+              <Button title={label} variant="secondary" disabled={!fakeCallAllowed('schedule', premium)} onPress={() => { void schedule(ms); }} />
             </View>
           ))}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <View style={{ flex: 1 }}>
-            <P>Stem in het gesprek</P>
-            <P muted style={{ fontSize: 13 }}>De Nederlandse computerstem van je telefoon zegt een paar zinnen, met pauzes zodat jij kunt antwoorden.</P>
+            <P>{tr('fake.voice')}</P>
+            <P muted style={{ fontSize: 13 }}>{tr('fake.voiceHint')}</P>
           </View>
-          <Switch value={useVoice} onValueChange={setVoice} disabled={!fakeCallAllowed('voice', premium)} accessibilityLabel="Stem in het gesprek" />
+          <Switch value={useVoice} onValueChange={setVoice} disabled={!fakeCallAllowed('voice', premium)} accessibilityLabel={tr('fake.voice')} />
         </View>
         {!premium && (adult
-          ? <Button title="Bekijk Premium" variant="secondary" onPress={() => router.push('/premium')} />
-          : <P muted style={{ fontSize: 13 }}>Inplannen, een eigen naam en de stem zijn Premium. Premium kan pas vanaf 16 jaar. Meteen laten bellen werkt altijd, ook onder 16.</P>)}
+          ? <Button title={tr('fake.seePremium')} variant="secondary" onPress={() => router.push('/premium')} />
+          : <P muted style={{ fontSize: 13 }}>{tr('fake.premiumAge')}</P>)}
       </Card>
 
       {scheduled && (
         <Notice kind="ok">
-          {`${scheduled.caller} belt je om ${new Date(scheduled.at).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}.`}
-          {scheduled.notification ? '' : ' Meldingen staan uit of dit is de browser: de oproep komt alleen als SafeWalk open blijft.'}
+          {tr('fake.scheduled', { name: scheduled.caller, time: new Date(scheduled.at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) })}
+          {scheduled.notification ? '' : tr('fake.scheduledNoNotif')}
         </Notice>
       )}
-      {scheduled && <Button title="Ingeplande oproep annuleren" variant="secondary" onPress={() => { void cancel(); }} />}
+      {scheduled && <Button title={tr('fake.cancel')} variant="secondary" onPress={() => { void cancel(); }} />}
       {err && <Notice kind="danger">{err}</Notice>}
 
-      <Notice kind="info">Staat SafeWalk dicht of is je scherm vergrendeld? Dan krijg je een melding met beltoon; tik erop om het belscherm te openen. Een belscherm over het vergrendelscherm heen kan SafeWalk niet tonen. Bij gevaar: gebruik “Ik voel me niet veilig” of bel zelf 112.</Notice>
+      <Notice kind="info">{tr('fake.lockedNote', { number: emergencyDigits })}</Notice>
     </Screen>
   );
 }

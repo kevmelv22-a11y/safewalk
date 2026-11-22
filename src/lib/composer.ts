@@ -4,6 +4,12 @@
  */
 import { mapsQueryUrl, validCoords } from './coords';
 import { rideShareLine, type RideShare } from './rideShare';
+import { i18n } from '../i18n';
+import { emergencyDigitsNow } from '../i18n/provider';
+
+function smsLang(): string {
+  return i18n.resolvedLanguage || i18n.language || 'nl';
+}
 
 export const MAX_SMS_RECIPIENTS = 10;
 
@@ -15,13 +21,17 @@ export function e164Digits(phoneE164: string): string {
 
 export function locationMessage(url: string): string {
   if (!/^https:\/\/[^\s]+\/track\/live\?token=[0-9a-f]{64}$/.test(url)) throw new Error('BAD_LINK');
-  return `Ik deel mijn live locatie via SafeWalk (tijdelijk, intrekbaar): ${url}\nSafeWalk belt niet 112.`;
+  const number = emergencyDigitsNow();
+  if (smsLang() === 'nl') return `Ik deel mijn live locatie via SafeWalk (tijdelijk, intrekbaar): ${url}\nSafeWalk belt niet ${number}.`;
+  return String(i18n.t('sms.live', { url, number }));
 }
 
 /** Meekijklink voor een reis: wie de link heeft ziet de reis tot aankomst, zonder app. */
 export function tripLinkMessage(url: string): string {
   if (!/^https:\/\/[^\s]+\/track\/live\?token=[0-9a-f]{64}$/.test(url)) throw new Error('BAD_LINK');
-  return `Ik ben onderweg. Via deze link kun je tot ik er ben zien waar ik ben en of ik veilig ben aangekomen (geen app nodig, tijdelijk): ${url}\nSafeWalk belt niet 112.`;
+  const number = emergencyDigitsNow();
+  if (smsLang() === 'nl') return `Ik ben onderweg. Via deze link kun je tot ik er ben zien waar ik ben en of ik veilig ben aangekomen (geen app nodig, tijdelijk): ${url}\nSafeWalk belt niet ${number}.`;
+  return String(i18n.t('sms.trip', { url, number }));
 }
 
 /** Sms-reserve: locatie + Google Maps-link. De app opent alleen de composer; de gebruiker tikt op versturen. */
@@ -34,13 +44,23 @@ export function reserveSmsMessage(o: {
   link?: string;
 }): string {
   const loc = validCoords(o.lat, o.lng) ? mapsQueryUrl(o.lat!, o.lng!) : null;
+  const number = emergencyDigitsNow();
+  if (smsLang() !== 'nl') {
+    const where = loc ? String(i18n.t('sms.where', { url: loc })) : String(i18n.t('sms.whereNone'));
+    const head = (o.context === 'trip' || o.context === 'share')
+      ? String(i18n.t('sms.reserveShare', { what: o.what ? ` (${o.what})` : '' }))
+      : String(i18n.t('sms.reserveSos'));
+    const ride = rideShareLine(o.ride ?? undefined);
+    const link = o.link && /^https:\/\/\S+$/.test(o.link) ? o.link : '';
+    return [head, where, link, ride, String(i18n.t('sms.tail', { number }))].filter((x) => x && x.trim()).join(' ');
+  }
   const where = loc ? `Laatst bekende locatie: ${loc}` : 'Er is geen recente locatie bekend.';
   const head = (o.context === 'trip' || o.context === 'share')
     ? `Ik deel mijn locatie via SafeWalk${o.what ? ` (${o.what})` : ''}.`
     : 'SOS via SafeWalk.';
   const ride = rideShareLine(o.ride ?? undefined);
   const link = o.link && /^https:\/\/\S+$/.test(o.link) ? o.link : '';
-  return [head, where, link, ride, 'SafeWalk belt niet 112. Ik stuur dit bericht zelf.']
+  return [head, where, link, ride, `SafeWalk belt niet ${number}. Ik stuur dit bericht zelf.`]
     .filter((x) => x && x.trim())
     .join(' ');
 }

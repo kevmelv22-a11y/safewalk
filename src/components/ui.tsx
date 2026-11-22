@@ -1,9 +1,11 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../lib/theme';
 import { ThemeBackdrop } from './ThemeBackdrop';
 import { ConnectionBanner } from './ConnectionBanner';
+import { useLocale } from '../i18n/provider';
 
 export function Screen({
   children, scroll = true, ambient = true, backgroundColor,
@@ -24,13 +26,13 @@ export function Screen({
   );
 }
 export function H1({ children }: { children: React.ReactNode }) {
-  const t = useTheme(); return <Text accessibilityRole="header" style={{ color: t.text, fontSize: 28, fontWeight: '800' }}>{children}</Text>;
+  const t = useTheme(); return <Text accessibilityRole="header" style={{ color: t.text, fontSize: 28, fontWeight: '800', textAlign: 'left' }}>{children}</Text>;
 }
 export function P({ children, muted, style }: { children: React.ReactNode; muted?: boolean; style?: object }) {
-  const t = useTheme(); return <Text style={[{ color: muted ? t.muted : t.text, fontSize: 16, lineHeight: 23 }, style]}>{children}</Text>;
+  const t = useTheme(); return <Text style={[{ color: muted ? t.muted : t.text, fontSize: 16, lineHeight: 23, textAlign: 'left' }, style]}>{children}</Text>;
 }
-export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  const t = useTheme(); return <View style={[{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, padding: 16, gap: 8 }, style]}>{children}</View>;
+export function Card({ children, style, testID }: { children: React.ReactNode; style?: ViewStyle; testID?: string }) {
+  const t = useTheme(); return <View testID={testID} style={[{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, padding: 16, gap: 8 }, style]}>{children}</View>;
 }
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success';
 
@@ -67,7 +69,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
         // Disabled: full opacity so labels stay readable; pressed only when interactive
         opacity: disabled || loading ? 1 : pressed ? 0.85 : 1,
       }]}>
-      {loading ? <ActivityIndicator color={label} /> : <Text style={{ color: label, fontSize: 17, fontWeight: '700' }}>{title}</Text>}
+      {loading ? <ActivityIndicator color={label} /> : <Text style={{ color: label, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>{title}</Text>}
     </Pressable>
   );
 }
@@ -75,7 +77,7 @@ export function Field(props: TextInputProps & { label: string }) {
   const t = useTheme();
   return (
     <View style={{ gap: 6 }}>
-      <Text style={{ color: t.muted, fontSize: 14, fontWeight: '600' }}>{props.label}</Text>
+      <Text style={{ color: t.muted, fontSize: 14, fontWeight: '600', textAlign: 'left' }}>{props.label}</Text>
       <TextInput
         accessibilityLabel={props.label}
         placeholderTextColor={t.placeholder}
@@ -98,11 +100,13 @@ export function Notice({ kind = 'info', children }: { kind?: 'info' | 'warn' | '
   const c = { info: t.purple, warn: t.amber, danger: t.red, ok: t.green }[kind];
   return (
     <View accessibilityRole="alert" style={{ borderLeftWidth: 4, borderLeftColor: c, backgroundColor: t.field, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: t.border }}>
-      <Text style={{ color: t.text, fontSize: 15, lineHeight: 21 }}>{children}</Text>
+      <Text style={{ color: t.text, fontSize: 15, lineHeight: 21, textAlign: 'left' }}>{children}</Text>
     </View>
   );
 }
-export const Disclaimer = () => (
-  <Notice kind="warn">SafeWalk is geen officiële hulpdienst. De app belt 112 niet automatisch en kan niet garanderen dat meldingen aankomen. Bel bij direct gevaar zelf 112.</Notice>
-);
+export function Disclaimer() {
+  const { t } = useTranslation();
+  const { emergencyDigits } = useLocale();
+  return <Notice kind="warn">{t('common.disclaimer', { number: emergencyDigits })}</Notice>;
+}
 const s = StyleSheet.create({ btn: { minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, borderWidth: 1.5 } });

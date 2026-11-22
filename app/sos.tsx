@@ -7,7 +7,9 @@ import type { Id } from '../convex/_generated/dataModel';
 import { Screen, Button, Notice, P, H1 } from '../src/components/ui';
 import { DeliveryList } from '../src/components/DeliveryList';
 import { triggerSos, sosQueue } from '../src/lib/sos';
-import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
+import { useTranslation } from 'react-i18next';
+import { EmergencyButton } from '../src/components/EmergencyButton';
+import { useLocale } from '../src/i18n/provider';
 import { useProfile } from '../src/lib/queries';
 import { useTheme } from '../src/lib/theme';
 import { errorNl } from '../src/lib/convex';
@@ -20,6 +22,8 @@ type Phase = 'countdown' | 'sending' | 'sent' | 'queued' | 'cancelled' | 'error'
 
 export default function Sos() {
   const t = useTheme();
+  const { t: tr } = useTranslation();
+  const { emergencyDigits } = useLocale();
   const { sessionId, trigger } = useLocalSearchParams<{ sessionId?: string; trigger?: string }>();
   // Via schudden altijd minstens 5 s om te annuleren; bij valdetectie 10 s “Alles goed?”.
   const minCountdown = trigger === 'fall' ? 10 : trigger === 'shake' ? 5 : 0;
@@ -98,8 +102,8 @@ export default function Sos() {
           <ContactComposer message={reserveSmsMessage({ lat: smsLoc.lat, lng: smsLoc.lng, context: 'sos' })} />
         </>
       )}
-        <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
-        <P muted>{DialCopy.hint}. Het nummer 112 staat klaar; jij drukt op bellen.</P>
+        <EmergencyButton />
+        <P muted>{tr('dial.hint')}. {tr('dial.title', { number: emergencyDigits })}</P>
         {(phase === 'sent' || phase === 'queued') && <Button title="Vals alarm – ik ben veilig" variant="secondary" onPress={cancelAfter} />}
         <Button title="Terug naar dashboard" variant="secondary" onPress={() => router.replace('/dashboard')} />
       </>)}

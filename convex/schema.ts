@@ -27,6 +27,10 @@ export default defineSchema({
     // Eigen verklaring, geen volledige geboortedatum. Afwezig = leeftijd onbekend.
     birthYear: v.optional(v.number()),
     birthMonth: v.optional(v.number()),
+    // Optional UI language (nl|en|de|fr|es|tr|ar|pl) and ISO region for emergency copy.
+    // Absent on existing accounts: treat as Dutch / unknown region. Safe to deploy without a migration.
+    uiLanguage: v.optional(v.string()),
+    regionCode: v.optional(v.string()),
   }).index('by_user', ['userId']),
   admins: defineTable({ userId: v.id('users') }).index('by_user', ['userId']),
   subscriptions: defineTable({

@@ -6,7 +6,20 @@
  * Premium (16+): later laten bellen (10 seconden, 1 minuut of 5 minuten), een eigen naam en een stem in het gesprek.
  * Een nummer is alleen tekst op het scherm. Er wordt nooit gebeld.
  */
+import { blockedEmergencyDigits } from '../i18n/emergency';
+
 export const FREE_CALLERS = ['Mama', 'Papa', 'Huisgenoot'] as const;
+/** Localized preset names that stay free (no Premium). Dutch presets stay in FREE_CALLERS for existing tests. */
+const LOCALIZED_FREE_CALLERS = new Set<string>([
+  ...FREE_CALLERS,
+  'Mom', 'Dad', 'Housemate',
+  'Mitbewohner',
+  'Maman', 'Colocataire',
+  'Mamá', 'Papá', 'Compañero de piso',
+  'Annem', 'Babam', 'Ev arkadaşım',
+  'ماما', 'بابا', 'شريك السكن',
+  'Tata', 'Współlokator',
+]);
 export const DEFAULT_CALLER = FREE_CALLERS[0];
 export const MAX_CALLER_LENGTH = 30;
 export const MAX_NUMBER_LENGTH = 20;
@@ -46,7 +59,7 @@ export function sanitizeCallerName(raw: string | null | undefined): string {
 export function effectiveCaller(requested: string | null | undefined, premium: boolean): string {
   const name = sanitizeCallerName(requested);
   if (premium) return name;
-  return (FREE_CALLERS as readonly string[]).includes(name) ? name : DEFAULT_CALLER;
+  return LOCALIZED_FREE_CALLERS.has(name) ? name : DEFAULT_CALLER;
 }
 
 export function fakeCallDelayMs(id: string): number | null {
@@ -59,7 +72,7 @@ export function delayNeedsPremium(ms: number): boolean {
   return ms > 0;
 }
 
-const BLOCKED_NUMBERS = new Set(['112', '911', '09008844', '08002000']);
+const BLOCKED_NUMBERS = blockedEmergencyDigits();
 
 /** Leeg is toegestaan. Hulpdienstnummers en te korte invoer geven een fouttekst. */
 export function callerNumberIssue(raw: string | null | undefined): string | null {

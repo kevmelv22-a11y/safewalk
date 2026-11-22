@@ -1,39 +1,73 @@
 import { router } from 'expo-router';
 import { Linking } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
-import { HELPLINES, telUri } from '../src/lib/helplines';
 import { onPressOpenTel } from '../src/lib/dial112';
+import { emergencyDirectory, type EmergencyLine } from '../src/i18n/emergency';
+import { useLocale } from '../src/i18n/provider';
 
-export default function Hulplijnen() {
+function lineDetail(line: EmergencyLine, t: (key: string) => string): string {
+  if (line.id === 'politie') return t('emergency.nl.policeWhen');
+  if (line.id === 'veilig-thuis') return t('emergency.nl.vtWhen');
+  if (line.id === '113') return t('emergency.nl.mentalWhen');
+  if (line.id === 'kindertelefoon') return t('emergency.nl.childWhen');
+  if (line.id === '112' && line.sourceUrl.includes('rijksoverheid')) return t('emergency.nl.when112');
+  return t('emergency.whenUnified');
+}
+
+function lineCost(line: EmergencyLine, t: (key: string) => string): string {
+  if (line.id === 'politie') return t('emergency.nl.policeCost');
+  if (line.digits === '112' && line.role === 'unified') return t('emergency.costFree');
+  if (line.id === 'veilig-thuis' || line.id === '113' || line.id === 'kindertelefoon') return t('emergency.costFree');
+  if (line.id === '112' && line.role === 'unified') return t('emergency.alsoWorks');
+  return '';
+}
+
+export function HelplinesBody({ region }: { region: string | null }) {
+  const { t } = useTranslation();
+  const directory = emergencyDirectory(region);
   return (
     <Screen>
-      <H1>Hulplijnen</H1>
-      <Notice kind="info">SafeWalk is geen hulpdienst en belt nooit automatisch. Jij tikt op bellen in de telefoon-app. Nummers gecontroleerd via officiële bronnen op 15 november 2026.</Notice>
-      {HELPLINES.map((h) => (
-        <Card key={h.id}>
-          <P>{h.title}</P>
-          <P style={{ fontSize: 22, fontWeight: '800' }}>{h.number}</P>
-          <P muted>{h.when}</P>
-          <P muted>{h.cost} {h.hint}</P>
-          <Button
-            title={`Open ${h.number} in de telefoon-app`}
-            variant={h.id === '112' ? 'danger' : 'secondary'}
-            hint={h.hint}
-            onPress={() => { void onPressOpenTel(telUri(h.digits), h.title); }}
-          />
-          <Button title={h.sourceLabel} variant="secondary" onPress={() => { void Linking.openURL(h.sourceUrl); }} />
-        </Card>
-      ))}
+      <H1>{t('emergency.screenTitle')}</H1>
+      <Notice kind="info">{t('emergency.intro')}</Notice>
+      {directory.noteKey ? <Notice kind="warn">{t(directory.noteKey)}</Notice> : null}
+      {directory.lines.map((h) => {
+        const role = t(`emergency.roles.${h.role}`);
+        const cost = lineCost(h, t);
+        const canDial = /^\d{2,15}$/.test(h.digits);
+        return (
+          <Card key={h.id} testID={h.id === directory.primary.id ? 'emergency-primary' : `emergency-${h.id}`}>
+            <P>{role}</P>
+            <P style={{ fontSize: 22, fontWeight: '800' }}>{h.number}</P>
+            <P muted>{lineDetail(h, t)}</P>
+            {!!cost && <P muted>{cost} {t('emergency.youConfirm')}</P>}
+            {canDial ? (
+              <Button
+                title={t('emergency.openInPhone', { number: h.number })}
+                variant={h.id === directory.primary.id ? 'danger' : 'secondary'}
+                hint={t('emergency.youConfirm')}
+                onPress={() => { void onPressOpenTel(`tel:${h.digits}`, role); }}
+              />
+            ) : null}
+            <Button title={h.sourceLabel} variant="secondary" onPress={() => { void Linking.openURL(h.sourceUrl); }} />
+          </Card>
+        );
+      })}
       <Card>
-        <P>Noodinfo op dit toestel</P>
-        <P muted>Medische notities en ICE-contacten blijven op je telefoon.</P>
-        <Button title="Noodinfo bekijken of wijzigen" variant="secondary" onPress={() => router.push('/noodinfo')} />
+        <P>{t('emergency.iceTitle')}</P>
+        <P muted>{t('emergency.iceBody')}</P>
+        <Button title={t('emergency.iceButton')} variant="secondary" onPress={() => router.push('/noodinfo')} />
       </Card>
       <Card>
-        <P>Plekken in de buurt</P>
-        <P muted>Politie, ziekenhuis en openbare plekken via OpenStreetMap. SafeWalk beoordeelt niet of een plek veilig is.</P>
-        <Button title="Veilige plekken in de buurt" variant="secondary" onPress={() => router.push('/veilige-plekken')} />
+        <P>{t('emergency.placesTitle')}</P>
+        <P muted>{t('emergency.placesBody')}</P>
+        <Button title={t('emergency.placesButton')} variant="secondary" onPress={() => router.push('/veilige-plekken')} />
       </Card>
     </Screen>
   );
+}
+
+export default function Hulplijnen() {
+  const { region } = useLocale();
+  return <HelplinesBody region={region} />;
 }

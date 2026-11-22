@@ -7,7 +7,7 @@ import { useProfile } from '../src/lib/queries';
 import { startSharing, stopSharing, untilFor, lastKnown } from '../src/lib/location';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { errorNl } from '../src/lib/convex';
-import { COPY as DialCopy, onPressOpen112 } from '../src/lib/dial112';
+import { EmergencyButton } from '../src/components/EmergencyButton';
 import { ContactComposer } from '../src/components/ContactComposer';
 import { reserveSmsMessage } from '../src/lib/composer';
 
@@ -79,7 +79,7 @@ export default function KindHome() {
         hint="Waarschuwt je ouder en de contacten die je ouder koos. Belt niet 112." />
       <Button title="Ik ben veilig thuis" variant="success" onPress={() => { void onArrived('home'); }} loading={busy === 'home'} disabled={!!busy} />
       <Button title="Ik ben veilig op school" variant="success" onPress={() => { void onArrived('school'); }} loading={busy === 'school'} disabled={!!busy} />
-      <Button title={DialCopy.title} variant="danger" hint={DialCopy.hint} onPress={() => { void onPressOpen112(); }} />
+      <EmergencyButton />
       <Notice kind="info">Zonder internet kun je zelf een vooringevulde sms versturen. SafeWalk verstuurt geen sms, ook niet automatisch: Play en iPhone staan dat niet toe.</Notice>
       <ContactComposer message={reserveSmsMessage({ lat: smsLoc.lat, lng: smsLoc.lng, context: 'sos' })} />
       {msg && <Notice kind="ok">{msg}</Notice>}
