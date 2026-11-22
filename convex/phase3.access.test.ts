@@ -149,7 +149,7 @@ describe('deviceContacts minimization', () => {
     });
     expect(r.saved).toBe(2);
     const list = await a.as.query(api.deviceContacts.list, {});
-    expect(list.every((c) => c.phoneE164.startsWith('+'))).toBe(true);
+    expect(list.every((c) => c.phoneE164?.startsWith('+'))).toBe(true);
     expect(list.map((c) => c.displayName).sort()).toEqual(['Jan', 'Lisa']);
   });
 });

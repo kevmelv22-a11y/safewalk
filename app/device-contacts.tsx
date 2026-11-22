@@ -69,7 +69,7 @@ export default function DeviceContactsScreen() {
   return (
     <Screen>
       <H1>Telefooncontacten</H1>
-      <P muted>We vragen toestemming en bewaren alleen de contacten die jij aanvinkt (naam + telefoonnummer). Geen volledige adresboek-kopie.</P>
+      <P muted>Alleen als jij dit adresboek opent, vragen we toestemming. Handmatig toevoegen (naam, nummer of e-mail) doe je bij Vertrouwde contacten, zonder adresboek. We bewaren alleen wat jij aanvinkt of zelf invult.</P>
       <Notice kind="warn">Volume 2× voor live locatie is op iOS/Android in de achtergrond niet betrouwbaar in Expo managed. Alternatieven: in-app knop, OS-shortcuts/Quick Settings (zie docs/engineering.md).</Notice>
       <Button title="Contacten laden (toestemming)" onPress={load} />
       {msg && <Notice kind="ok">{msg}</Notice>}
@@ -95,7 +95,8 @@ export default function DeviceContactsScreen() {
       {saved.map((s) => (
         <Card key={s._id}>
           <P>{s.displayName}</P>
-          <P muted>{s.phoneE164}</P>
+          {s.phoneE164 ? <P muted>{s.phoneE164}</P> : null}
+          {s.email ? <P muted>{s.email}</P> : null}
           <Button title="Verwijderen" variant="secondary" onPress={() => remove({ id: s._id })} />
         </Card>
       ))}

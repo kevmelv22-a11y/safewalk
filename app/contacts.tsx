@@ -5,6 +5,7 @@ import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
 import { InvitePanel } from '../src/components/InvitePanel';
+import { ExternalContactsForm } from '../src/components/ExternalContactsForm';
 import { useContacts } from '../src/lib/queries';
 import { errorNl } from '../src/lib/convex';
 import { confirmAction, showError } from '../src/lib/confirm';
@@ -28,7 +29,8 @@ export default function Contacts() {
           <Button title="Misbruik melden" variant="secondary" onPress={() => report(c.userId, c.name)} /></Card>
       ))}
       {data === undefined && <ActivityIndicator accessibilityLabel="Contacten laden" />}
-      {data && mine.length === 0 && <Notice kind="info">Nog geen vertrouwde contacten. Nodig hieronder iemand uit die je vertrouwt; diegene moet de uitnodiging zelf accepteren.</Notice>}
+      {data && mine.length === 0 && <Notice kind="info">Nog geen contacten met de app. Hieronder kun je iemand zonder app zelf toevoegen, of een uitnodiging sturen naar iemand die SafeWalk wel heeft.</Notice>}
+      <ExternalContactsForm />
       <InvitePanel />
       <H1>Jij bent contact van</H1>
       {data && theirs.length === 0 && <P muted>Nog niemand heeft jou als vertrouwd contact toegevoegd.</P>}

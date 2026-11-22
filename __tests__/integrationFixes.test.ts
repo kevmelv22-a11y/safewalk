@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- loads app.config / eas.json / prefs via require in Jest */
 import { runDangerUnlock } from '../src/lib/dangerUnlock';
 import { handleVolumeDoublePress, __resetVolumeCooldown, COOLDOWN_MS } from '../src/lib/volumeAction';
-import { smsUrl, whatsappUrl, locationMessage, e164Digits, MAX_SMS_RECIPIENTS } from '../src/lib/composer';
+import { smsUrl, whatsappUrl, mailtoUrl, locationMessage, e164Digits, MAX_SMS_RECIPIENTS } from '../src/lib/composer';
 import { mapsAvailable } from '../src/lib/mapsAvailability';
 const { buildConfig } = require('../app.config');
 const appJson = require('../app.json');
@@ -91,6 +91,10 @@ describe('composer (user-confirmed only)', () => {
   });
   test('whatsapp single-recipient link', () => {
     expect(whatsappUrl('+31612345678', 'a&b')).toBe('https://wa.me/31612345678?text=a%26b');
+  });
+  test('mailto opens a composer and does not embed a foreign link', () => {
+    expect(mailtoUrl('a@b.nl', 'hi')).toBe('mailto:a@b.nl?body=hi');
+    expect(() => mailtoUrl('niet-een-mail', 'x')).toThrow('BAD_EMAIL');
   });
 });
 
