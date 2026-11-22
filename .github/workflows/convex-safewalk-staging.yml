@@ -40,11 +40,11 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Deploy SafeWalk Convex functions into isolated test environment
-        run: npx convex dev --once
+        run: npx convex deploy
 
       - name: Deployment instruction
         if: success()
         run: |
-          echo "Convex dev deploy command succeeded."
+          echo "Convex deployment command succeeded."
           echo "Verify auth, function permissions, delivery and test-mode behavior in the Convex dashboard."
           echo "No app build or production deployment was performed."
