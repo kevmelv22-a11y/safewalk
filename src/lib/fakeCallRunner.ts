@@ -1,7 +1,9 @@
 import { AppState, Platform, Vibration } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { applyAudioMode } from './audioMode';
-import { FAKE_CALL_CHANNEL, FAKE_CALL_NOTIFICATION_ID, FAKE_CALL_SOUND, fakeCallNotification, VOICE_LINES, VOICE_PAUSE_MS } from './fakeCall';
+import { FAKE_CALL_CHANNEL, FAKE_CALL_NOTIFICATION_ID, FAKE_CALL_SOUND, fakeCallNotification, VOICE_PAUSE_MS } from './fakeCall';
+import { i18n, currentLang } from '../i18n';
+import { speechLocale } from '../i18n/languages';
 
 /**
  * Native kant van de nep-oproep: beltoon, trillen, inplannen en de telefoonstem.
@@ -57,9 +59,10 @@ export function startVoice(): { stop: () => void } {
   void (async () => {
     const Speech = await import('expo-speech').catch(() => null);
     if (!Speech) return;
+    const lines = [1, 2, 3, 4].map((n) => String(i18n.t(`fake.v${n}`)));
     const say = (i: number) => {
-      if (stopped || i >= VOICE_LINES.length) return;
-      Speech.speak(VOICE_LINES[i], { language: 'nl-NL', onDone: () => { if (!stopped) timer = setTimeout(() => say(i + 1), VOICE_PAUSE_MS); } });
+      if (stopped || i >= lines.length) return;
+      Speech.speak(lines[i], { language: speechLocale(currentLang()), onDone: () => { if (!stopped) timer = setTimeout(() => say(i + 1), VOICE_PAUSE_MS); } });
     };
     timer = setTimeout(() => say(0), 1_200);
   })();

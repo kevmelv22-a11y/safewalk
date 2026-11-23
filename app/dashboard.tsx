@@ -19,7 +19,9 @@ import { formatCountdown, pinErrorNl } from '../src/lib/safety';
 import { useNow } from '../src/lib/useLiveLocations';
 import { getConsentedLocation } from '../src/lib/locationOnce';
 import { errorCode, errorNl } from '../src/lib/convex';
-import { onPressOpen112 } from '../src/lib/dial112';
+import { useTranslation } from 'react-i18next';
+import { onPressOpenEmergency } from '../src/lib/dial112';
+import { useLocale } from '../src/i18n/provider';
 import { stopSharing } from '../src/lib/location';
 
 function clientRef(prefix: string) {
@@ -27,6 +29,8 @@ function clientRef(prefix: string) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
+  const { emergencyDigits } = useLocale();
   const sessions = useSessions();
   const contacts = useContacts();
   const now = useNow(1000);
@@ -91,9 +95,7 @@ export default function Dashboard() {
     try {
       const loc = await withLoc();
       await comeQuick({ clientRef: clientRef('come'), sessionId: mine?._id, ...loc });
-      setMsg(myContacts.length
-        ? 'Je contacten krijgen een in-app push: “Kom snel”. (Geen automatische sms/WhatsApp.)'
-        : 'Melding geregistreerd. Voeg vertrouwde contacten toe zodat zij een push kunnen krijgen.');
+      setMsg(myContacts.length ? t('dashboard.comeSent') : t('dashboard.comeNone'));
     } catch (e) { setErr(errorNl(e)); }
     finally { setBusy(null); }
   };
@@ -107,11 +109,11 @@ export default function Dashboard() {
     setBusy('live'); setErr(null); setMsg(null);
     try {
       const loc = await withLoc();
-      if (!loc.locationConsent) { setErr('Locatietoestemming nodig om nu te delen.'); return; }
+      if (!loc.locationConsent) { setErr(t('dashboard.needLocation')); return; }
       const r = await sendLiveNow({ ...loc, sessionId: mine?._id });
       setMsg(r.recipients
-        ? `Je locatie is als pushmelding naar ${r.recipients} ${r.recipients === 1 ? 'contact' : 'contacten'} gestuurd. Aflevering is niet gegarandeerd.`
-        : 'Niemand heeft iets gekregen: je hebt nog geen vertrouwde contacten. Voeg ze toe bij Contacten.');
+        ? t(r.recipients === 1 ? 'dashboard.liveSentOne' : 'dashboard.liveSentOther', { count: r.recipients })
+        : t('dashboard.liveNone'));
     } catch (e) { setErr(errorNl(e)); }
     finally { setBusy(null); }
   };
@@ -121,10 +123,10 @@ export default function Dashboard() {
     try {
       const loc = await withLoc();
       const res = await verifyPin({ pin, purpose: 'arrived_safe', sessionId: mine?._id, ...loc });
-      if (!res.ok) { setErr('Onjuiste code. Probeer opnieuw.'); return; }
+      if (!res.ok) { setErr(t('dashboard.pinWrong')); return; }
       await stopSharing().catch(() => {});
       setSafeOpen(false);
-      setMsg('Veilig aangekomen bevestigd. Eventueel alarm is gestopt.');
+      setMsg(t('dashboard.safeConfirmed'));
     } catch (e) {
       setErr(pinErrorNl(errorCode(e)));
     } finally { setBusy(null); }
@@ -147,7 +149,7 @@ export default function Dashboard() {
 
       <View style={{ gap: 8 }}>
         <ActionButtons onUnsafe={onUnsafe} onComeQuick={onCome} onSafe={onSafe} busy={busy === 'live' || busy === 'silent' ? null : busy} disabled={!!busy} />
-        <Button title="Stil alarm (geen geluid of licht)" variant="secondary" onPress={onSilent} loading={busy === 'silent'} disabled={!!busy}
+        <Button title={t('dashboard.silent')} variant="secondary" onPress={onSilent} loading={busy === 'silent'} disabled={!!busy}
           hint="Deelt stil je locatie en waarschuwt contacten. Geen alarmgeluid, geen zaklamp, geen opname." />
       </View>
 
@@ -189,7 +191,7 @@ export default function Dashboard() {
       <NavGrid
         disabled={!!busy}
         onLiveNow={onLiveNow}
-        onCall112={() => { void onPressOpen112(); }}
+        onCall112={() => { void onPressOpenEmergency(emergencyDigits); }}
         onContacts={() => router.push('/contacts')}
         onHistory={() => router.push('/history')}
         onSos={() => router.push({ pathname: '/sos', params: mine?._id ? { sessionId: mine._id } : {} })}

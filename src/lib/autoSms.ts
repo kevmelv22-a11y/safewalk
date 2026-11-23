@@ -8,6 +8,8 @@ import type { ConnectionKind } from './connectionStatus';
 import { validCoords } from './coords';
 import { e164Digits } from './composer';
 import { AUTO_SMS_COPY } from '../content/longShare';
+import { i18n } from '../i18n';
+import { emergencyDigitsNow } from '../i18n/provider';
 
 export const AUTO_SMS_INTERVAL_MS = 10 * 60_000;
 export const AUTO_SMS_MAX_ROUNDS = 8;
@@ -28,9 +30,13 @@ export type AutoSmsDecision =
 export type AutoSmsRoundState = { key: string; rounds: number; lastAt: number };
 
 /** Korte GSM-vriendelijke sms (geen diakriet), coördinaten + kaartlink, max. 160 tekens. */
-export function autoSmsBody(lat: number, lng: number): string {
+export function autoSmsBody(lat: number, lng: number, emergency = emergencyDigitsNow()): string {
   const ll = `${lat.toFixed(5)},${lng.toFixed(5)}`;
-  const full = `SafeWalk locatie: ${ll} https://maps.google.com/?q=${ll} Geen internet. Bel zelf 112 bij gevaar.`;
+  const number = /^\d{2,6}$/.test(emergency) ? emergency : '112';
+  const lang = i18n.resolvedLanguage || i18n.language || 'nl';
+  const full = lang === 'nl'
+    ? `SafeWalk locatie: ${ll} https://maps.google.com/?q=${ll} Geen internet. Bel zelf ${number} bij gevaar.`
+    : String(i18n.t('sms.auto', { ll, number }));
   if (full.length <= AUTO_SMS_MAX_BODY) return full;
   const short = `SafeWalk: ${ll} https://maps.google.com/?q=${ll}`;
   return short.slice(0, AUTO_SMS_MAX_BODY);

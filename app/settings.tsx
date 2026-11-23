@@ -4,7 +4,11 @@ import { Linking, Platform, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../convex/_generated/api';
+import { useTranslation } from 'react-i18next';
 import { Screen, H1, P, Button, Card, Notice } from '../src/components/ui';
+import { LanguagePicker } from '../src/components/LanguagePicker';
+import { countryName } from '../src/i18n/countries';
+import { useLocale } from '../src/i18n/provider';
 import { SafetySettingsForm } from '../src/components/SafetySettingsForm';
 import { errorNl } from '../src/lib/convex';
 import { confirmAction } from '../src/lib/confirm';
@@ -19,7 +23,6 @@ import { registerPush } from '../src/lib/notifications';
 import { Toggle } from '../src/components/Choice';
 import { getShakeOptIn, setShakeOptIn } from '../src/lib/shake';
 import { getFallOptIn, setFallOptIn } from '../src/lib/fallDetect';
-import { SHAKE } from '../src/content/liveSharing';
 import { BATTERY_HINT_NL, openBatteryOptimizationSettings } from '../src/lib/batteryOptimization';
 
 export default function Settings() {
@@ -27,6 +30,8 @@ export default function Settings() {
   useEffect(() => {
     void applyThemeSkinFromQuery(params.theme);
   }, [params.theme]);
+  const { t } = useTranslation();
+  const locale = useLocale();
   const { signOut } = useAuthActions();
   const deleteHistory = useMutation(api.sessions.deleteMyHistory);
   const deleteAccount = useMutation(api.account.deleteAccount);
@@ -37,79 +42,88 @@ export default function Settings() {
   useEffect(() => { void getFallOptIn().then(setFall); }, []);
   const blocked = useQuery(api.contacts.blocked) ?? [];
   const unblock = useMutation(api.contacts.unblock);
-  const confirmDelete = () => confirmAction('Account verwijderen', 'Dit verwijdert je account, contacten, reizen en locatiegegevens definitief.', 'Definitief verwijderen', async () => {
+  const confirmDelete = () => confirmAction(t('settings.deleteTitle'), t('settings.deleteBody'), t('settings.deleteConfirm'), async () => {
     try { await stopSharing(); await deleteAccount({ confirm: 'VERWIJDER' }); await signOut().catch(() => {}); router.replace('/welcome'); }
-    catch (e) { setMsg('Verwijderen mislukt: ' + errorNl(e)); }
+    catch (e) { setMsg(t('settings.deleteFailed', { error: errorNl(e) })); }
   });
+  const regionLabel = locale.region ? countryName(locale.region, locale.language) : t('region.unknown');
   return (
     <Screen>
-      <H1>Instellingen</H1>
+      <H1>{t('settings.title')}</H1>
+      <Card>
+        <LanguagePicker />
+      </Card>
+      <Card>
+        <P>{t('region.title')}</P>
+        <P muted>{t('region.hint')}</P>
+        <P>{t('region.current', { name: locale.regionPreference === 'system' ? t('region.system') : regionLabel })}</P>
+        <Button title={t('screens.country')} variant="secondary" onPress={() => router.push('/settings/land')} />
+      </Card>
       <Card>
         <ThemePicker />
       </Card>
       <SafetySettingsForm />
       <Card>
-        <P>Delen & opnames</P>
-        <Button title="Meekijklink (zonder app)" variant="secondary" onPress={() => router.push('/share-link')} />
-        <Button title="Automatische sms bij geen internet" variant="secondary" onPress={() => router.push('/settings/auto-sms')}
-          hint="Alleen Android, uit standaard. Kan geld kosten." />
-        <Button title="Telefooncontacten kiezen" variant="secondary" onPress={() => router.push('/device-contacts')} />
-        <Button title="Audio-opnames" variant="secondary" onPress={() => router.push('/recordings')} />
+        <P>{t('settings.sharing')}</P>
+        <Button title={t('settings.shareLink')} variant="secondary" onPress={() => router.push('/share-link')} />
+        <Button title={t('settings.autoSms')} variant="secondary" onPress={() => router.push('/settings/auto-sms')}
+          hint={t('settings.autoSmsHint')} />
+        <Button title={t('settings.deviceContacts')} variant="secondary" onPress={() => router.push('/device-contacts')} />
+        <Button title={t('settings.recordings')} variant="secondary" onPress={() => router.push('/recordings')} />
       </Card>
       {Platform.OS !== 'web' && (
         <Card>
-          <Toggle value={shake} onChange={(v) => { setShake(v); void setShakeOptIn(v); }} title={SHAKE.title} hint={SHAKE.hint} />
-          <Toggle value={fall} onChange={(v) => { setFall(v); void setFallOptIn(v); }} title="Valdetectie"
-            hint="Uit standaard. Bij een scherpe schok gevolgd door stilte vraagt de app 10 seconden “Alles goed?”. Alleen terwijl de app open is; er gaan geen bewegingsgegevens naar SafeWalk. Kan vals afgaan, bijvoorbeeld bij sport." />
+          <Toggle value={shake} onChange={(v) => { setShake(v); void setShakeOptIn(v); }} title={t('settings.shakeTitle')} hint={t('settings.shakeHint')} />
+          <Toggle value={fall} onChange={(v) => { setFall(v); void setFallOptIn(v); }} title={t('settings.fallTitle')} hint={t('settings.fallHint')} />
         </Card>
       )}
-      <Card><P>Veiligheidscode</P><P muted>Nodig om het gevaar-alarm te stoppen en “veilig aangekomen” te bevestigen. Cijfers en letters, 4–8 tekens. Hoofdletters tellen mee.</P>
-        <Button title="Code instellen of wijzigen" variant="secondary" onPress={() => router.push('/settings/pin')} />
-        <Button title="Dwangcode instellen" variant="secondary" onPress={() => router.push('/settings/dwangcode')} />
-        <Button title="Kinderen koppelen" variant="secondary" onPress={() => router.push('/settings/kinderen')}
-          hint="Voor een kind van 13 tot 15 jaar. Jij geeft toestemming in dit account." /></Card>
+      <Card><P>{t('settings.pinTitle')}</P><P muted>{t('settings.pinBody')}</P>
+        <Button title={t('settings.pinButton')} variant="secondary" onPress={() => router.push('/settings/pin')} />
+        <Button title={t('settings.duress')} variant="secondary" onPress={() => router.push('/settings/dwangcode')} />
+        <Button title={t('settings.children')} variant="secondary" onPress={() => router.push('/settings/kinderen')}
+          hint={t('settings.childrenHint')} /></Card>
       <Card>
-        <P>Hulp</P>
-        <Button title="Hulplijnen" variant="secondary" onPress={() => router.push('/hulplijnen')} />
-        <Button title="Noodinfo op dit toestel" variant="secondary" onPress={() => router.push('/noodinfo')} />
-        <Button title="Plekken in de buurt" variant="secondary" onPress={() => router.push('/veilige-plekken')} />
+        <P>{t('settings.helpTitle')}</P>
+        <Button title={t('settings.helplines')} variant="secondary" onPress={() => router.push('/hulplijnen')} />
+        <Button title={t('settings.ice')} variant="secondary" onPress={() => router.push('/noodinfo')} />
+        <Button title={t('settings.places')} variant="secondary" onPress={() => router.push('/veilige-plekken')} />
       </Card>
       <Card>
-        <P>Snelkoppelingen</P>
+        <P>{t('settings.shortcuts')}</P>
         <P muted>{QUICK_LOCATION.shortcuts}</P>
         {Platform.OS === 'android' && <P muted>{QUICK_LOCATION.volumeAndroid}</P>}
-        <P muted>Zaklamp-strobe werkt alleen met SafeWalk open. Telefoon uit of de app geforceerd stoppen stopt alarm en delen.</P>
+        <P muted>{t('settings.torchNote')}</P>
         <P muted>{BATTERY_HINT_NL}</P>
-        {Platform.OS !== 'web' && <Button title="Open accu-instellingen" variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
-        <Button title={`Open “${QUICK_LOCATION.title}”`} variant="secondary" onPress={() => router.push('/quick-ping')} />
+        {Platform.OS !== 'web' && <Button title={t('settings.openBattery')} variant="secondary" onPress={() => { void openBatteryOptimizationSettings(); }} />}
+        <Button title={t('settings.openQuick', { title: t('nav.live') })} variant="secondary" onPress={() => router.push('/quick-ping')} />
         {Platform.OS === 'android' && (
-          <Button title="Snelinstellingentegel toevoegen" variant="secondary" onPress={async () => setMsg(tileResultNl(await maybePromptQsTile()))} />
+          <Button title={t('settings.addTile')} variant="secondary" onPress={async () => setMsg(tileResultNl(await maybePromptQsTile()))} />
         )}
-        <Button title="Meldingen opnieuw aanzetten" variant="secondary" onPress={async () => {
+        <Button title={t('settings.pushAgain')} variant="secondary" onPress={async () => {
           const r = await registerPush();
-          setMsg(r.ok ? 'Meldingen staan aan op dit toestel.' : pushResultNl(r.reason, r.detail));
+          setMsg(r.ok ? t('settings.pushOn') : pushResultNl(r.reason, r.detail));
         }} />
       </Card>
       <Card>
-        <P>Geblokkeerde personen</P>
-        {blocked.length === 0 && <P muted>Niemand geblokkeerd.</P>}
+        <P>{t('settings.blocked')}</P>
+        {blocked.length === 0 && <P muted>{t('settings.nobodyBlocked')}</P>}
         {blocked.map((b) => <View key={b.userId} style={{ gap: 6 }}><P muted>{b.name}</P>
-          <Button title={`Deblokkeren: ${b.name}`} variant="secondary" onPress={() => unblock({ userId: b.userId }).catch((e) => setMsg(errorNl(e)))} /></View>)}
-        <P muted style={{ fontSize: 13 }}>Deblokkeren herstelt geen contactrelatie; daarvoor is een nieuwe uitnodiging nodig.</P>
+          <Button title={t('settings.unblock', { name: b.name })} variant="secondary" onPress={() => unblock({ userId: b.userId }).catch((e) => setMsg(errorNl(e)))} /></View>)}
+        <P muted style={{ fontSize: 13 }}>{t('settings.unblockNote')}</P>
       </Card>
-      <Button title="Reisgeschiedenis" variant="secondary" onPress={() => router.push('/history')} />
+      <Button title={t('settings.history')} variant="secondary" onPress={() => router.push('/history')} />
       <Card>
-        <P>Privacy</P>
-        <P muted>Locaties worden uiterlijk 24 uur na het einde van een reis automatisch verwijderd (en nooit langer dan 3 dagen bewaard). Beheerders kunnen je locatie niet inzien.</P>
-        <Button title="Mijn locatiegeschiedenis nu verwijderen" variant="secondary" onPress={() => deleteHistory().then((n) => setMsg(`${n} locatiepunten verwijderd.`)).catch((e) => setMsg(errorNl(e)))} />
-        <Button title="Privacybeleid" variant="secondary" onPress={() => router.push('/privacy')} />
-        <Button title="Gebruiksvoorwaarden" variant="secondary" onPress={() => router.push('/terms')} />
-        <Button title="Contact: support@vonkbyte.nl" variant="secondary" hint="Opent je e-mailapp" onPress={() => Linking.openURL('mailto:support@vonkbyte.nl?subject=SafeWalk')} />
-        <Button title="Uitloggen" variant="secondary" onPress={async () => { await stopSharing(); await resetPurchases(); await signOut(); router.replace('/welcome'); }} />
-        <Button title="Account verwijderen" variant="danger" onPress={confirmDelete} />
+        <P>{t('settings.privacyTitle')}</P>
+        <P muted>{t('settings.privacyBody')}</P>
+        <Button title={t('settings.deleteHistory')} variant="secondary" onPress={() => deleteHistory().then((n) => setMsg(t(n === 1 ? 'settings.removedOne' : 'settings.removedOther', { count: n }))).catch((e) => setMsg(errorNl(e)))} />
+        <Button title={t('settings.privacyPolicy')} variant="secondary" onPress={() => router.push('/privacy')} />
+        <Button title={t('settings.terms')} variant="secondary" onPress={() => router.push('/terms')} />
+        <Button title={t('common.support')} variant="secondary" onPress={() => Linking.openURL('mailto:support@vonkbyte.nl?subject=SafeWalk')} />
+        <Button title={t('settings.signOut')} variant="secondary" onPress={async () => { await stopSharing(); await resetPurchases(); await signOut(); router.replace('/welcome'); }} />
+        <Button title={t('settings.deleteAccount')} variant="danger" onPress={confirmDelete} />
       </Card>
-      <Card><P>Premium</P><P muted>SOS, 2 contacten, tijdelijk delen en basis-check-ins blijven altijd gratis.</P>
-        <Button title="Bekijk Premium" variant="secondary" onPress={() => router.push('/premium')} /></Card>
+      <Card><P>{t('settings.premiumTitle')}</P><P muted>{t('settings.premiumBody')}</P>
+        <Button title={t('settings.seePremium')} variant="secondary" onPress={() => router.push('/premium')} /></Card>
       {msg && <Notice kind="info">{msg}</Notice>}
     </Screen>
   );

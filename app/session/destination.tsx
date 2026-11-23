@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 import { Screen, Button, Field, Notice, P, Card } from '../../src/components/ui';
 import { AppMap } from '../../src/components/AppMap';
 import { useIsDark, palette } from '../../src/lib/theme';
@@ -9,16 +10,19 @@ import { etaLabel, formatDistance, haversineMeters, roughEtaMs } from '../../src
 import { useTripDraft, Destination } from '../../src/store/trip';
 import { mapsAvailable } from '../../src/lib/mapsAvailability';
 import { OSM_ATTRIBUTION } from '../../src/lib/osmMap';
+import { i18n } from '../../src/i18n';
 
 async function labelFor(lat: number, lng: number): Promise<string> {
+  const fallback = i18n.t('flow.dest.chosen');
   try {
     const [r] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-    if (r) return [r.street && `${r.street}${r.streetNumber ? ' ' + r.streetNumber : ''}`, r.city].filter(Boolean).join(', ') || 'Gekozen punt';
+    if (r) return [r.street && `${r.street}${r.streetNumber ? ' ' + r.streetNumber : ''}`, r.city].filter(Boolean).join(', ') || fallback;
   } catch { /* geen netwerk of geen geocoder */ }
-  return 'Gekozen punt';
+  return fallback;
 }
 
 export default function DestinationPicker() {
+  const { t } = useTranslation();
   const isDark = useIsDark();
   const setDestination = useTripDraft((s) => s.setDestination);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
@@ -37,20 +41,20 @@ export default function DestinationPicker() {
     setBusy(true); setErr(null);
     try {
       const [r] = await Location.geocodeAsync(query);
-      if (!r) setErr('Adres niet gevonden. Probeer straat + plaats, of tik op de kaart.');
+      if (!r) setErr(t('flow.dest.notFound'));
       else await choose(r.latitude, r.longitude, query.trim());
-    } catch { setErr('Zoeken mislukt (geen netwerk?). Tik op de kaart om een punt te kiezen.'); }
+    } catch { setErr(t('flow.dest.searchFail')); }
     finally { setBusy(false); }
   };
   const center = pin ?? me ?? { lat: 52.37, lng: 4.9 };
   const showMap = mapsAvailable() && !mapFailed;
   return (
     <Screen>
-      <Field label="Zoek adres" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={search} placeholder="bv. Damstraat 1, Amsterdam" />
-      <Button title="Zoeken" variant="secondary" onPress={search} loading={busy} disabled={!query.trim()} />
+      <Field label={t('flow.dest.searchLabel')} value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={search} placeholder={t('flow.dest.searchPh')} />
+      <Button title={t('flow.dest.search')} variant="secondary" onPress={search} loading={busy} disabled={!query.trim()} />
       {err && <Notice kind="warn">{err}</Notice>}
       {!showMap ? (
-        <Notice kind="info">De kaart kon niet worden geladen. Zoek je bestemming via het adresveld hierboven.</Notice>
+        <Notice kind="info">{t('flow.dest.noMap')}</Notice>
       ) : (
       <View style={{ height: 360, borderRadius: 16, overflow: 'hidden' }}>
         <AppMap
@@ -59,7 +63,7 @@ export default function DestinationPicker() {
           latitudeDelta={0.03}
           dark={isDark}
           userLocation={me}
-          accessibilityLabel="Kaart: tik om bestemming te kiezen"
+          accessibilityLabel={t('flow.dest.mapLabel')}
           onError={() => setMapFailed(true)}
           onPress={(c) => { void choose(c.lat, c.lng); }}
           onMarkerDragEnd={(_id, c) => { void choose(c.lat, c.lng); }}
@@ -71,11 +75,11 @@ export default function DestinationPicker() {
       {pin && (
         <Card>
           <P>{pin.label}</P>
-          {me && <P muted>{formatDistance(haversineMeters(me, pin))} hemelsbreed · {etaLabel(roughEtaMs(me, pin))}</P>}
-          <P muted style={{ fontSize: 13 }}>De lijn is een rechte lijn, geen route. SafeWalk geeft geen advies over welke route veilig is.{Platform.OS !== 'ios' ? ` ${OSM_ATTRIBUTION}` : ''}</P>
+          {me && <P muted>{t('flow.dest.asCrow', { distance: formatDistance(haversineMeters(me, pin)), eta: etaLabel(roughEtaMs(me, pin)) })}</P>}
+          <P muted style={{ fontSize: 13 }}>{t('flow.dest.straight')}{Platform.OS !== 'ios' ? ` ${OSM_ATTRIBUTION}` : ''}</P>
         </Card>
       )}
-      <Button title="Gebruik deze bestemming" disabled={!pin} onPress={() => { setDestination(pin); router.back(); }} />
+      <Button title={t('flow.dest.use')} disabled={!pin} onPress={() => { setDestination(pin); router.back(); }} />
     </Screen>
   );
 }

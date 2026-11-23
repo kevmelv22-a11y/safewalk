@@ -1,8 +1,30 @@
-import { Screen } from '../src/components/ui';
+import { useTranslation } from 'react-i18next';
+import { Screen, Notice, H1, P } from '../src/components/ui';
 import { Markdown } from '../src/components/Markdown';
 import { TERMS_MD } from '../src/content/legal';
 
-/** Gebruiksvoorwaarden (in-app, zelfde tekst als docs/). */
+/** Gebruiksvoorwaarden. Dutch text is the official version; other languages get a reading translation above it. */
 export default function Page() {
-  return <Screen><Markdown source={TERMS_MD} /></Screen>;
+  const { t, i18n } = useTranslation();
+  const dutch = !i18n.language || i18n.language === 'nl';
+  return (
+    <Screen>
+      {!dutch && <Notice kind="info">{t('legal.banner')}</Notice>}
+      {!dutch && (
+        <>
+          <H1>{t('screens.terms')}</H1>
+          <P>{t('legal.termsIntro')}</P>
+          <P>{t('legal.t1')}</P>
+          <P>{t('legal.t2')}</P>
+          <P>{t('legal.t3')}</P>
+          <P>{t('legal.t4')}</P>
+          <P>{t('legal.t5')}</P>
+          <P>{t('legal.t6')}</P>
+          <P>{t('legal.t7')}</P>
+          <P>{t('legal.t8')}</P>
+        </>
+      )}
+      <Markdown source={TERMS_MD} />
+    </Screen>
+  );
 }

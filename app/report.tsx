@@ -4,11 +4,16 @@ import { View } from 'react-native';
 import { useMutation } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import type { Id } from '../convex/_generated/dataModel';
+import { useTranslation } from 'react-i18next';
 import { Screen, H1, P, Button, Field, Notice } from '../src/components/ui';
 import { errorNl } from '../src/lib/convex';
+import { useLocale } from '../src/i18n/provider';
+import { showsDutchHelplines } from '../src/i18n/emergency';
 
 const REASONS = [['stalking', 'Stalking / ongewenst volgen'], ['harassment', 'Intimidatie of bedreiging'], ['spam', 'Spam'], ['other', 'Iets anders']] as const;
 export default function Report() {
+  const { t } = useTranslation();
+  const { emergencyDigits, region } = useLocale();
   const { userId, name } = useLocalSearchParams<{ userId: string; name?: string }>();
   const report = useMutation(api.contacts.report); const block = useMutation(api.contacts.block);
   const [reason, setReason] = useState<(typeof REASONS)[number][0]>('stalking');
@@ -25,7 +30,9 @@ export default function Report() {
   return (
     <Screen>
       <H1>Misbruik melden{name ? `: ${name}` : ''}</H1>
-      <Notice kind="warn">Voel je je bedreigd of in gevaar? Bel 112. Voor aangifte: politie 0900-8844.</Notice>
+      <Notice kind="warn">{showsDutchHelplines(region)
+        ? `Voel je je bedreigd of in gevaar? Bel ${emergencyDigits}. Voor aangifte: politie 0900-8844.`
+        : t('common.disclaimer', { number: emergencyDigits })}</Notice>
       <P>Reden</P>
       <View style={{ gap: 8 }}>{REASONS.map(([k, l]) => <Button key={k} title={l} variant={reason === k ? 'primary' : 'secondary'} onPress={() => setReason(k)} />)}</View>
       <Field label="Toelichting (optioneel, max. 2000 tekens)" value={details} onChangeText={(t) => setDetails(t.slice(0, 2000))} multiline />

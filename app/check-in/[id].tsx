@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { Button, H1, Notice, P, Screen } from '../../src/components/ui';
@@ -29,6 +30,7 @@ function LiveStatus({ id }: { id: Id<'homeCheckIns'> }) {
   const extend = useMutation(api.homeCheckIn.extend);
   const cancel = useMutation(api.homeCheckIn.cancel);
   const now = useNow(1000);
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const run = async (fn: () => Promise<unknown>) => {
@@ -37,10 +39,10 @@ function LiveStatus({ id }: { id: Id<'homeCheckIns'> }) {
   };
   return (
     <CheckInAdultGate>
-      {data === undefined ? <Screen><P muted>Laden…</P></Screen> : data === null ? (
+      {data === undefined ? <Screen><P muted>{t('flow.home.loading')}</P></Screen> : data === null ? (
         <Screen>
-          <Notice kind="info">Deze thuis-check-in bestaat niet of is niet van jou.</Notice>
-          <Button title="Naar het overzicht" variant="secondary" onPress={() => router.replace('/check-in')} />
+          <Notice kind="info">{t('flow.home.empty')}</Notice>
+          <Button title={t('flow.home.allList')} variant="secondary" onPress={() => router.replace('/check-in')} />
         </Screen>
       ) : (
         <HomeCheckInStatusView
@@ -58,10 +60,11 @@ function LiveStatus({ id }: { id: Id<'homeCheckIns'> }) {
 }
 
 export default function CheckInDetail() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ id: string; staat?: string }>();
   if (screenshotMode && params.id === 'voorbeeld') return <PreviewStatus />;
   return (
-    <HomeCheckInBoundary fallback={<Screen><H1>Thuis-check-in</H1><Notice kind="warn">De thuis-check-in staat op deze server nog niet aan.</Notice></Screen>}>
+    <HomeCheckInBoundary fallback={<Screen><H1>{t('checkin.title')}</H1><Notice kind="warn">{t('flow.home.serverOff')}</Notice></Screen>}>
       <LiveStatus id={params.id as Id<'homeCheckIns'>} />
     </HomeCheckInBoundary>
   );

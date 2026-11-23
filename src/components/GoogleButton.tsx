@@ -6,6 +6,7 @@ import { openAuthSessionAsync } from 'expo-web-browser';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { useQuery } from 'convex/react';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../convex/_generated/api';
 import { useTheme } from '../lib/theme';
 import { Notice } from './ui';
@@ -21,6 +22,7 @@ const GoogleG = () => (
 
 /** Renders Google CTA only when server reports google=true. Otherwise null (AuthCapabilityNotice covers copy). */
 export function GoogleButton() {
+  const { t } = useTranslation();
   const { signIn } = useAuthActions();
   const providers = useQuery(api.auth.providers);
   const { isDark: dark } = useTheme();
@@ -41,18 +43,18 @@ export function GoogleButton() {
         await signIn('google', { code });
         router.replace('/');
       }
-    } catch { setMsg('Inloggen met Google is mislukt. Probeer het opnieuw.'); }
+    } catch { setMsg(t('flow.auth.googleFail')); }
     finally { setBusy(false); }
   };
 
   return (
     <View style={{ gap: 8 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Doorgaan met Google" accessibilityState={{ busy }} disabled={busy} onPress={press}
+      <Pressable accessibilityRole="button" accessibilityLabel={t('flow.auth.google')} accessibilityState={{ busy }} disabled={busy} onPress={press}
         style={({ pressed }) => ({ minHeight: 54, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
           backgroundColor: dark ? '#131314' : '#FFFFFF', borderColor: dark ? '#8E918F' : '#747775', opacity: pressed || busy ? 0.75 : 1, paddingHorizontal: 16 })}>
         <GoogleG />
         <Text style={{ color: dark ? '#E3E3E3' : '#1F1F1F', fontSize: 16, fontWeight: '500', fontFamily: Platform.select({ android: 'sans-serif-medium', default: undefined }) }}>
-          {busy ? 'Bezig…' : 'Doorgaan met Google'}
+          {busy ? t('common.busy') : t('flow.auth.google')}
         </Text>
       </Pressable>
       {msg && <Notice kind="info">{msg}</Notice>}

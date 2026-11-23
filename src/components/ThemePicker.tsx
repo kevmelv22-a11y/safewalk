@@ -1,25 +1,38 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../lib/theme';
 import { listThemeSkins, ThemeSkinId } from '../lib/themeCatalog';
 import { useThemePref, ThemePref } from '../store/theme';
 
+const SKIN_KEYS: Record<ThemeSkinId, { name: string; desc: string }> = {
+  classic: { name: 'themes.classic', desc: 'themes.classicDesc' },
+  galaxy: { name: 'themes.galaxy', desc: 'themes.galaxyDesc' },
+  halloween: { name: 'themes.halloween', desc: 'themes.halloweenDesc' },
+  kerst: { name: 'themes.kerst', desc: 'themes.kerstDesc' },
+  sinterklaas: { name: 'themes.sinterklaas', desc: 'themes.sinterklaasDesc' },
+  noorderlicht: { name: 'themes.aurora', desc: 'themes.auroraDesc' },
+  oceaan: { name: 'themes.ocean', desc: 'themes.oceanDesc' },
+  zonsondergang: { name: 'themes.sunset', desc: 'themes.sunsetDesc' },
+};
+
 /** Light/dark/system + named skin cards with preview swatches. Persists via zustand/AsyncStorage. */
 export function ThemePicker() {
   const t = useTheme();
+  const { t: tr } = useTranslation();
   const { pref, setPref, skin, setSkin } = useThemePref();
   const skins = listThemeSkins();
 
   return (
     <View style={{ gap: 14 }} testID="theme-picker">
-      <Text style={[styles.section, { color: t.text }]}>Weergave</Text>
+      <Text style={[styles.section, { color: t.text }]}>{tr('themes.appearance')}</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        {([['system', 'Systeem'], ['dark', 'Donker'], ['light', 'Licht']] as [ThemePref, string][]).map(([k, l]) => (
+        {([['system', tr('themes.system')], ['dark', tr('themes.dark')], ['light', tr('themes.light')]] as [ThemePref, string][]).map(([k, l]) => (
           <Pressable
             key={k}
             accessibilityRole="button"
             accessibilityState={{ selected: pref === k }}
-            accessibilityLabel={`Weergave ${l}`}
+            accessibilityLabel={`${tr('themes.appearance')} ${l}`}
             onPress={() => setPref(k)}
             style={({ pressed }) => [
               styles.toneBtn,
@@ -36,21 +49,23 @@ export function ThemePicker() {
         ))}
       </View>
 
-      <Text style={[styles.section, { color: t.text }]}>Thema</Text>
-      <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20 }}>
-        Kies een sfeer. Galaxy en feestdagen zijn immersief donker (zoals SnapShot X). Klassiek volgt licht/donker. Veiligheidsknoppen blijven rood/oranje/groen.
+      <Text style={[styles.section, { color: t.text }]}>{tr('themes.title')}</Text>
+      <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20, textAlign: 'left' }}>
+        {tr('themes.hint')}
       </Text>
       <View style={styles.grid}>
         {skins.map((s) => {
           const selected = skin === s.id;
+          const name = tr(SKIN_KEYS[s.id].name);
+          const desc = tr(SKIN_KEYS[s.id].desc);
           return (
             <Pressable
               key={s.id}
               testID={`theme-skin-${s.id}`}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              accessibilityLabel={`Thema ${s.label}`}
-              accessibilityHint={s.description}
+              accessibilityLabel={`${tr('themes.title')} ${name}`}
+              accessibilityHint={desc}
               onPress={() => setSkin(s.id as ThemeSkinId)}
               style={({ pressed }) => [
                 styles.card,
@@ -67,15 +82,15 @@ export function ThemePicker() {
                   <View key={c} style={[styles.swatch, { backgroundColor: c, borderColor: t.border }]} />
                 ))}
               </View>
-              <Text style={{ color: t.text, fontWeight: '800', fontSize: 15 }}>{s.label}</Text>
-              <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17 }} numberOfLines={2}>{s.description}</Text>
+              <Text style={{ color: t.text, fontWeight: '800', fontSize: 15, textAlign: 'left' }}>{name}</Text>
+              <Text style={{ color: t.muted, fontSize: 12, lineHeight: 17, textAlign: 'left' }} numberOfLines={2}>{desc}</Text>
               {selected && (
                 <Text
                   testID={`theme-skin-${s.id}-active`}
-                  accessibilityLabel={`Thema ${s.label} actief`}
-                  style={{ color: t.accent, fontWeight: '800', fontSize: 12, marginTop: 2 }}
+                  accessibilityLabel={`${name}`}
+                  style={{ color: t.accent, fontWeight: '800', fontSize: 12, marginTop: 2, textAlign: 'left' }}
                 >
-                  Actief · {s.label}
+                  {tr('themes.active', { name })}
                 </Text>
               )}
             </Pressable>

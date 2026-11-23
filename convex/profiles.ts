@@ -20,7 +20,7 @@ export const me = query({ args: {}, handler: async (ctx) => {
 } });
 
 export const update = mutation({
-  args: { displayName: v.optional(v.string()), defaultGraceMinutes: v.optional(v.number()), sosCountdownSeconds: v.optional(v.number()), onboardingDone: v.optional(v.boolean()), motionDetection: v.optional(v.boolean()), themePreference: v.optional(v.union(v.literal('system'), v.literal('dark'), v.literal('light'))) },
+  args: { displayName: v.optional(v.string()), defaultGraceMinutes: v.optional(v.number()), sosCountdownSeconds: v.optional(v.number()), onboardingDone: v.optional(v.boolean()), motionDetection: v.optional(v.boolean()), themePreference: v.optional(v.union(v.literal('system'), v.literal('dark'), v.literal('light'))), uiLanguage: v.optional(v.string()), regionCode: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const uid = await requireUser(ctx);
     const p = await ctx.db.query('profiles').withIndex('by_user', (q) => q.eq('userId', uid)).first();
@@ -33,7 +33,11 @@ export const update = mutation({
       if (!(await isPremium(ctx, uid))) fail('PREMIUM_REQUIRED');
     }
     if (a.defaultGraceMinutes !== undefined && a.defaultGraceMinutes !== 5 && !(await isPremium(ctx, uid))) fail('PREMIUM_REQUIRED');
-    await ctx.db.patch(p!._id, a);
+    if (a.uiLanguage !== undefined && !['nl', 'en', 'de', 'fr', 'es', 'tr', 'ar', 'pl'].includes(a.uiLanguage)) fail('BAD_REQUEST');
+    if (a.regionCode !== undefined && a.regionCode !== '' && !/^[A-Z]{2}$/.test(a.regionCode)) fail('BAD_REQUEST');
+    const patch = { ...a };
+    if (patch.regionCode === '') delete patch.regionCode;
+    await ctx.db.patch(p!._id, patch);
   },
 });
 

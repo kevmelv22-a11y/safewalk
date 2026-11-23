@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../lib/theme';
 import { dash } from './tokens';
 
@@ -33,6 +34,7 @@ export function TripPanel({
   mine, watching, contactCount, countdown, onOpenMine, onStartTrip, onStartShare, onOpenWatch,
 }: Props) {
   const t = useTheme();
+  const { t: tr } = useTranslation();
   const arrival = mine
     ? new Date(mine.expectedArrival).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
     : null;
@@ -46,50 +48,48 @@ export function TripPanel({
           borderColor: mine.status === 'alert' ? 'rgba(239,68,68,0.5)' : t.border,
         }]}>
           <Text style={[styles.kicker, { color: mine.status === 'alert' ? t.red : t.accent }]}>
-            {mine.status === 'alert' ? 'Check-in gemist' : isShare ? 'Jouw locatie delen' : 'Jouw actieve reis'}
+            {mine.status === 'alert' ? tr('trip.missed') : isShare ? tr('trip.yourShare') : tr('trip.yourTrip')}
           </Text>
-          <Text style={[styles.title, { color: t.text }]}>{isShare ? mine.destinationLabel : `Naar ${mine.destinationLabel}`}</Text>
+          <Text style={[styles.title, { color: t.text }]}>{isShare ? mine.destinationLabel : tr('trip.toPlace', { destination: mine.destinationLabel })}</Text>
           <Text style={[styles.meta, { color: t.muted }]}>
             {isShare
-              ? (mine.shareUntilStop ? `Tot jij stopt, uiterlijk ${arrival} · nog ${countdown}` : `Tot ${arrival} · nog ${countdown}`)
-              : `Verwachte aankomst ${arrival} · nog ${countdown}`}
+              ? (mine.shareUntilStop ? tr('trip.untilYouStop', { time: arrival, countdown }) : tr('trip.untilTime', { time: arrival, countdown }))
+              : tr('trip.expected', { time: arrival, countdown })}
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Sessie openen"
+            accessibilityLabel={tr('trip.openSession')}
             onPress={onOpenMine}
             style={({ pressed }) => [styles.cta, { backgroundColor: t.blobA, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
           >
-            <Text style={[styles.ctaText, { color: t.accent }]}>Sessie openen</Text>
+            <Text style={[styles.ctaText, { color: t.accent }]}>{tr('trip.openSession')}</Text>
           </Pressable>
         </View>
       ) : (
         <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]}>
-          <Text style={[styles.kicker, { color: t.muted }]}>Reis</Text>
-          <Text style={[styles.title, { color: t.text }]}>Geen actieve reis</Text>
+          <Text style={[styles.kicker, { color: t.muted }]}>{tr('trip.tripKicker')}</Text>
+          <Text style={[styles.title, { color: t.text }]}>{tr('trip.none')}</Text>
           <Text style={[styles.meta, { color: t.muted }]}>
-            {contactCount === 0
-              ? 'Nog geen vertrouwde contacten? Start dan een reis of timer met alleen een meekijklink, bijvoorbeeld via WhatsApp.'
-              : 'Start een check-inreis zodat contacten je onderweg kunnen volgen.'}
+            {contactCount === 0 ? tr('trip.noneNoContacts') : tr('trip.noneHasContacts')}
           </Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Veilig naar huis – start reis"
+            accessibilityLabel={tr('flow.tripx.startHome')}
             onPress={onStartTrip}
             style={({ pressed }) => [styles.cta, { backgroundColor: t.green, opacity: pressed ? 0.88 : 1, minHeight: dash.touch }]}
           >
             <Text style={[styles.ctaText, { color: '#fff' }]}>
-              Veilig naar huis – start reis
+              {tr('flow.tripx.startHome')}
             </Text>
           </Pressable>
           {!!onStartShare && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Locatie delen tot 24 uur"
+              accessibilityLabel={tr('flow.tripx.share24')}
               onPress={onStartShare}
               style={({ pressed }) => [styles.cta, { backgroundColor: t.blobA, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
             >
-              <Text style={[styles.ctaText, { color: t.accent }]}>Locatie delen (1–24 uur)</Text>
+              <Text style={[styles.ctaText, { color: t.accent }]}>{tr('flow.tripx.share24')}</Text>
             </Pressable>
           )}
         </View>
@@ -97,15 +97,15 @@ export function TripPanel({
 
       {watching.map((s) => (
         <View key={s._id} style={[styles.card, { backgroundColor: t.card, borderColor: t.border }]}>
-          <Text style={[styles.kicker, { color: t.accent }]}>Je volgt</Text>
+          <Text style={[styles.kicker, { color: t.accent }]}>{tr('flow.tripx.watching')}</Text>
           <Text style={[styles.title, { color: t.text }]}>{s.ownerName} → {s.destinationLabel}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Live kaart bekijken"
+            accessibilityLabel={tr('flow.tripx.watchLive')}
             onPress={() => onOpenWatch(s._id)}
             style={({ pressed }) => [styles.cta, { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, opacity: pressed ? 0.85 : 1, minHeight: dash.touch }]}
           >
-            <Text style={[styles.ctaText, { color: t.text }]}>Live kaart bekijken</Text>
+            <Text style={[styles.ctaText, { color: t.text }]}>{tr('flow.tripx.watchLive')}</Text>
           </Pressable>
         </View>
       ))}

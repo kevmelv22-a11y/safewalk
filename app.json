@@ -18,10 +18,17 @@
           "remote-notification",
           "audio"
         ],
+        "CFBundleAllowMixedLocalizations": true,
         "CFBundleDevelopmentRegion": "nl",
         "CFBundleLocalizations": [
           "nl",
-          "en"
+          "en",
+          "de",
+          "fr",
+          "es",
+          "tr",
+          "ar",
+          "pl"
         ]
       },
       "buildNumber": "1",
@@ -58,6 +65,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true,
+          "forcesRTL": false,
+          "supportedLocales": ["nl", "en", "de", "fr", "es", "tr", "ar", "pl"]
+        }
+      ],
       "expo-secure-store",
       [
         "expo-location",

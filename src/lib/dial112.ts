@@ -1,4 +1,5 @@
 import { Alert, Linking, Platform } from 'react-native';
+import { i18n } from '../i18n';
 
 /** Nederlands alarmnummer — alleen via expliciete user-tap, nooit auto. */
 export const EMERGENCY_NUMBER = '112' as const;
@@ -89,16 +90,16 @@ export async function open112Dialer(deps?: Partial<Dial112Deps>): Promise<Dial11
       can = false;
     }
     if (!can) {
-      return { ok: false, reason: 'unsupported', message: COPY.webUnsupported };
+      return { ok: false, reason: 'unsupported', message: dialMessage('webUnsupported', '112') };
     }
     try {
       await openURL(TEL_112);
       return { ok: true, method: 'web_tel' };
     } catch {
-      return { ok: false, reason: 'unsupported', message: COPY.webUnsupported };
+      return { ok: false, reason: 'unsupported', message: dialMessage('webUnsupported', '112') };
     }
   } catch {
-    return { ok: false, reason: 'failed', message: COPY.failed };
+    return { ok: false, reason: 'failed', message: dialMessage('failed', '112') };
   }
 }
 
@@ -107,16 +108,35 @@ export async function open112Dialer(deps?: Partial<Dial112Deps>): Promise<Dial11
  * Opent de telefoon-UI met een nummer vooringevuld. Alleen na een tik van de gebruiker.
  * Voor 112 op Android blijft de native ACTION_DIAL-module de voorkeur (zie open112Dialer).
  */
+function dialMessage(kind: 'failed' | 'webUnsupported' | 'invalid', number: string): string {
+  const lang = i18n.resolvedLanguage || i18n.language;
+  if (!lang || lang === 'nl') {
+    if (kind === 'invalid') return 'Ongeldig telefoonnummer.';
+    return COPY[kind].replaceAll('112', number);
+  }
+  return i18n.t(`dial.${kind}`, { number });
+}
+
+/** Opens the phone UI with a regional emergency number. 112 keeps the Android ACTION_DIAL path. */
+export async function openEmergencyNumber(digits: string, deps?: Partial<Dial112Deps>): Promise<Dial112Result> {
+  if (!/^\d{2,15}$/.test(digits)) {
+    return { ok: false, reason: 'failed', message: dialMessage('invalid', digits) };
+  }
+  if (digits === '112') return open112Dialer(deps);
+  return openTelDialer(`tel:${digits}`, deps);
+}
+
 export async function openTelDialer(telUri: string, deps?: Partial<Dial112Deps>): Promise<Dial112Result> {
-  if (!/^tel:\+?\d{3,15}$/.test(telUri)) {
-    return { ok: false, reason: 'failed', message: 'Ongeldig telefoonnummer.' };
+  if (!/^tel:\+?\d{2,15}$/.test(telUri)) {
+    return { ok: false, reason: 'failed', message: dialMessage('invalid', telUri.replace(/^tel:/, '')) };
   }
   if (telUri === TEL_112) return open112Dialer(deps);
+  const number = telUri.replace(/^tel:/, '');
   const platform = deps?.platform ?? Platform.OS;
   const openURL = deps?.openURL ?? ((url: string) => Linking.openURL(url));
   const canOpenURL = deps?.canOpenURL ?? ((url: string) => Linking.canOpenURL(url));
-  const failed = { ok: false as const, reason: 'failed' as const, message: COPY.failed.replace('112', telUri.slice(4)) };
-  const unsupported = { ok: false as const, reason: 'unsupported' as const, message: COPY.webUnsupported.replaceAll('112', telUri.slice(4)) };
+  const failed = { ok: false as const, reason: 'failed' as const, message: dialMessage('failed', number) };
+  const unsupported = { ok: false as const, reason: 'unsupported' as const, message: dialMessage('webUnsupported', number) };
   try {
     if (platform === 'android' || platform === 'ios') {
       await openURL(telUri);
@@ -137,6 +157,15 @@ export async function onPressOpenTel(telUri: string, title: string, deps?: Parti
   if (!result.ok) {
     const alert = deps?.alert ?? ((t: string, message: string) => Alert.alert(t, message));
     alert(title, result.message);
+  }
+  return result;
+}
+
+export async function onPressOpenEmergency(digits: string, deps?: Partial<Dial112Deps>): Promise<Dial112Result> {
+  const result = await openEmergencyNumber(digits, deps);
+  if (!result.ok) {
+    const alert = deps?.alert ?? ((title: string, message: string) => Alert.alert(title, message));
+    alert(digits, result.message);
   }
   return result;
 }
